@@ -2,12 +2,14 @@
   "name": "tiktok-gift-keys",
   "version": "1.0.0",
   "description": "TikTok Live Gift to Keypress - Similar a TikFinity",
-  "main": "main.js",
+  "main": "dist-backend/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "node server.js",
     "install-robot": "npm install robotjs --build-from-source",
-    "pack": "electron-builder --win"
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "node proteger.js",
+    "pack": "npm run build:frontend && npm run build:backend && electron-builder --win"
   },
   "dependencies": {
     "@jitsi/robotjs": "^0.6.13",
@@ -18,30 +20,27 @@
   },
   "devDependencies": {
     "electron": "^41.2.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "javascript-obfuscator": "^5.4.1"
   },
   "build": {
-      "appId": "com.reveljk.tiktokl4d2",
-      "productName": "TikTok Keyboard Controller",
-      "asar": true,
-      "asarUnpack": [
-        "config.json"
-      ],
-      "directories": {
-        "output": "release"
-      },
-      "files": [
-        "main.js",
-        "server.js",
-        "config.json",
-        "routes/**/*",
-        "services/**/*",
-        "config/**/*",
-        "frontend/dist/**/*",
-        "node_modules/**/*"
-      ],
-      "win": {
-        "target": ["dir"]
-      }
+    "appId": "com.reveljk.tiktokl4d2",
+    "productName": "TikTok Keyboard Controller",
+    "asar": false,
+    "asarUnpack": [
+      "dist-backend/config.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-backend/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        "dir"
+      ]
     }
+  }
 }

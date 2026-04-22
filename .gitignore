@@ -1,13 +1,38 @@
-node_modules
-release
+# ==========================================
+# DEPENDENCIAS (Pesan mucho, no se suben)
+# ==========================================
+node_modules/
+frontend/node_modules/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# ==========================================
+# CARPETAS DE COMPILACIÓN (Se generan solas)
+# ==========================================
+dist-backend/
+frontend/dist/
+release/
+dist/
+build/
+*.asar
+
+# ==========================================
+# CONFIGURACIÓN Y SECRETOS (¡Seguridad!)
+# ==========================================
+config.json
+.env
+settings.json
+
+# ==========================================
+# LOGS Y CACHÉ
+# ==========================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+.eslintcache
+frontend/.vite-temp/
+
+# ==========================================
+# ARCHIVOS DEL SISTEMA OPERATIVO
+# ==========================================
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db

@@ -1,8 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import obfuscatorPlugin from 'vite-plugin-javascript-obfuscator'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    obfuscatorPlugin({
+      include: ['src/**/*.js', 'src/**/*.jsx'],
+      exclude: [/node_modules/],
+      apply: 'build', 
+      debugger: false,
+      options: {
+        compact: true,
+        controlFlowFlattening: true, 
+        deadCodeInjection: true,     
+        stringArray: true,        
+        stringArrayEncoding: ['base64']
+      }
+    })
+  ],
   server: {
     proxy: {
       '/api': {
@@ -14,5 +30,5 @@ export default defineConfig({
         ws: true
       }
     }
-  }
+  },
 })
