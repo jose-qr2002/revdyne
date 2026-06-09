@@ -6,6 +6,7 @@ const path = require('path');
 // Importar módulos
 const { loadConfig } = require('./config/settings');
 const { isRobotAvailable } = require('./services/keyboardQueue');
+const keyboardQueue = require('./services/keyboardQueue');
 const tiktokService = require('./services/tiktokService');
 const apiRoutes = require('./routes/api');
 const ttsRoutes = require('./routes/tts');
@@ -13,6 +14,9 @@ const ttsRoutes = require('./routes/tts');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
+
+// 👇 NUEVO: Le pasamos el megáfono de sockets a la cola de teclado
+keyboardQueue.setSocketIo(io);
 
 // Configuración global
 const config = loadConfig();
@@ -23,6 +27,7 @@ app.use(express.json());
 // app.use(express.static(path.join(__dirname, 'public')));
 
 // Inyectar dependencias en las rutas
+app.use('/api/alerts', require('./routes/alerts')());
 app.use('/api/tts', ttsRoutes(config));
 app.use('/api', apiRoutes(config, io, tiktokService));
 

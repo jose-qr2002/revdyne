@@ -67,6 +67,13 @@ const destFrontend = path.join(carpetaSalida, 'frontend', 'dist');
 fs.mkdirSync(destFrontend, { recursive: true });
 fs.cpSync('frontend/dist', destFrontend, { recursive: true });
 
+// 👇 NUEVO: Copiar la carpeta de sonidos
+const destSounds = path.join(carpetaSalida, 'sounds');
+if (fs.existsSync('sounds')) {
+    fs.mkdirSync(destSounds, { recursive: true });
+    fs.cpSync('sounds', destSounds, { recursive: true });
+}
+
 if (fs.existsSync('config.json')) {
     fs.copyFileSync('config.json', path.join(carpetaSalida, 'config.json'));
 }

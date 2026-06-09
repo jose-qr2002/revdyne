@@ -42,9 +42,9 @@ module.exports = function(config, io, tiktokService) {
   });
 
   router.post('/test-key', (req, res) => {
-    const { key } = req.body;
+    const { key, sound } = req.body; // 🎵 NUEVO: Extraemos el sonido del frontend
     // Usamos la macro para probar
-    executeMacro(key, config.keyDelayMs || 80);
+    executeMacro(key, config.keyDelayMs || 80, sound); // 🎵 NUEVO: Lo inyectamos
     res.json({ ok: true, robotAvailable: isRobotAvailable() });
   });
 

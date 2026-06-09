@@ -79,11 +79,12 @@ function connect(username) {
     // 2. Extraer y ejecutar la macro asignada
     const mapping = configRef.giftMappings[eventId];
     let keyToPress = mapping?.enabled ? mapping.key : null;
+    let soundToPlay = mapping?.enabled ? mapping.sound : null; // 🎵 NUEVO
     let pressed = false;
 
     if (keyToPress) {
       const { executeMacro } = require('./keyboardQueue');
-      executeMacro(keyToPress, configRef.keyDelayMs);
+      executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); // 🎵 NUEVO
       pressed = true;
     }
 
@@ -147,12 +148,13 @@ function connect(username) {
         // 2. Extraer y ejecutar la macro
         const mapping = configRef.giftMappings[eventId];
         let keyToPress = mapping?.enabled ? mapping.key : null;
+        let soundToPlay = mapping?.enabled ? mapping.sound : null; // 🎵 NUEVO
         let pressed = false;
 
         if (keyToPress) {
           const { executeMacro } = require('./keyboardQueue');
           for (let i = 0; i < timesToTrigger; i++) {
-            executeMacro(keyToPress, configRef.keyDelayMs);
+            executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); // 🎵 NUEVO
           }
           pressed = true;
         }
@@ -207,12 +209,13 @@ function connect(username) {
     // 2. Extraer la macro asignada
     const mapping = configRef.giftMappings[eventId];
     let keyToPress = mapping?.enabled ? mapping.key : null;
+    let soundToPlay = mapping?.enabled ? mapping.sound : null; // 🎵 NUEVO
     let pressed = false;
 
     // 3. Ejecutar la macro si tiene una asignada
     if (keyToPress) {
       const { executeMacro } = require('./keyboardQueue');
-      executeMacro(keyToPress, configRef.keyDelayMs);
+      executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); // 🎵 NUEVO
       pressed = true;
     }
 
@@ -309,22 +312,23 @@ function handleGift(data) {
     }
   }
 
+  // 👇 ASEGÚRATE DE QUE DESDE AQUÍ HACIA ABAJO SOLO ESTÉ ESTO 👇
   const mapping = configRef.giftMappings[giftId];
   let keyToPress = configRef.useGlobalKey && configRef.globalKey ? configRef.globalKey : (mapping?.enabled ? mapping.key : null);
   let modToUse = configRef.useGlobalKey && configRef.globalKey ? 'none' : (mapping?.modifier || 'none');
+  let soundToPlay = mapping?.enabled ? mapping.sound : null; // 🎵 Nuestro sonido
 
   let pressed = false;
   if (keyToPress && newCount > 0) {
-    const { executeMacro } = require('./keyboardQueue'); // Importarlo arriba o aquí
+    const { executeMacro } = require('./keyboardQueue'); 
 
-    // Ejecutar la macro completa tantas veces como indique la racha (newCount)
+    // Ejecutar la macro completa tantas veces como indique la racha
     for (let i = 0; i < newCount; i++) {
-      executeMacro(keyToPress, configRef.keyDelayMs);
+      executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); 
     }
     pressed = true;
   }
 
-  // 👇 PON ESTA LÍNEA EXACTAMENTE AQUÍ 👇
   if (newCount <= 0) return; 
 
   // Notificar al frontend

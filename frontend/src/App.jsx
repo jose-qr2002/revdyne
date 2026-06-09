@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TTSControl from './components/TTSControl';
 import { updateTTSConfig, enqueueTTS } from './services/ttsPlayer';
 import Sidebar from './components/Sidebar';
@@ -16,70 +16,90 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('coinsAsc'); 
   const [editingGiftId, setEditingGiftId] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false); // NUEVO ESTADO
-
-  // Arriba junto a tus otros estados
+  const [isConnecting, setIsConnecting] = useState(false);
   const [systemError, setSystemError] = useState(null);
 
-  // NUEVO: Escuchar la respuesta real de TikTok
+  // 🎵 NUEVO 1: Estado para guardar la lista de sonidos mp3/wav disponibles
+  const [availableSounds, setAvailableSounds] = useState([]);
+
+  // 🎵 NUEVO 2: Cargar la lista de sonidos desde tu carpeta al abrir la app
   useEffect(() => {
-    // Si ya logró conectarse, apagamos el "Cargando..."
+    fetch('/api/alerts/list')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setAvailableSounds(data);
+      })
+      .catch(e => console.error("Error cargando sonidos:", e));
+  }, []);
+
+  // Escuchar la respuesta real de TikTok
+  useEffect(() => {
     if (status.connected) {
       setIsConnecting(false);
     } 
-    // Si TikTok nos mandó un error (como "LIVE has ended" o "Usuario no encontrado"), también lo apagamos
     else if (status.message && (status.message.includes('Error') || status.message.includes('Desconectado'))) {
       setIsConnecting(false);
     }
   }, [status]);
 
-  // Dentro de tu useEffect que ya escucha el socket, añade la escucha del error:
   useEffect(() => {
     if (!socket) return;
     
-    // ... tus otras escuchas (giftReceived, ttsComment, etc)
-
     socket.on('systemError', (errorData) => {
       setSystemError(errorData);
-      // Ocultar el error después de 10 segundos
       setTimeout(() => setSystemError(null), 10000); 
     });
-  }, [socket]);
+
+    // 🎵 NUEVO 3: Escuchar cuando llega un regalo para hacer sonar la alerta
+    const handleGiftEvent = (data) => {
+      if (!config || !config.giftMappings) return;
+
+      console.log("🎁 Regalo recibido por socket:", data);
+      
+      // Buscamos el regalo (por si el ID viene como número o como texto)
+      const mappedGift = config.giftMappings[data.giftId] || config.giftMappings[String(data.giftId)];
+
+      // Buscamos si el regalo que acaba de llegar tiene un sonido asignado
+      if (mappedGift && mappedGift.sound) {
+        console.log("🎵 Reproduciendo sonido del regalo:", mappedGift.sound);
+        playAlertSound(mappedGift.sound);
+      }
+    };
+
+    socket.on('gift', handleGiftEvent);
+
+    return () => {
+      socket.off('gift', handleGiftEvent);
+    };
+  }, [socket, config]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
 
-  // NUEVO: Si el usuario escribe en el buscador o cambia el orden, regresamos a la página 1
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, sortBy]);
 
-  // Cargar configuración real desde Node.js al abrir la app
   useEffect(() => {
     apiFetch('/api/config').then(data => {
       if (data) {
         setConfig(data);
-        updateTTSConfig(data.tts || {}); // Le pasamos la config al reproductor
+        updateTTSConfig(data.tts || {}); 
       }
     });
   }, []);
 
-  // Escuchar comentarios del socket y mandarlos a la cola de audio
   useEffect(() => {
     if (ttsEvents.length > 0) {
-      // Tomamos el último comentario que llegó y lo mandamos al reproductor
       enqueueTTS(ttsEvents[0].text); 
     }
   }, [ttsEvents]);
 
-  // 2. NUEVO: Agregar este useEffect para meter el nuevo regalo a la vista
   useEffect(() => {
     if (newGift && config) {
       setConfig(prev => {
-        // Por si acaso ya existe, no hacemos nada
         if (prev.giftMappings[newGift.giftId]) return prev;
 
-        // Si no existe, lo inyectamos a la lista de mapeos
         return {
           ...prev,
           giftMappings: {
@@ -89,6 +109,7 @@ function App() {
               coins: newGift.coins,
               key: '',
               modifier: 'none',
+              sound: '', // 🎵 NUEVO 4: Dejamos el espacio listo para el sonido
               enabled: true,
               icon: newGift.icon
             }
@@ -96,34 +117,45 @@ function App() {
         };
       });
     }
-  }, [newGift]); // Se ejecuta cada vez que llega un regalo nuevo
+  }, [newGift]); 
 
-  // Funciones para interactuar con el backend
+  // NUEVO: Escuchar CADA pulsación de tecla que nos manda el backend
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMacroSound = (soundFilename) => {
+      console.log(`🎵 Haciendo sonar la tecla con: ${soundFilename}`);
+      playAlertSound(soundFilename);
+    };
+
+    socket.on('play-macro-sound', handleMacroSound);
+
+    return () => {
+      socket.off('play-macro-sound', handleMacroSound);
+    };
+  }, [socket]);
+
+  
+
   const handleConnect = async (username) => {
     if (isConnecting) return; 
-    
-    setIsConnecting(true); // 1. Encendemos el botón rojo
+    setIsConnecting(true); 
     const cleanUsername = username.replace('@', '').trim();
 
     try {
       if (status.connected) {
-        // Si estamos apagando el bot, esto es rápido
         await apiFetch('/api/disconnect', 'POST');
         setIsConnecting(false); 
       } else {
-        // Si nos estamos conectando, enviamos la orden...
         await apiFetch('/api/connect', 'POST', { username: cleanUsername });
-        // ❌ ¡AQUÍ NO APAGAMOS EL BOTÓN!
-        // Dejaremos que el servidor trabaje en segundo plano.
       }
     } catch (error) {
       console.error("Error al conectar:", error);
-      setIsConnecting(false); // Solo se apaga si se cae nuestro propio servidor
+      setIsConnecting(false); 
     }
   };
 
   const handleUpdateGift = async (id, updates) => {
-    // Actualizar UI rápido (optimistic update)
     setConfig(prev => ({
       ...prev,
       giftMappings: {
@@ -131,14 +163,12 @@ function App() {
         [id]: { ...prev.giftMappings[id], ...updates }
       }
     }));
-    // Enviar al server
     await apiFetch(`/api/gift/${id}`, 'PUT', updates);
   };
 
   const handleUpdateConfig = async (updates) => {
     setConfig(prev => {
       const newConfig = { ...prev, ...updates };
-      // Si se actualizó el TTS, le avisamos al reproductor
       if (updates.tts) updateTTSConfig(newConfig.tts); 
       return newConfig;
     });
@@ -156,37 +186,38 @@ function App() {
     await apiFetch(`/api/gift/${id}`, 'DELETE');
   };
 
+  // BOTÓN DE PRUEBA ACTUALIZADO
   const handleTestKey = async (id) => {
-    const gift = config.giftMappings[id];
+    const gift = config.giftMappings[id]; 
+    
     if (gift && gift.key) {
-      await apiFetch('/api/test-key', 'POST', { key: gift.key, modifier: gift.modifier });
-    }
-  };
-
-  const playTikTokVoice = async (textToRead) => {
-    try {
-      // Llamamos a la nueva ruta que acabamos de agregar
-      const response = await fetch('/api/tts/tiktok', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: textToRead,
-          voice: config.ttsVoice || 'es_mx_002' 
-        })
+      // Le mandamos la tecla y el sonido al backend. 
+      // El backend la pondrá en la cola, simulará la macro y nos mandará la señal de regreso para que suene.
+      await apiFetch('/api/test-key', 'POST', { 
+        key: gift.key, 
+        modifier: gift.modifier,
+        sound: gift.sound // 🎵 NUEVO: Le pasamos el sonido en la petición
       });
-      
-      const data = await response.json();
-
-      if (data.success && data.audio) {
-        const sound = new Audio(`data:audio/mp3;base64,${data.audio}`);
-        sound.play();
-      }
-    } catch (error) {
-      console.error("No se pudo reproducir el TTS de TikTok:", error);
     }
   };
 
-  // 1. Primero filtramos y ordenamos TODOS los regalos
+  // REPRODUCTOR DE ALERTAS
+  const playAlertSound = (filename) => {
+    if (!filename) return;
+    
+    // Forzamos la ruta completa (Asegúrate de que el puerto sea el tuyo, usualmente 3000)
+    const urlCompleta = `http://localhost:3000/api/alerts/play/${filename}`;
+    console.log("🔊 Intentando reproducir:", urlCompleta);
+    
+    const audio = new Audio(urlCompleta);
+    
+    if (config.tts && config.tts.audioDeviceId && audio.setSinkId) {
+      audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
+    }
+    
+    audio.play().catch(e => console.error("❌ Error reproduciendo alerta:", e));
+  };
+
   const allFilteredGifts = Object.entries(config?.giftMappings || {})
     .filter(([id, data]) => 
       data.name.toLowerCase().includes(searchTerm.toLowerCase()) || id.includes(searchTerm)
@@ -207,16 +238,9 @@ function App() {
       return 0;
     });
 
-  // 2. Calculamos cuántas páginas hay en total
   const totalPages = Math.ceil(allFilteredGifts.length / ITEMS_PER_PAGE);
+  const paginatedGifts = allFilteredGifts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // 3. Extraemos SOLO los 50 regalos de la página actual
-  const paginatedGifts = allFilteredGifts.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE, 
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // POR ESTO:
   if (!config || !config.giftMappings) {
     return (
       <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>
@@ -228,7 +252,6 @@ function App() {
 
   return (
     <>
-      {/* Pasamos el estado del socket al Sidebar */}
       <Sidebar 
         status={status} 
         config={config} 
@@ -261,22 +284,12 @@ function App() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
-                {/* BARRA DE FILTROS */}
                 <div style={{ display: 'flex', gap: '10px', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <input 
-                    type="text" 
-                    className="key-input" 
-                    placeholder="🔍 Buscar por nombre o ID..." 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)}
+                    type="text" className="key-input" placeholder="🔍 Buscar por nombre o ID..." 
+                    value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   />
-                  <select 
-                    className="modifier-select" 
-                    value={sortBy} 
-                    onChange={e => setSortBy(e.target.value)}
-                    style={{ minWidth: '180px' }}
-                  >
+                  <select className="modifier-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ minWidth: '180px' }}>
                     <option value="coinsDesc">💰 Mayor a Menor</option>
                     <option value="coinsAsc">🪙 Menor a Mayor</option>
                     <option value="nameAsc">🔤 A - Z</option>
@@ -285,7 +298,6 @@ function App() {
                   </select>
                 </div>
 
-                {/* LISTA PAGINADA */}
                 <div className="gift-list">
                   {paginatedGifts.map(([id, data]) => (
                     <GiftCard 
@@ -294,34 +306,14 @@ function App() {
                       onOpenConfig={setEditingGiftId}
                     />
                   ))}
-                  {allFilteredGifts.length === 0 && (
-                     <div className="log-empty">No se encontraron regalos con esa búsqueda.</div>
-                  )}
+                  {allFilteredGifts.length === 0 && <div className="log-empty">No se encontraron regalos con esa búsqueda.</div>}
                 </div>
-                {/* CONTROLES DE PAGINACIÓN */}
+
                 {totalPages > 1 && (
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '16px 0', borderTop: '1px solid var(--border)' }}>
-                    <button 
-                      className="btn btn-secondary" 
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(prev => prev - 1)}
-                      style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
-                    >
-                      ◀ Anterior
-                    </button>
-                    
-                    <span style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                      Página {currentPage} de {totalPages}
-                    </span>
-
-                    <button 
-                      className="btn btn-secondary" 
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(prev => prev + 1)}
-                      style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
-                    >
-                      Siguiente ▶
-                    </button>
+                    <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} style={{ opacity: currentPage === 1 ? 0.5 : 1 }}>◀ Anterior</button>
+                    <span style={{ fontSize: '13px', color: 'var(--text2)' }}>Página {currentPage} de {totalPages}</span>
+                    <button className="btn btn-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}>Siguiente ▶</button>
                   </div>
                 )}
               </div>
@@ -331,21 +323,12 @@ function App() {
           {activeTab === 'log' && <EventLog events={events} />}
 
           {activeTab === 'tts' && (
-             <TTSControl 
-               config={config} 
-               onUpdateConfig={handleUpdateConfig} 
-               ttsEvents={ttsEvents} 
-             />
+             <TTSControl config={config} onUpdateConfig={handleUpdateConfig} ttsEvents={ttsEvents} />
           )}
         </div>
-        {/* CONSOLA FLOTANTE DE ERRORES */}
+
         {systemError && (
-          <div style={{
-            position: 'fixed', bottom: '20px', right: '20px', 
-            background: '#ff4d4d', color: 'white', padding: '16px', 
-            borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            zIndex: 9999, maxWidth: '400px', borderLeft: '6px solid #8b0000'
-          }}>
+          <div style={{ position: 'fixed', bottom: '20px', right: '20px', background: '#ff4d4d', color: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 9999, maxWidth: '400px', borderLeft: '6px solid #8b0000' }}>
             <h4 style={{ margin: '0 0 8px 0', display: 'flex', justifyContent: 'space-between' }}>
               ⚠️ Error del Sistema
               <button onClick={() => setSystemError(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>✖</button>
@@ -356,17 +339,17 @@ function App() {
           </div>
         )}
       </main>
-      {/* EL MODAL DE CONFIGURACIÓN */}
+
       {editingGiftId && config.giftMappings?.[editingGiftId] && (
         <GiftConfigModal
           giftId={editingGiftId}
           giftData={config.giftMappings[editingGiftId]}
+          availableSounds={availableSounds} // 🎵 NUEVO 5: Le pasamos los sonidos al Modal
           onClose={() => setEditingGiftId(null)}
           onSave={handleUpdateGift}
         />
       )}
     </>
-    
   );
 }
 

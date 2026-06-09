@@ -2,7 +2,7 @@
   "name": "tiktok-gift-keys",
   "version": "1.0.0",
   "description": "TikTok Live Gift to Keypress - Similar a TikFinity",
-  "main": "dist-backend/main.js",
+  "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "node server.js",
@@ -24,12 +24,12 @@
     "javascript-obfuscator": "^5.4.1"
   },
   "build": {
-    "appId": "com.reveljk.tiktokl4d2",
-    "productName": "TikTok Keyboard Controller",
+    "appId": "com.tu-nombre.tiktokl4d2",
+    "productName": "TikTok L4D2 Controller",
     "asar": false,
-    "asarUnpack": [
-      "dist-backend/config.json"
-    ],
+    "extraMetadata": {
+      "main": "dist-backend/main.js"
+    },
     "directories": {
       "output": "release"
     },
@@ -38,9 +38,7 @@
       "node_modules/**/*"
     ],
     "win": {
-      "target": [
-        "dir"
-      ]
+      "target": ["dir"]
     }
   }
 }

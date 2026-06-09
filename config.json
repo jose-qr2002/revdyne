@@ -1,5 +1,5 @@
 {
-  "username": "revel_jk",
+  "username": "arcya",
   "giftMappings": {
     "5269": {
       "name": "TikTok",
@@ -84,10 +84,11 @@
     "5655": {
       "name": "Rose",
       "coins": 1,
-      "key": "{c}",
+      "key": "{c}{c}",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp",
+      "sound": "Bruh.mp3"
     },
     "5658": {
       "name": "Perfume",
@@ -191,7 +192,8 @@
       "key": "{g}",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp",
+      "sound": "Cash Register.mp3"
     },
     "6089": {
       "name": "Sports Car",
@@ -874,7 +876,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/dac91f95d4135654fe16d09369dd8355.png~tplv-obj.webp"
     },
     "9947": {
-      "name": "Friendship Necklace",
+      "name": "BFF Necklace",
       "coins": 10,
       "key": "",
       "modifier": "none",
@@ -3668,10 +3670,11 @@
     "action_like_1776469230156": {
       "name": "❤️ Meta de 100 Likes",
       "coins": 0,
-      "key": "",
+      "key": "{j}",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://cdn-icons-png.flaticon.com/512/833/833472.png"
+      "icon": "https://cdn-icons-png.flaticon.com/512/833/833472.png",
+      "sound": "Bruh.mp3"
     }
   },
   "globalKey": "",
@@ -3682,7 +3685,7 @@
   "debug": false,
   "tts": {
     "enabled": true,
-    "onlyFanClub": true,
+    "onlyFanClub": false,
     "includeMods": false,
     "sayUsername": false,
     "engine": "tiktok",
@@ -3692,7 +3695,7 @@
     "audioDeviceId": "",
     "maxQueue": 10,
     "maxChars": 150,
-    "tiktokVoice": "en_us_001"
+    "tiktokVoice": "es_mx_002"
   },
   "followKey": "m",
   "followModifier": "none",
