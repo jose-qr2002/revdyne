@@ -22,6 +22,23 @@ function App() {
   // 🎵 NUEVO 1: Estado para guardar la lista de sonidos mp3/wav disponibles
   const [availableSounds, setAvailableSounds] = useState([]);
 
+  // 👇 PEGA LA FUNCIÓN AQUÍ Y CÁMBIALA A "function" 👇
+  function playAlertSound(filename) {
+    if (!filename) return;
+    
+    const urlCompleta = `http://localhost:3000/api/alerts/play/${filename}`;
+    console.log("🔊 Intentando reproducir:", urlCompleta);
+    
+    const audio = new Audio(urlCompleta);
+    
+    // Validamos que config exista antes de buscar el sinkId
+    if (config && config.tts && config.tts.audioDeviceId && audio.setSinkId) {
+      audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
+    }
+    
+    audio.play().catch(e => console.error("❌ Error reproduciendo alerta:", e));
+  }
+
   // 🎵 NUEVO 2: Cargar la lista de sonidos desde tu carpeta al abrir la app
   useEffect(() => {
     fetch('/api/alerts/list')
@@ -201,22 +218,6 @@ function App() {
     }
   };
 
-  // REPRODUCTOR DE ALERTAS
-  const playAlertSound = (filename) => {
-    if (!filename) return;
-    
-    // Forzamos la ruta completa (Asegúrate de que el puerto sea el tuyo, usualmente 3000)
-    const urlCompleta = `http://localhost:3000/api/alerts/play/${filename}`;
-    console.log("🔊 Intentando reproducir:", urlCompleta);
-    
-    const audio = new Audio(urlCompleta);
-    
-    if (config.tts && config.tts.audioDeviceId && audio.setSinkId) {
-      audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
-    }
-    
-    audio.play().catch(e => console.error("❌ Error reproduciendo alerta:", e));
-  };
 
   const allFilteredGifts = Object.entries(config?.giftMappings || {})
     .filter(([id, data]) => 

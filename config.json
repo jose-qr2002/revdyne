@@ -1,5 +1,5 @@
 {
-  "username": "arcya",
+  "username": "srlobitoreal",
   "giftMappings": {
     "5269": {
       "name": "TikTok",
@@ -88,7 +88,7 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp",
-      "sound": "Bruh.mp3"
+      "sound": "Bloop.mp3"
     },
     "5658": {
       "name": "Perfume",
@@ -139,7 +139,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/airplane_icon_gold.png~tplv-obj.webp"
     },
     "5794": {
-      "name": "Coconut",
+      "name": "Coconut Tree",
       "coins": 199,
       "key": "",
       "modifier": "none",
