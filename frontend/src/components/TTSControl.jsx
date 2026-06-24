@@ -8,9 +8,51 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
   const [elevenVoices, setElevenVoices] = useState([]);
   const [audioDevices, setAudioDevices] = useState([]);
 
+  // 🎮 NUEVO: Estado para saber qué botón está "escuchando" tu teclado
+  const [listeningFor, setListeningFor] = useState(null);
+
   const updateTTS = (updates) => {
     onUpdateConfig({ tts: { ...tts, ...updates } });
   };
+
+  useEffect(() => {
+    const handleToggle = () => {
+      console.log("🚨 [REACT] ¡Señal de apagar/encender recibida desde Electron!");
+      console.log("🚨 [REACT] El estado actual de tts.enabled es:", tts.enabled);
+
+      // Invertimos el estado actual
+      updateTTS({ enabled: !tts.enabled });
+
+      console.log("🚨 [REACT] Orden de cambio enviada a la configuración.");
+    };
+    window.addEventListener('tts-action-toggle-bot', handleToggle);
+    return () => window.removeEventListener('tts-action-toggle-bot', handleToggle);
+  }, [tts.enabled]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // Si no hay ningún botón esperando, ignoramos
+      if (!listeningFor) return;
+
+      e.preventDefault(); // Evita que Windows haga cosas raras (como F5 para recargar)
+      let key = e.key;
+
+      // Formateo para que Electron lo entienda perfecto
+      if (key === ' ') key = 'Space';
+      if (key.length === 1) key = key.toUpperCase(); // Convierte 'a' en 'A'
+
+      // Guardamos la tecla en la configuración que estabas escuchando
+      updateTTS({ [listeningFor]: key });
+      
+      // Apagamos el modo escucha
+      setListeningFor(null); 
+    };
+
+    if (listeningFor) {
+      window.addEventListener('keydown', handleGlobalKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [listeningFor, tts]);
 
   // Cargar dispositivos y voces del sistema al iniciar
   useEffect(() => {
@@ -53,13 +95,59 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           </label>
         </div>
 
+        {/* 👇 NUEVO FILTRO DE LECTURA 👇 */}
         <div className="tts-row">
-          <label>Solo fans del club ❤️</label>
-          <label className="switch">
-            <input type="checkbox" checked={tts.onlyFanClub ?? true} onChange={e => updateTTS({ onlyFanClub: e.target.checked })} />
-            <span className="slider"></span>
-          </label>
+          <label>¿A quién leemos? 🕵️</label>
+          <select 
+            className="modifier-select" 
+            style={{ flex: 1, marginLeft: '10px' }} 
+            value={tts.filterMode || 'all'} 
+            onChange={e => updateTTS({ filterMode: e.target.value, onlyFanClub: false })}
+          >
+            <option value="all">🌎 A Todos</option>
+            <option value="followers">❤️ Solo Seguidores y Fans</option>
+            <option value="fans">⭐ Solo Club de Fans</option>
+          </select>
+          
         </div>
+        {/* 👆 FIN DEL NUEVO FILTRO 👆 */}
+
+        {/* 👇 NUEVO BOTÓN DE PÁNICO 👇 */}
+        <div className="tts-section-title" style={{ marginTop: '16px' }}>⌨️ Atajos de Teclado (Globales)</div>
+      
+        <div className="tts-row">
+          <label>⏭️ Omitir actual</label>
+          <button 
+            className="btn"
+            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipCurrent' ? '#ff9800' : 'var(--bg3)' }}
+            onClick={() => setListeningFor('keySkipCurrent')}
+          >
+            {listeningFor === 'keySkipCurrent' ? '⏳ Presiona una tecla...' : (tts.keySkipCurrent || 'F9')}
+          </button>
+        </div>
+
+        <div className="tts-row">
+          <label>🧹 Limpiar cola</label>
+          <button 
+            className="btn"
+            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipAll' ? '#ff9800' : 'var(--bg3)' }}
+            onClick={() => setListeningFor('keySkipAll')}
+          >
+            {listeningFor === 'keySkipAll' ? '⏳ Presiona una tecla...' : (tts.keySkipAll || 'F10')}
+          </button>
+        </div>
+
+        <div className="tts-row">
+          <label>🛑 Apagar Bot</label>
+          <button 
+            className="btn"
+            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keyToggleBot' ? '#ff9800' : 'var(--bg3)' }}
+            onClick={() => setListeningFor('keyToggleBot')}
+          >
+            {listeningFor === 'keyToggleBot' ? '⏳ Presiona una tecla...' : (tts.keyToggleBot || 'F11')}
+          </button>
+        </div>
+        {/* 👆 FIN DEL BOTÓN DE PÁNICO 👆 */}
 
         <div className="tts-section-title" style={{ marginTop: '16px' }}>🎙️ Motor de voz</div>
         
@@ -68,7 +156,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           <select className="modifier-select" style={{ flex: 1 }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
             <option value="browser">Voces del sistema (offline)</option>
             <option value="elevenlabs">ElevenLabs (IA Premium)</option>
-            <option value="tiktok">TikTok (Voces virales)</option> {/* NUEVA OPCIÓN */}
+            <option value="tiktok">TikTok (Voces virales)</option>
           </select>
         </div>
 
@@ -97,7 +185,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             </div>
           </div>
         ) : tts.engine === 'tiktok' ? (
-          /* NUEVO BLOQUE: CONFIGURACIÓN PARA TIKTOK */
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
             <div className="tts-row">
               <label>Voz Viral</label>
@@ -114,7 +201,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             </div>
           </div>
         ) : (
-          /* BLOQUE ORIGINAL DE BROWSER */
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
             <div className="tts-row">
               <label>Voz del sistema</label>

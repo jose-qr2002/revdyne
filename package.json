@@ -12,11 +12,11 @@
     "pack": "npm run build:frontend && npm run build:backend && electron-builder --win"
   },
   "dependencies": {
-    "@jitsi/robotjs": "^0.6.13",
+    "@jitsi/robotjs": "^0.6.22",
     "express": "^4.18.2",
     "node-fetch": "^3.3.2",
     "socket.io": "^4.6.1",
-    "tiktok-live-connector": "^2.1.1-beta1"
+    "tiktok-live-connector": "^2.4.0"
   },
   "devDependencies": {
     "electron": "^41.2.0",

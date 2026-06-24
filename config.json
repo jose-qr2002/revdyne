@@ -1,10 +1,10 @@
 {
-  "username": "srlobitoreal",
+  "username": "chanchomanpo",
   "giftMappings": {
     "5269": {
       "name": "TikTok",
       "coins": 1,
-      "key": "{b}",
+      "key": "",
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/802a21ae29f9fae5abe3693de9f874bd~tplv-obj.webp"
@@ -40,6 +40,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/08af67ab13a8053269bf539fd27f3873.png~tplv-obj.webp"
+    },
+    "5566": {
+      "name": "Mishka Bear",
+      "coins": 100,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/d78ed6496fd57286b42ac033acbee299.png~tplv-obj.webp"
     },
     "5576": {
       "name": "Heart",
@@ -84,11 +92,10 @@
     "5655": {
       "name": "Rose",
       "coins": 1,
-      "key": "{c}{c}",
+      "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp",
-      "sound": "Bloop.mp3"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp"
     },
     "5658": {
       "name": "Perfume",
@@ -107,7 +114,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/0f158a08f7886189cdabf496e8a07c21~tplv-obj.webp"
     },
     "5660": {
-      "name": "Hand Hearts",
+      "name": "Hand Heart",
       "coins": 100,
       "key": "",
       "modifier": "none",
@@ -139,7 +146,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/airplane_icon_gold.png~tplv-obj.webp"
     },
     "5794": {
-      "name": "Coconut Tree",
+      "name": "Coconut",
       "coins": 199,
       "key": "",
       "modifier": "none",
@@ -189,11 +196,10 @@
     "6064": {
       "name": "GG",
       "coins": 1,
-      "key": "{g}",
+      "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp",
-      "sound": "Cash Register.mp3"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/3f02fa9594bd1495ff4e8aa5ae265eef~tplv-obj.webp"
     },
     "6089": {
       "name": "Sports Car",
@@ -210,6 +216,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/9494c8a0bc5c03521ef65368e59cc2b8~tplv-obj.webp"
+    },
+    "6093": {
+      "name": "Football",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/c043cd9e418f13017793ddf6e0c6ee99~tplv-obj.webp"
     },
     "6097": {
       "name": "Little Crown",
@@ -403,14 +417,6 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/46fa70966d8e931497f5289060f9a794~tplv-obj.webp"
     },
-    "6833": {
-      "name": "Castle Fantasy",
-      "coins": 20000,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/8173e9b07875cca37caa5219e4903a40~tplv-obj.webp"
-    },
     "6862": {
       "name": "Cooper Flies Home",
       "coins": 1999,
@@ -460,7 +466,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/dd06007ade737f1001977590b11d3f61~tplv-obj.webp"
     },
     "7123": {
-      "name": "Shiny air balloon",
+      "name": "Shiny Air Balloon",
       "coins": 1000,
       "key": "",
       "modifier": "none",
@@ -659,13 +665,13 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/30063f6bc45aecc575c49ff3dbc33831~tplv-obj.webp"
     },
-    "8469": {
-      "name": "Wolf",
-      "coins": 5500,
+    "8503": {
+      "name": "Falcon",
+      "coins": 10999,
       "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/002d5e13fd6cd18b7574b43dc4fd13ae.png~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/6026505eea9b9bce071dd699253abf6a~tplv-obj.webp"
     },
     "8582": {
       "name": "TikTok Stars",
@@ -698,6 +704,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/26f3fbcda383e6093a19b8e7351a164c~tplv-obj.webp"
+    },
+    "8889": {
+      "name": "Pink Dream",
+      "coins": 2988,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/0de49ea9a79e65307c674596da517792.png~tplv-obj.webp"
     },
     "8912": {
       "name": "Rosa Nebula",
@@ -876,7 +890,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/dac91f95d4135654fe16d09369dd8355.png~tplv-obj.webp"
     },
     "9947": {
-      "name": "BFF Necklace",
+      "name": "Friendship Necklace",
       "coins": 10,
       "key": "",
       "modifier": "none",
@@ -898,6 +912,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/57619959bddbe35d8c684750a1d41d62.png~tplv-obj.webp"
+    },
+    "10165": {
+      "name": "Diamond Flight",
+      "coins": 18000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/ada51a63094568b529b5efd83b182bc4.png~tplv-obj.webp"
     },
     "10168": {
       "name": "Gorilla",
@@ -923,21 +945,13 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/a10aab8940d3d5aee14b14cde033ab2a.png~tplv-obj.webp"
     },
-    "10560": {
-      "name": "Stinging Bee",
-      "coins": 199,
+    "10588": {
+      "name": "Diamond Gun",
+      "coins": 5000,
       "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/c37b8f76d503f5787407a8d7c52f8cb7.png~tplv-obj.webp"
-    },
-    "10573": {
-      "name": "Massage for You",
-      "coins": 199,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/3ebdd3746d91eb06bdd4a04c49c3b04a.png~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/651e705c26b704d03bc9c06d841808f1.png~tplv-obj.webp"
     },
     "10667": {
       "name": "VR Goggles",
@@ -978,6 +992,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/291de897e4a8c3b72c358a9734c5b7d8.png~tplv-obj.webp"
+    },
+    "10716": {
+      "name": "Blow a kiss",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/cdb55940740d5c83879b2934f9a7d08e.png~tplv-obj.webp"
     },
     "11046": {
       "name": "Galaxy",
@@ -1034,6 +1056,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/34201b86430742595e4dcb5b39560b7a.png~tplv-obj.webp"
+    },
+    "11491": {
+      "name": "Giraffe",
+      "coins": 1000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/4e2c021bc1ec2e83448ddc91c6123caf.png~tplv-obj.webp"
     },
     "11526": {
       "name": "Eye See You",
@@ -1179,14 +1209,6 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/ed2cc456ab1a8619c5093eb8cfd3d303.png~tplv-obj.webp"
     },
-    "12335": {
-      "name": "Elephant trunk",
-      "coins": 299,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/9c64c1c15bb2e3ba5f1303c3f9208dac.png~tplv-obj.webp"
-    },
     "12336": {
       "name": "Manifesting",
       "coins": 500,
@@ -1204,7 +1226,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/6a934c90e5533a4145bed7eae66d71bd.png~tplv-obj.webp"
     },
     "12356": {
-      "name": "Team Power",
+      "name": "Club Power",
       "coins": 9,
       "key": "",
       "modifier": "none",
@@ -1420,7 +1442,7 @@
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/8d1281789de0a5dfa69f90ecf0dc1534.png~tplv-obj.webp"
     },
     "13651": {
-      "name": "Popular Vote",
+      "name": "Go Popular",
       "coins": 1,
       "key": "",
       "modifier": "none",
@@ -1891,6 +1913,14 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/7f784d1ec7b26d7d8cfd05faede11d76.png~tplv-obj.webp"
     },
+    "15205": {
+      "name": "Flamingo Floaty",
+      "coins": 999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/66b00f97a576cb9b63d981a079ebefb1.png~tplv-obj.webp"
+    },
     "15231": {
       "name": "Love you so much",
       "coins": 1,
@@ -1978,6 +2008,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/adf6e9bd6219788151edb9fa026a0481.png~tplv-obj.webp"
+    },
+    "16275": {
+      "name": "Suitcase",
+      "coins": 199,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ebb5bcf8d8fe3f8975eeb76b37ddbd77.png~tplv-obj.webp"
     },
     "16348": {
       "name": "Bowtiful Crown",
@@ -2115,6 +2153,14 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/2fa794a99919386b85402d9a0a991b2b.png~tplv-obj.webp"
     },
+    "16694": {
+      "name": "XXXL Flowers",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f1ead695e8281b7387e40d48fc6b1fb0.png~tplv-obj.webp"
+    },
     "16711": {
       "name": "Panda Climb",
       "coins": 199,
@@ -2122,14 +2168,6 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4673a50f307ef9735bb64b2f663b222f.png~tplv-obj.webp"
-    },
-    "16712": {
-      "name": "Furious Fire",
-      "coins": 10,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/e762deec8753ab843a214f6a0706f408.png~tplv-obj.webp"
     },
     "16748": {
       "name": "Vinyl Flip",
@@ -2186,14 +2224,6 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/805e6b8051d50ca6e6c9b74d5fc89045.png~tplv-obj.webp"
-    },
-    "17066": {
-      "name": "Jack the Pirate",
-      "coins": 5000,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/50f130c9d89820d425a923c5397ff045.png~tplv-obj.webp"
     },
     "17069": {
       "name": "Sour Buddy",
@@ -2267,14 +2297,6 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/97c975dcce2483027ececde2b6719761.png~tplv-obj.webp"
     },
-    "17307": {
-      "name": "Leopard",
-      "coins": 15000,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/3d837cfcac70929abc0f45e4dc7cee04.png~tplv-obj.webp"
-    },
     "17357": {
       "name": "Pirate's Treasure",
       "coins": 449,
@@ -2331,13 +2353,21 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/resource/8710c33f4929aa91c7ec7154f5f90268.png~tplv-obj.webp"
     },
-    "17613": {
-      "name": "Glowing Jellyfish",
-      "coins": 1000,
+    "17589": {
+      "name": "Side by Side",
+      "coins": 199,
       "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/96d9226ef1c33784a24d0779ad3029d3.png~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/14b52e1933131d94a2634acf1625559d.png~tplv-obj.webp"
+    },
+    "17667": {
+      "name": "Side by Side",
+      "coins": 199,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/14b52e1933131d94a2634acf1625559d.png~tplv-obj.webp"
     },
     "17677": {
       "name": "Juicy Smile",
@@ -2354,14 +2384,6 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/973267050ccb12c111d8048226ac7218.png~tplv-obj.webp"
-    },
-    "17690": {
-      "name": "Mystic Drink",
-      "coins": 349,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/aa2791b5b47ef26b948ed0ff76f878b5.png~tplv-obj.webp"
     },
     "17762": {
       "name": "Party Bus",
@@ -2683,14 +2705,6 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/07611650030bc00a33787a7a0d91dcec.png~tplv-obj.webp"
     },
-    "18227": {
-      "name": "Santa Cocoa",
-      "coins": 149,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/8d188b6a7cfd7b98f778f18302a8f7f4.png~tplv-obj.webp"
-    },
     "18228": {
       "name": "Gingerbread Man",
       "coins": 349,
@@ -2859,14 +2873,6 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/789d404702b42340359a4b5ea9366dbb.png~tplv-obj.webp"
     },
-    "18652": {
-      "name": "Goldfish Scooping",
-      "coins": 500,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/50ebe44e92843273e0e212d26ce34fef.png~tplv-obj.webp"
-    },
     "18789": {
       "name": "Lucky Pony",
       "coins": 10,
@@ -2930,6 +2936,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b49db707b60b5e71e7fc2335a5d93b22.png~tplv-obj.webp"
+    },
+    "19074": {
+      "name": "LIVE Ranking Headband",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/330ec9fbb2ac4f12465caf4b862d9bcf.png~tplv-obj.webp"
     },
     "19131": {
       "name": "Chocolate",
@@ -3002,6 +3016,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/79801ad5ce9f4a97793be5b06ac6804b.png~tplv-obj.webp"
+    },
+    "19310": {
+      "name": "Smile Latte",
+      "coins": 199,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5ccf72a732f0f4b436052e9b0585dc89.png~tplv-obj.webp"
     },
     "19311": {
       "name": "Love Call",
@@ -3099,6 +3121,14 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0be8fcd307c249a9051dcc4e9dc51507.png~tplv-obj.webp"
     },
+    "48224": {
+      "name": "Fairy Hide",
+      "coins": 149,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/fe9b86bd3afac7fa5dc82b5109a809c4.png~tplv-obj.webp"
+    },
     "48225": {
       "name": "Party Pony",
       "coins": 199,
@@ -3122,6 +3152,14 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/28bf38fda66300cd185fd8e3dc28d716.png~tplv-obj.webp"
+    },
+    "51285": {
+      "name": "Diamond Shield",
+      "coins": 7999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/764470625220ea94a003b56a0348d638.png~tplv-obj.webp"
     },
     "52616": {
       "name": "Party Laser",
@@ -3154,6 +3192,22 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/796b15068f06c947eeead7517e0bd5e4.png~tplv-obj.webp"
+    },
+    "53761": {
+      "name": "Arabian Cheetah",
+      "coins": 15000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/a9b1ebb5262788aa8c5e92bd13392c83.png~tplv-obj.webp"
+    },
+    "54294": {
+      "name": "Lucky Crown",
+      "coins": 14999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b2566977022eacff45fa1c268f4bea91.png~tplv-obj.webp"
     },
     "54539": {
       "name": "Tidecaller Trident",
@@ -3275,13 +3329,13 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/abd6c56f59d4f7e097fd7dcd32995ef6.png~tplv-obj.webp"
     },
-    "56477": {
-      "name": "Andean Poncho",
-      "coins": 5,
+    "56560": {
+      "name": "My First Rose",
+      "coins": 1,
       "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/fee6e9edee652136bb38178db27b66d5.png~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/55163429fc2a3043a3273d2fcd7cd85e.png~tplv-obj.webp"
     },
     "56589": {
       "name": "Magic Genie",
@@ -3531,22 +3585,6 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f5e709a56ba9e238f0a87dfd4510b44f.png~tplv-obj.webp"
     },
-    "57332": {
-      "name": "Easter Bunny",
-      "coins": 199,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b6ff7679670921870a13cb75fd56d23c.png~tplv-obj.webp"
-    },
-    "57335": {
-      "name": "Egg Hunt",
-      "coins": 1999,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/8d5e603bd1df175e1b2a184b0df828ed.png~tplv-obj.webp"
-    },
     "57593": {
       "name": "Hive Escape",
       "coins": 549,
@@ -3586,22 +3624,6 @@
       "modifier": "none",
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/3afb4aeb6abf9335864ce85f364156e2.png~tplv-obj.webp"
-    },
-    "58187": {
-      "name": "Potato Egg",
-      "coins": 10,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/3d458d6e242c431cb8fe6a50f68f874a.png~tplv-obj.webp"
-    },
-    "58197": {
-      "name": "Rabbit in a suit",
-      "coins": 15000,
-      "key": "",
-      "modifier": "none",
-      "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0d842e40f207d7585711b5a9a40095c1.png~tplv-obj.webp"
     },
     "58213": {
       "name": "coldy",
@@ -3643,13 +3665,821 @@
       "enabled": true,
       "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/a7b5c0dd3569b6bea5e4456bd8b38da7.png~tplv-obj.webp"
     },
-    "59422": {
-      "name": "Boxing Gloves",
-      "coins": 1999,
+    "59313": {
+      "name": "Red Lightning",
+      "coins": 1,
       "key": "",
       "modifier": "none",
       "enabled": true,
-      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c710020811484c8ce74627d1b76283e7.png~tplv-obj.webp"
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0053dc95af7a3c7475c7687bc42925f9.png~tplv-obj.webp"
+    },
+    "59314": {
+      "name": "Banana Peel",
+      "coins": 10,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4130324b5b9120ae88989889d16ed9c3.png~tplv-obj.webp"
+    },
+    "59315": {
+      "name": "Traffic Cone",
+      "coins": 20,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f16725cc0a80273348d18c47dfa3b4fb.png~tplv-obj.webp"
+    },
+    "59316": {
+      "name": "Energy Capsule",
+      "coins": 30,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ae6e7024207fb82bab2c9b78405796a2.png~tplv-obj.webp"
+    },
+    "59317": {
+      "name": "Power Chip",
+      "coins": 100,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c9fc0b9b66a506752ec005c2630e1700.png~tplv-obj.webp"
+    },
+    "59318": {
+      "name": "Scroll",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/7e1418f2402a2986f432a96ae27f7c76.png~tplv-obj.webp"
+    },
+    "59319": {
+      "name": "Health Potion",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/2b8d9407362560e13fd7373325cc233b.png~tplv-obj.webp"
+    },
+    "59320": {
+      "name": "Mystery Box",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/072142399e6e37c05107a687b274b91b.png~tplv-obj.webp"
+    },
+    "59321": {
+      "name": "Magic Potion",
+      "coins": 1000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/6c23ae1c6775bddde447dec074cd5940.png~tplv-obj.webp"
+    },
+    "59322": {
+      "name": "Summoning Horn",
+      "coins": 3000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/a976032a9325f2c4ef711fea4ded7cbe.png~tplv-obj.webp"
+    },
+    "59511": {
+      "name": "Blue Lightning",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/6a517f35a26bfbcbeb72075ea41b66e0.png~tplv-obj.webp"
+    },
+    "59512": {
+      "name": "Yellow Lightning",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/2ab44118950b4a18acabcdc55635d91a.png~tplv-obj.webp"
+    },
+    "59589": {
+      "name": "Music Burst",
+      "coins": 999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/695bef7983e7a16e2fe1d130cc1be8bc.png~tplv-obj.webp"
+    },
+    "59710": {
+      "name": "Chrono Rewinder",
+      "coins": 14999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5048798ca9ee16042152157bad492e47.png~tplv-obj.webp"
+    },
+    "59711": {
+      "name": "Light Castle",
+      "coins": 25999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/3c6e2297ca0ddd194653cae1d3baaffa.png~tplv-obj.webp"
+    },
+    "59712": {
+      "name": "King Leonardo",
+      "coins": 42999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/6e89cc0269bbd2190499368a2c0ce250.png~tplv-obj.webp"
+    },
+    "59774": {
+      "name": "DJ Wave",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/fe27af553f82c4370a6a62c636ee4f7b.png~tplv-obj.webp"
+    },
+    "59775": {
+      "name": "Amped Up",
+      "coins": 249,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/50c72a9440674a6ef58c08fc51a56071.png~tplv-obj.webp"
+    },
+    "59881": {
+      "name": "A Shard of Hope",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/34207c50c472435d7d582ef5c1ca8ff2.png~tplv-obj.webp"
+    },
+    "59882": {
+      "name": "Shell of a Warrior",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b56ae46e704d451ca4477042363d7f2c.png~tplv-obj.webp"
+    },
+    "59883": {
+      "name": "Ignition Check",
+      "coins": 1500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f260aeb10751f0ad9092e6c0c52c950e.png~tplv-obj.webp"
+    },
+    "59884": {
+      "name": "Rust Reforged",
+      "coins": 6000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c3a6635093aade8983cbeebd356343ee.png~tplv-obj.webp"
+    },
+    "59885": {
+      "name": "Rust vs World",
+      "coins": 18999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0a295ee8674ff2a9a05ef8e9151bbe75.png~tplv-obj.webp"
+    },
+    "59994": {
+      "name": "Crowd Cheering",
+      "coins": 5000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f8801f079c04aa58e0e732340f393740.png~tplv-obj.webp"
+    },
+    "60073": {
+      "name": "FANDOM Stamp",
+      "coins": 100,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/24cd1ef8bf88891453a1909e42ae5fb2.png~tplv-obj.webp"
+    },
+    "60074": {
+      "name": "FANDOM Fever",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ecb8f62b08087f2740890d18e13342a6.png~tplv-obj.webp"
+    },
+    "60075": {
+      "name": "FANDOM Cheer",
+      "coins": 2500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/e361cafb0a92f7994442b9e72a6379e1.png~tplv-obj.webp"
+    },
+    "60076": {
+      "name": "Ultimate FANDOM",
+      "coins": 8000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/d14912141985070526e227375d4806f5.png~tplv-obj.webp"
+    },
+    "60077": {
+      "name": "FANDOM Fan",
+      "coins": 10,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/cb5bc2512623f0454156429f7088973b.png~tplv-obj.webp"
+    },
+    "60547": {
+      "name": "Punch Cuddle",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/e66fda832bfce34ad2169ccac08dd6e4.png~tplv-obj.webp"
+    },
+    "60548": {
+      "name": "Labor Power",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b7b2b32d19f276cf7dac34e906512a4b.png~tplv-obj.webp"
+    },
+    "60549": {
+      "name": "Craft Dreamer",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/48a2ba41b964c6e8b3bc9320c539498d.png~tplv-obj.webp"
+    },
+    "60550": {
+      "name": "Glorious Chef",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/fbde1e4231b695c9e81d623ab59ca8fb.png~tplv-obj.webp"
+    },
+    "60553": {
+      "name": "Roo Mother",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/21ecb3e59170b2fa5a38d23823cff6ff.png~tplv-obj.webp"
+    },
+    "60554": {
+      "name": "Mom's Bonnet",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/e643a2e1553926564f4c07ef1a3b6a08.png~tplv-obj.webp"
+    },
+    "60555": {
+      "name": "Echo Mom",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f08244625c497c58f33d9fa66e9544b1.png~tplv-obj.webp"
+    },
+    "62487": {
+      "name": "Soccer Holo",
+      "coins": 599,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/a24eb19fa7391552d68fb4201934631a.png~tplv-obj.webp"
+    },
+    "62501": {
+      "name": "Tom Thunderfoot",
+      "coins": 2499,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/d4b6678e07d123b38531cfebc8f2a24f.png~tplv-obj.webp"
+    },
+    "62675": {
+      "name": "Sing Together",
+      "coins": 10,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/df5ff4cb7fd148c81580dbe2b4a6b8b1.png~tplv-obj.webp"
+    },
+    "62816": {
+      "name": "Community Heart",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/8d2a21bead102d4cc1ffade117c9dc46.png~tplv-obj.webp"
+    },
+    "62817": {
+      "name": "Community Style",
+      "coins": 99,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/e6e26cd58803f2afaf896d126ee409fe.png~tplv-obj.webp"
+    },
+    "62818": {
+      "name": "Jollie's Community",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/370a8914a23ae65bbd7000b3f08d2aff.png~tplv-obj.webp"
+    },
+    "62819": {
+      "name": "Community Rally",
+      "coins": 2999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/975476a220c95dd1a8a167565485c210.png~tplv-obj.webp"
+    },
+    "65715": {
+      "name": "Superstriker Sage",
+      "coins": 999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/6761ebccd7cb1d4d26252ab21b93317f.png~tplv-obj.webp"
+    },
+    "101198": {
+      "name": "Frog Conductor",
+      "coins": 149,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/6ccccbdcc6cddece3c4056643cb99c4e.png~tplv-obj.webp"
+    },
+    "101384": {
+      "name": "Fan Cat",
+      "coins": 199,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5ba710c0d42a87fc4086dc6ee553070b.png~tplv-obj.webp"
+    },
+    "101857": {
+      "name": "Storm Blade",
+      "coins": 14999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/42e35e23a5439831c470ed784c470a5c.png~tplv-obj.webp"
+    },
+    "101862": {
+      "name": "Skyforge Citadel",
+      "coins": 25999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b8eebe2344701646d38641f0ed06816a.png~tplv-obj.webp"
+    },
+    "101868": {
+      "name": "Valerian's Oath",
+      "coins": 43999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/8b4c99e8e50c117ce1a79c5f09eb0cca.png~tplv-obj.webp"
+    },
+    "105781": {
+      "name": "Spinning Soccer",
+      "coins": 5,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/74a30ed3492d3e7d317efe7e10c3ba51.png~tplv-obj.webp"
+    },
+    "105795": {
+      "name": "Freestyle",
+      "coins": 1800,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f2e3e6c9dba93abe56ffbd2af60309d3.png~tplv-obj.webp"
+    },
+    "105810": {
+      "name": "Guardian's Pledge",
+      "coins": 4999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/1fc62b695705581a91cc2f7902eba1d2.png~tplv-obj.webp"
+    },
+    "105817": {
+      "name": "Stadium",
+      "coins": 15999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5d4509c515147c6e7f563d54b2dac6ce.png~tplv-obj.webp"
+    },
+    "110506": {
+      "name": "Rock Cats",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4a8097309c114d76bcd615ab54efc8bd.png~tplv-obj.webp"
+    },
+    "110508": {
+      "name": "Retro Melody",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ec7722263eb34a0f54e84eb40e50acfd.png~tplv-obj.webp"
+    },
+    "115510": {
+      "name": "umbrella",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ba0dd88772b3aef05a9089db317553a2.png~tplv-obj.webp"
+    },
+    "115513": {
+      "name": "Rain Doll",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ad91c7acb6b745d37739d326cb2e0c61.png~tplv-obj.webp"
+    },
+    "115516": {
+      "name": "Hydrangea Sea",
+      "coins": 1299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0e821f9f9a67f7299e6939b7823d8ab6.png~tplv-obj.webp"
+    },
+    "115518": {
+      "name": "Dream Ride",
+      "coins": 15000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/bce42fbffa8a0a0ebe0597bc0bf7c1f7.png~tplv-obj.webp"
+    },
+    "115520": {
+      "name": "Stage of ring",
+      "coins": 4999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/fc5601ce67877245f5a322fb7df64bec.png~tplv-obj.webp"
+    },
+    "115543": {
+      "name": "LIVE Ranking Ticket",
+      "coins": 10,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4c307f79c6296df713c00c31e044e161.png~tplv-obj.webp"
+    },
+    "115548": {
+      "name": "LIVE Ranking Party",
+      "coins": 3999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/018a62473f7a3989a19ced0af369a99e.png~tplv-obj.webp"
+    },
+    "115549": {
+      "name": "Red Devil Corgi",
+      "coins": 20000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/28b39c9cbca8643bc31776dfed95ec94.png~tplv-obj.webp"
+    },
+    "118812": {
+      "name": "Divine Fingers",
+      "coins": 6,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/f7928d51f54a1e15b3eda2336e14c7b6.png~tplv-obj.webp"
+    },
+    "118814": {
+      "name": "Poetry Score",
+      "coins": 249,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/d3b6863a4f43cbce53aad602fe8f2470.png~tplv-obj.webp"
+    },
+    "118817": {
+      "name": "Epic Pianist",
+      "coins": 800,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5502bfb46b11ef92c70597eae10b35e3.png~tplv-obj.webp"
+    },
+    "118926": {
+      "name": "Ukulele Player",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/2385dccf1c6ce8b31233186a1072c5ac.png~tplv-obj.webp"
+    },
+    "118928": {
+      "name": "Lost in Your Music",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/cc2fe165b4365bda331c47f0fd212acd.png~tplv-obj.webp"
+    },
+    "118939": {
+      "name": "Electronic Love Song",
+      "coins": 449,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5aa9258af43983e39f90cf300c3e98d4.png~tplv-obj.webp"
+    },
+    "121582": {
+      "name": "Chopin in the Rain",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/991cb8b02429d17007db77e38c1aeaf6.png~tplv-obj.webp"
+    },
+    "121583": {
+      "name": "Cello Romance",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/4756a2a4604d2cb5bb5b0639b259e9b5.png~tplv-obj.webp"
+    },
+    "130787": {
+      "name": "Come On!",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/1bc7335bffaba2703a5ce4caf22afe61.png~tplv-obj.webp"
+    },
+    "131882": {
+      "name": "It's Match Time",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/be170a9d325c02c1d5786301679bf013.png~tplv-obj.webp"
+    },
+    "131887": {
+      "name": "Match Master",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/a98343930fc478c09c754f15a4283cf3.png~tplv-obj.webp"
+    },
+    "131888": {
+      "name": "Matchtacular!",
+      "coins": 1000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0a2967365d87de389bb2ade59518b7c2.png~tplv-obj.webp"
+    },
+    "131894": {
+      "name": "Match Maniac",
+      "coins": 2999,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/c047a4e7e21631260f1d0ae9f820a7c4.png~tplv-obj.webp"
+    },
+    "133359": {
+      "name": "DJ Set",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/3798f7dd8de451efca9f0c357a591177.png~tplv-obj.webp"
+    },
+    "133360": {
+      "name": "Pink Cowboy",
+      "coins": 450,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/9cb5646b4aec619c78e22d42c47ee48d.png~tplv-obj.webp"
+    },
+    "134381": {
+      "name": "Diamond Gun",
+      "coins": 5000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/651e705c26b704d03bc9c06d841808f1.png~tplv-obj.webp"
+    },
+    "134396": {
+      "name": "Zeus",
+      "coins": 34000,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/01793f9afe15f5037a9dc10435c37c85.png~tplv-obj.webp"
+    },
+    "139582": {
+      "name": "Cheering Towel",
+      "coins": 299,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/21d7109b0ee067d1c01662c6c7803d0f.png~tplv-obj.webp"
+    },
+    "139584": {
+      "name": "Drum Pop",
+      "coins": 500,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b446be331b24f136afbdff8eaf5cf9d5.png~tplv-obj.webp"
+    },
+    "139586": {
+      "name": "Celebration Tape",
+      "coins": 2800,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/54ebb513c937a6f68f97273e200fbab1.png~tplv-obj.webp"
+    },
+    "153750": {
+      "name": "Club Cheers",
+      "coins": 1,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ef892165e333be97bd98978ec2593f43.png~tplv-obj.webp"
+    },
+    "153751": {
+      "name": "Club Power",
+      "coins": 9,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/d560ca406897466cf88965fc13098e15.png~tplv-obj.webp"
+    },
+    "153753": {
+      "name": "Club Victory",
+      "coins": 99,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/078faaebda61db576a163aedcd32b980.png~tplv-obj.webp"
+    },
+    "166576": {
+      "name": "Sakura-style DJ",
+      "coins": 600,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/b2b60cbadb2a4ac3b73c1af63c1be972.png~tplv-obj.webp"
+    },
+    "166578": {
+      "name": "Singing Frog",
+      "coins": 249,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/5385a0355ce6eb61e886d7030bce7221.png~tplv-obj.webp"
+    },
+    "166579": {
+      "name": "Rock and Roll",
+      "coins": 449,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/73af504cd0bf8733febcf7fb98249f0f.png~tplv-obj.webp"
+    },
+    "166583": {
+      "name": "Electro Vibes",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/dc9e4fbd4db927e383cae3166bfa1a7e.png~tplv-obj.webp"
+    },
+    "170193": {
+      "name": "Semsemia",
+      "coins": 200,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/964574672ba78aec095a139e955de948.png~tplv-obj.webp"
+    },
+    "170277": {
+      "name": "Baglama",
+      "coins": 200,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/59ce7287377c4a6523eaf0706e5b04f7.png~tplv-obj.webp"
+    },
+    "170498": {
+      "name": "Bloom Brass",
+      "coins": 199,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/fd29f58a9a2e25a01cd296f032caebe2.png~tplv-obj.webp"
+    },
+    "170501": {
+      "name": "Magic Accordion",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/d078c71be3f27bac1cbb9e2c8a5ab945.png~tplv-obj.webp"
+    },
+    "170503": {
+      "name": "Beat Wings",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/9abdd62c5ea93108bf8c8a8aec7a8e70.png~tplv-obj.webp"
+    },
+    "170504": {
+      "name": "Melody Headset",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/0a2a365726e4eddddc7d71c43110c9b4.png~tplv-obj.webp"
+    },
+    "170505": {
+      "name": "Retro Headset",
+      "coins": 349,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/304e6fc712fae569cefe24c48f157c7d.png~tplv-obj.webp"
+    },
+    "170507": {
+      "name": "Bloom Melody",
+      "coins": 99,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/96bde97172e9ad387dac78b7e2bd0354.png~tplv-obj.webp"
+    },
+    "170508": {
+      "name": "Rhythm Bot",
+      "coins": 199,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/ab9626d3236e46633b67883c5aa1b7b9.png~tplv-obj.webp"
+    },
+    "191116": {
+      "name": "Super Dad",
+      "coins": 400,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/051c27a3b0193820ca640c5921d01b9c.png~tplv-obj.webp"
+    },
+    "191117": {
+      "name": "Office Penguin",
+      "coins": 450,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/6ea833f3d87ee4a9f08805204195ba69.png~tplv-obj.webp"
+    },
+    "191123": {
+      "name": "Papa Capybara",
+      "coins": 399,
+      "key": "",
+      "modifier": "none",
+      "enabled": true,
+      "icon": "https://p16-webcast.tiktokcdn.com/img/alisg/webcast-sg/resource/8442dc0eed7795d7515c99a45b5a6f2b.png~tplv-obj.webp"
     },
     "action_follow": {
       "name": "👤 Nuevo Seguidor",
@@ -3695,7 +4525,11 @@
     "audioDeviceId": "",
     "maxQueue": 10,
     "maxChars": 150,
-    "tiktokVoice": "es_mx_002"
+    "tiktokVoice": "es_mx_002",
+    "filterMode": "all",
+    "keyToggleBot": "B",
+    "keySkipAll": "N",
+    "keySkipCurrent": "M"
   },
   "followKey": "m",
   "followModifier": "none",

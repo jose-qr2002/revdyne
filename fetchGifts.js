@@ -1,33 +1,67 @@
-const { WebcastPushConnection } = require('tiktok-live-connector');
 const fs = require('fs');
 const path = require('path');
 
-// 💡 IMPORTANTE: Pon aquí el @usuario de CUALQUIER persona que esté transmitiendo en vivo AHORA MISMO.
-// (Puede ser un streamer famoso al azar, solo necesitamos "entrar" a una sala para pedir el catálogo).
-const username = 'elcriss___'; 
+const TIKTOK_GIFT_API = 'https://webcast.tiktok.com/webcast/gift/list/?aid=1988';
 
-const connection = new WebcastPushConnection(username, { enableExtendedGiftInfo: true });
-
-console.log(`🔄 Conectando a la sala de @${username} para robar... digo, extraer el catálogo...`);
-
-connection.connect().then(async state => {
-    console.log(`✅ Conectado. Descargando la lista global de regalos de TikTok...`);
+async function extraerRegalos() {
+    console.log(`🔄 Poniéndonos el disfraz de hacker y conectando a TikTok...`);
     
     try {
-        // Esta es la función mágica de la librería
-        const gifts = await connection.getAvailableGifts();
-        console.log(`📦 ¡Se descargaron ${gifts.length} regalos! Inyectando en tu config.json...`);
+        // 1. Hacemos la petición con "Disfraz" (Headers de un navegador real)
+        const response = await fetch(TIKTOK_GIFT_API, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error en la red de TikTok: ${response.status}`);
+        }
+
+        // 2. Leemos la respuesta como texto primero por si TikTok nos manda HTML o vacío
+        const textData = await response.text();
+        
+        if (!textData || textData.trim() === '') {
+            console.log('❌ TikTok nos devolvió una página en blanco. Nos detectó el Anti-Bot.');
+            process.exit(1);
+        }
+
+        // 3. Ahora sí lo convertimos a JSON de forma segura
+        const json = JSON.parse(textData);
+        const gifts = json.data?.gifts || [];
+        
+        if (gifts.length === 0) {
+            console.log('❌ El JSON está bien, pero no hay regalos. TikTok movió la bóveda.');
+            process.exit(1);
+        }
+
+        console.log(`📦 ¡BINGO! Burlamos la seguridad y descargamos ${gifts.length} regalos.`);
+        console.log(`💉 Inyectando en tu config.json...`);
 
         const configPath = path.join(__dirname, 'config.json');
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        let config = { giftMappings: {} }; // Por defecto por si el archivo está dañado
+        
+        // 4. Leer config.json de forma segura (para evitar el mismo error localmente)
+        if (fs.existsSync(configPath)) {
+            const configText = fs.readFileSync(configPath, 'utf8');
+            if (configText.trim() !== '') {
+                config = JSON.parse(configText);
+            }
+        }
+
+        if (!config.giftMappings) config.giftMappings = {};
+
+        let nuevos = 0;
 
         gifts.forEach(gift => {
             const giftId = String(gift.id);
-            // Solo lo agregamos si no lo tienes ya configurado
             if (!config.giftMappings[giftId]) {
+                nuevos++;
                 config.giftMappings[giftId] = {
-                    name: gift.name,
-                    coins: gift.diamond_count,
+                    name: gift.name || `Regalo ${giftId}`,
+                    coins: gift.diamond_count || 0,
                     key: '',
                     modifier: 'none',
                     enabled: true,
@@ -37,14 +71,12 @@ connection.connect().then(async state => {
         });
 
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-        console.log('🎉 ¡Éxito! Tu config.json ahora tiene todos los regalos de TikTok.');
-        process.exit();
+        
+        console.log(`🎉 ¡Extracción Perfecta! Se añadieron ${nuevos} regalos nuevos a tu panel.`);
         
     } catch (error) {
-        console.error('❌ Error al extraer (Si dice 403, TikTok bloqueó la petición. Intenta más tarde):', error.message);
-        process.exit(1);
+        console.error('❌ Error fatal al extraer:', error.message);
     }
-}).catch(err => {
-    console.error('❌ Error de conexión inicial:', err.message);
-    process.exit(1);
-});
+}
+
+extraerRegalos();

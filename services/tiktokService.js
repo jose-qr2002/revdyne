@@ -1,4 +1,4 @@
-const { WebcastPushConnection } = require('tiktok-live-connector');
+const { TikTokLiveConnection } = require('tiktok-live-connector');
 const { pressKeyTimes } = require('./keyboardQueue');
 const { saveConfig } = require('../config/settings');
 
@@ -30,9 +30,8 @@ function connect(username) {
   console.log(`\n🔄 Conectando a @${username}...`);
   ioInstance.emit('status', { connected: false, message: `Conectando a @${username}...` });
 
-  tiktokConnection = new WebcastPushConnection(username, {
-    processInitialData: false,
-    enableExtendedGiftInfo: true
+  tiktokConnection = new TikTokLiveConnection(username, {
+    processInitialData: false
   });
 
   tiktokConnection.connect().then(state => {
@@ -51,7 +50,11 @@ function connect(username) {
 
   // NUEVO: Escuchar evento de Compartir (Share)
   tiktokConnection.on('share', (data) => {
-    const username = data.uniqueId || 'alguien';
+    // 👇 Extraemos el nombre con la nueva estructura de la librería
+    const username = (data.user && data.user.displayId) 
+                     || data.uniqueId 
+                     || (data.user && data.user.nickname) 
+                     || 'alguien';
 
     // 🛑 BLOQUEO DE SPAM: Si ya compartió en este stream, lo ignoramos para evitar abusos
     if (sharedUsers.has(username)) return; 
@@ -103,7 +106,15 @@ function connect(username) {
   });
 
   tiktokConnection.on('like', (data) => {
-    const count = data.likeCount;
+    // 1. Extraemos la cantidad de likes (ahora es 'count')
+    const count = data.count || 1;
+
+    // 2. Extraemos el nombre con la nueva estructura
+    const username = (data.user && data.user.displayId) 
+                     || data.uniqueId 
+                     || (data.user && data.user.nickname) 
+                     || 'Comunidad';
+
     // Leemos la lista de metas directamente de tu config.json
     const likeEvents = configRef.likeEvents || [];
 
@@ -148,23 +159,23 @@ function connect(username) {
         // 2. Extraer y ejecutar la macro
         const mapping = configRef.giftMappings[eventId];
         let keyToPress = mapping?.enabled ? mapping.key : null;
-        let soundToPlay = mapping?.enabled ? mapping.sound : null; // 🎵 NUEVO
+        let soundToPlay = mapping?.enabled ? mapping.sound : null; 
         let pressed = false;
 
         if (keyToPress) {
           const { executeMacro } = require('./keyboardQueue');
           for (let i = 0; i < timesToTrigger; i++) {
-            executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); // 🎵 NUEVO
+            executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); 
           }
           pressed = true;
         }
 
-        // 3. Mandar al log
+        // 3. Mandar al log (Usando la nueva variable de usuario)
         ioInstance.emit('giftReceived', {
           giftId: eventId,
           giftName: eventName,
           coins: 0,
-          sender: data.uniqueId || 'Comunidad',
+          sender: username, // 👈 Aquí aplicamos el nombre real
           newCount: timesToTrigger,
           key: keyToPress,
           modifier: 'none',
@@ -177,7 +188,11 @@ function connect(username) {
 
   // NUEVO: Escuchar evento de Nuevo Seguidor
   tiktokConnection.on('follow', (data) => {
-    const username = data.uniqueId || 'alguien';
+    // 👇 Extraemos el nombre con la nueva estructura
+    const username = (data.user && data.user.displayId) 
+                     || data.uniqueId 
+                     || (data.user && data.user.nickname) 
+                     || 'alguien';
 
     // 🛑 BLOQUEO DE SPAM: Si ya nos siguió en este stream, lo ignoramos
     if (followedUsers.has(username)) {
@@ -259,39 +274,53 @@ function disconnect() {
 }
 
 function handleGift(data) {
+  const giftObj = data.gift || {};
   const giftId = String(data.giftId);
-  const giftName = data.giftName || `Gift #${giftId}`;
-  const coins = data.diamondCount || 0;
-  const sender = data.uniqueId || 'alguien';
-
+  const giftName = giftObj.name || `Gift #${giftId}`;
+  const coins = giftObj.diamondCount || 0;
+  
+  const sender = (data.user && data.user.displayId) || data.uniqueId || 'alguien';
   // NUEVO: Capturar la URL de la imagen original de TikTok
   let giftIcon = '';
-  if (data.extendedGiftInfo?.icon?.url_list?.length > 0) {
-    giftIcon = data.extendedGiftInfo.icon.url_list[0];
+  if (giftObj.icon && giftObj.icon.urlList && giftObj.icon.urlList.length > 0) {
+    giftIcon = giftObj.icon.urlList[0];
+  } else if (giftObj.image && giftObj.image.urlList && giftObj.image.urlList.length > 0) {
+    giftIcon = giftObj.image.urlList[0];
   } else if (typeof data.pictureUrl === 'string') {
     giftIcon = data.pictureUrl;
   }
 
+  // 3. Sistema Anti-Spam de Rachas (Combos reparado)
   let newCount = 1;
-  if (data.giftType === 1) {
+  const giftType = giftObj.type || data.giftType || 0; // 👈 Corrección clave: tipo de regalo
+
+  if (giftType === 1) { // 1 significa que es un regalo de combo (ej. Rosas)
     const streakKey = `${sender}_${giftId}`;
-    if (!data.repeatEnd) {
-      const prev = streakTracker[streakKey] || 0;
-      newCount = (data.repeatCount || 1) - prev;
-      streakTracker[streakKey] = data.repeatCount || 1;
-      if (newCount <= 0) return;
+    
+    // Verificamos si es el mensaje final del combo (TikTok envía 1 o true)
+    const isEnd = data.repeatEnd === 1 || data.repeatEnd === true;
+    const currentRepeat = data.repeatCount || 1;
+    const prev = streakTracker[streakKey] || 0;
+
+    // Cuántos regalos NUEVOS llegaron en este milisegundo exacto
+    newCount = currentRepeat - prev; 
+
+    if (!isEnd) {
+      streakTracker[streakKey] = currentRepeat;
     } else {
-      const prev = streakTracker[streakKey] || 0;
-      newCount = (data.repeatCount || 1) - prev;
+      // Es el mensaje final del combo. Borramos la memoria.
       delete streakTracker[streakKey];
-      if (newCount <= 0) newCount = 0;
     }
+
+    // 🛑 FILTRO DE REGALO EXTRA: Si no hay regalos nuevos, abortamos aquí mismo
+    if (newCount <= 0) return; 
   }
 
+  // 4. Ignorar regalos que no cumplan el mínimo de monedas
   if (coins < (configRef.minCoins || 0)) return;
 
+  // 5. Guardar o actualizar en config.json
   if (!configRef.giftMappings[giftId]) {
-    // NUEVO: Guardamos el 'icon' en la configuración
     configRef.giftMappings[giftId] = { 
       name: giftName, 
       coins: coins, 
@@ -305,53 +334,86 @@ function handleGift(data) {
   } else {
     configRef.giftMappings[giftId].name = giftName;
     configRef.giftMappings[giftId].coins = coins;
-    // Actualizar el icono por si antes no lo teníamos
     if (giftIcon && !configRef.giftMappings[giftId].icon) {
       configRef.giftMappings[giftId].icon = giftIcon;
       saveConfig(configRef);
     }
   }
 
-  // 👇 ASEGÚRATE DE QUE DESDE AQUÍ HACIA ABAJO SOLO ESTÉ ESTO 👇
+  // 6. Ejecutar la Macro
   const mapping = configRef.giftMappings[giftId];
   let keyToPress = configRef.useGlobalKey && configRef.globalKey ? configRef.globalKey : (mapping?.enabled ? mapping.key : null);
   let modToUse = configRef.useGlobalKey && configRef.globalKey ? 'none' : (mapping?.modifier || 'none');
-  let soundToPlay = mapping?.enabled ? mapping.sound : null; // 🎵 Nuestro sonido
+  let soundToPlay = mapping?.enabled ? mapping.sound : null; 
 
   let pressed = false;
   if (keyToPress && newCount > 0) {
     const { executeMacro } = require('./keyboardQueue'); 
 
-    // Ejecutar la macro completa tantas veces como indique la racha
+    // Ejecutar la macro tantas veces como regalos nuevos hayan llegado
     for (let i = 0; i < newCount; i++) {
       executeMacro(keyToPress, configRef.keyDelayMs, soundToPlay); 
     }
     pressed = true;
   }
 
-  if (newCount <= 0) return; 
-
   // Notificar al frontend
-  ioInstance.emit('giftReceived', { giftId, giftName, coins, sender, newCount, key: keyToPress, modifier: modToUse, pressed, timestamp: Date.now() });
+  ioInstance.emit('giftReceived', { 
+    giftId, giftName, coins, sender, newCount, key: keyToPress, modifier: modToUse, pressed, timestamp: Date.now() 
+  });
 }
 
 function handleChat(data) {
   const tts = configRef.tts;
   if (!tts || !tts.enabled) return;
+  // 1. Detección exacta 
+  const identity = data.userIdentity || {};
+  
+  // Es seguidor si el booleano es true o si el rol es '1' o '2'
+  const isFollower = identity.isFollowerOfAnchor;
 
-  const isFanClub = data.isSubscriber || data.isFanClub || data.topFan || data.teamMemberLevel > 0;
-  const isMod = data.isModerator;
+  // Es del club de fans si está suscrito o tiene nivel de equipo
+  const isFanClub = identity.isSubscriberOfAnchor || identity.isGiftGiverOfAnchor;
 
-  if (tts.onlyFanClub && !(isFanClub || (tts.includeMods && isMod))) return;
+  // Es moderador
+  const isMod = identity.isModeratorOfAnchor;
 
-  let comment = (data.comment || '').trim();
-  if (!comment) return;
+  // Eres tú mismo (el streamer) para que el bot siempre te lea a ti
+  const isAnchor = identity.isAnchor;
+
+  // 2. Extraer el nombre de usuario
+  const username = (data.user && data.user.displayId) 
+                   || data.uniqueId 
+                   || (data.user && data.user.nickname) 
+                   || 'alguien';
+  console.log("usuarios");
+
+  // 2. Aplicar los filtros de lectura
+  const filterMode = tts.filterMode || 'all';
+
+  if (filterMode === 'followers' && !isFollower && !isFanClub && !isMod && !isAnchor) return;
+  if (filterMode === 'fans' && !isFanClub && !isMod && !isAnchor) return;
+
+  // 4. Procesar el comentario
+  let commentText = data.comment || data.content || '';
+  commentText = commentText.trim();
+
+  if (!commentText) return;
 
   const maxChars = tts.maxChars || 150;
-  if (comment.length > maxChars) comment = comment.slice(0, maxChars) + '...';
+  if (commentText.length > maxChars) commentText = commentText.slice(0, maxChars) + '...';
 
-  const text = tts.sayUsername ? `${data.uniqueId || 'alguien'} dice: ${comment}` : comment;
-  ioInstance.emit('ttsComment', { username: data.uniqueId, comment, text, isFanClub, isMod, timestamp: Date.now() });
+  const textToSay = tts.sayUsername ? `${username} dice: ${commentText}` : commentText;
+
+  // Lo enviamos a React
+  ioInstance.emit('ttsComment', { 
+    username: username, 
+    comment: commentText, 
+    text: textToSay, 
+    isFanClub: isFanClub, 
+    isMod: isMod, 
+    timestamp: Date.now()
+  });
 }
 
 module.exports = { init, connect, disconnect, isConnected: () => isConnected };
