@@ -1,7 +1,10 @@
 {
-  "name": "tiktok-gift-keys",
-  "version": "1.0.0",
+  "name": "revinity",
+  "version": "1.0.0-beta.1",
   "description": "TikTok Live Gift to Keypress - Similar a TikFinity",
+  "author": "JK REVIL",
+  "license": "UNLICENSED",
+  "icon": "build/icon.ico",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -24,8 +27,9 @@
     "javascript-obfuscator": "^5.4.1"
   },
   "build": {
-    "appId": "com.tu-nombre.tiktokl4d2",
-    "productName": "TikTok L4D2 Controller",
+    "appId": "com.jkrevil.revinity",
+    "productName": "REVINITY",
+    "copyright": "Copyright © 2026 JK REVIL",
     "asar": false,
     "extraMetadata": {
       "main": "dist-backend/main.js"
@@ -40,7 +44,8 @@
     "win": {
       "target": [
         "dir"
-      ]
+      ],
+      "icon": "build/icon.ico"
     }
   }
 }
