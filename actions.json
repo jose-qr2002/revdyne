@@ -1,0 +1,23 @@
+{
+  "act_1782486803666": {
+    "name": "PROBANDO 1",
+    "type": "keyboard",
+    "enabled": true,
+    "key": "{r}",
+    "sound": "Bruh.mp3"
+  },
+  "act_1782487760614": {
+    "name": "rositas",
+    "type": "keyboard",
+    "enabled": true,
+    "key": "{t}{t}",
+    "sound": "Cash Register.mp3"
+  },
+  "act_1782523331692": {
+    "name": "PROBANDO 2",
+    "type": "keyboard",
+    "enabled": true,
+    "key": "{a}{a}",
+    "sound": "Censored.mp3"
+  }
+}

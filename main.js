@@ -4,36 +4,53 @@ const fs = require('fs');
 
 require('./server.js'); 
 
-let currentShortcuts = {};
+let watchTimeout = null;
+
+// 🧠 NUEVO: Obligamos a main.js a buscar la configuración en la carpeta correcta de Windows
+const ROOT_DIR = app.getPath('userData');
+const configPath = path.join(ROOT_DIR, 'config.json');
 
 function registerShortcuts(win) {
   globalShortcut.unregisterAll(); // Limpia los viejos por si los cambiaste en la UI
 
-  const configPath = path.join(__dirname, 'config.json');
   let config = {};
   if (fs.existsSync(configPath)) {
-    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch (e) {
+      console.log("⚠️ Error leyendo config en main.js:", e.message);
+      return; 
+    }
   }
 
   const ttsSettings = config.tts || {};
-  const keySkipCurrent = ttsSettings.keySkipCurrent || 'F9';
-  const keySkipAll = ttsSettings.keySkipAll || 'F10';
-  const keyToggleBot = ttsSettings.keyToggleBot || 'F11';
+  const keySkipCurrent = ttsSettings.keySkipCurrent || null;
+  const keySkipAll = ttsSettings.keySkipAll || null;
+  const keyToggleBot = ttsSettings.keyToggleBot || null;
+
+  // Función segura para registrar teclas sin que crashee Electron
+  const safeRegister = (key, actionName, callback) => {
+    if (!key) return;
+    try {
+      globalShortcut.register(key, callback);
+      console.log(`✅ [HOTKEY] Tecla vinculada: ${key} -> ${actionName}`);
+    } catch (e) {
+      console.log(`❌ [HOTKEY ERROR] No se pudo vincular la tecla "${key}". Asegúrate de que es válida.`);
+    }
+  };
 
   // 1. Saltar Comentario Actual
-  globalShortcut.register(keySkipCurrent, () => {
+  safeRegister(keySkipCurrent, 'Omitir Actual', () => {
     if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-skip-current'))");
   });
 
   // 2. Saltar Todos (Limpiar Cola)
-  globalShortcut.register(keySkipAll, () => {
+  safeRegister(keySkipAll, 'Limpiar Cola', () => {
     if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-skip-all'))");
   });
 
   // 3. Apagar / Encender Bot
-  globalShortcut.register(keyToggleBot, () => {
-    console.log(`\n🛑 [ELECTRON] Tecla presionada: ${keyToggleBot} (Apagar/Encender Bot)`);
-    console.log(`🛑 [ELECTRON] Enviando señal a React...`);
+  safeRegister(keyToggleBot, 'Toggle Bot', () => {
     if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-toggle-bot'))");
   });
 }
@@ -50,14 +67,20 @@ function createWindow () {
   });
 
   win.loadURL('http://localhost:3000');
+  win.webContents.openDevTools();
 
   // Registramos las teclas una vez la ventana existe
   registerShortcuts(win);
 
-  // Vigilar si cambias las teclas para actualizarlas en vivo
-  const configPath = path.join(__dirname, 'config.json');
+  // Vigilar cambios en la ruta correcta con "Debounce" (Filtro anti-rebotes)
   if (fs.existsSync(configPath)) {
-    fs.watchFile(configPath, () => { registerShortcuts(win); });
+    fs.watchFile(configPath, { interval: 500 }, () => {
+      // Si hay varios cambios seguidos, solo procesamos el último
+      if (watchTimeout) clearTimeout(watchTimeout);
+      watchTimeout = setTimeout(() => {
+        registerShortcuts(win);
+      }, 500); 
+    });
   }
 }
 

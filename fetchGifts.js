@@ -38,41 +38,41 @@ async function extraerRegalos() {
         }
 
         console.log(`📦 ¡BINGO! Burlamos la seguridad y descargamos ${gifts.length} regalos.`);
-        console.log(`💉 Inyectando en tu config.json...`);
-
-        const configPath = path.join(__dirname, 'config.json');
-        let config = { giftMappings: {} }; // Por defecto por si el archivo está dañado
         
-        // 4. Leer config.json de forma segura (para evitar el mismo error localmente)
-        if (fs.existsSync(configPath)) {
-            const configText = fs.readFileSync(configPath, 'utf8');
-            if (configText.trim() !== '') {
-                config = JSON.parse(configText);
+        // 👇👇👇 CAMBIO CLAVE: Apuntamos al nuevo catálogo limpio en la raíz 👇👇👇
+        console.log(`💉 Inyectando en tu catalog.json...`);
+
+        const ROOT_DIR = process.cwd();
+        const catalogPath = path.join(ROOT_DIR, 'catalog.json');
+        let catalogData = {}; 
+        
+        // 4. Leer catalog.json de forma segura si ya existe
+        if (fs.existsSync(catalogPath)) {
+            const catalogText = fs.readFileSync(catalogPath, 'utf8');
+            if (catalogText.trim() !== '') {
+                catalogData = JSON.parse(catalogText);
             }
         }
-
-        if (!config.giftMappings) config.giftMappings = {};
 
         let nuevos = 0;
 
         gifts.forEach(gift => {
             const giftId = String(gift.id);
-            if (!config.giftMappings[giftId]) {
+            if (!catalogData[giftId]) {
                 nuevos++;
-                config.giftMappings[giftId] = {
+                // Guardamos únicamente la data informativa del regalo, sin configuraciones
+                catalogData[giftId] = {
                     name: gift.name || `Regalo ${giftId}`,
                     coins: gift.diamond_count || 0,
-                    key: '',
-                    modifier: 'none',
-                    enabled: true,
                     icon: gift.image?.url_list?.[0] || gift.icon?.url_list?.[0] || ''
                 };
             }
         });
 
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        // 5. Guardamos directamente en catalog.json
+        fs.writeFileSync(catalogPath, JSON.stringify(catalogData, null, 2));
         
-        console.log(`🎉 ¡Extracción Perfecta! Se añadieron ${nuevos} regalos nuevos a tu panel.`);
+        console.log(`🎉 ¡Extracción Perfecta! Tu catalog.json tiene ${Object.keys(catalogData).length} regalos mapeados (${nuevos} nuevos).`);
         
     } catch (error) {
         console.error('❌ Error fatal al extraer:', error.message);

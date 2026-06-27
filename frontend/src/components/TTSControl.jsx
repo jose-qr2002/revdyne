@@ -1,50 +1,93 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
-import { enqueueTTS } from '../services/ttsPlayer';
+import { enqueueTTS, setPlaybackRate } from '../services/ttsPlayer';
 
 export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
   const tts = config.tts || {};
   const [browserVoices, setBrowserVoices] = useState([]);
   const [elevenVoices, setElevenVoices] = useState([]);
   const [audioDevices, setAudioDevices] = useState([]);
-
-  // 🎮 NUEVO: Estado para saber qué botón está "escuchando" tu teclado
   const [listeningFor, setListeningFor] = useState(null);
+
+  // Estado local para la velocidad visual
+  const [speed, setSpeed] = useState(tts.speed || 1.0);
 
   const updateTTS = (updates) => {
     onUpdateConfig({ tts: { ...tts, ...updates } });
   };
 
+  // Sincronizar la velocidad con el reproductor nativo
+  useEffect(() => {
+    if (tts.speed) {
+      setPlaybackRate(tts.speed);
+    }
+  }, [tts.speed]);
+
   useEffect(() => {
     const handleToggle = () => {
-      console.log("🚨 [REACT] ¡Señal de apagar/encender recibida desde Electron!");
-      console.log("🚨 [REACT] El estado actual de tts.enabled es:", tts.enabled);
-
-      // Invertimos el estado actual
       updateTTS({ enabled: !tts.enabled });
-
-      console.log("🚨 [REACT] Orden de cambio enviada a la configuración.");
     };
     window.addEventListener('tts-action-toggle-bot', handleToggle);
     return () => window.removeEventListener('tts-action-toggle-bot', handleToggle);
-  }, [tts.enabled]);
+  }, [tts]); 
+
+  // 🛡️ BLINDAJE: Solo teclas que Electron soporta (Inglés A-Z, 0-9, F1-F24, Numpad y Especiales)
+  const getElectronKey = (e) => {
+    const code = e.code;
+    const key = e.key;
+
+    if (['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return null;
+
+    if (code.startsWith('Numpad')) {
+      const num = code.replace('Numpad', '');
+      if (!isNaN(num)) return `num${num}`; 
+      const numMap = { 'Add': 'numadd', 'Subtract': 'numsub', 'Multiply': 'nummult', 'Divide': 'numdiv', 'Decimal': 'numdec', 'Enter': 'Enter' };
+      return numMap[num] || key;
+    }
+
+    const specialMap = {
+      ' ': 'Space', 'Tab': 'Tab', 'CapsLock': 'Capslock', 
+      'PageUp': 'PageUp', 'PageDown': 'PageDown', 
+      'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
+      'Escape': 'Esc', 'Enter': 'Enter', 'Backspace': 'Backspace', 
+      'Delete': 'Delete', 'Insert': 'Insert', 'Home': 'Home', 'End': 'End',
+      '+': 'Plus', '-': 'Minus'
+    };
+
+    if (specialMap[key]) return specialMap[key];
+
+    // Expresión regular: Solo letras inglesas, números y F1 al F24. Rechaza ñ, ç, º, etc.
+    if (/^[a-zA-Z0-9]$/.test(key)) return key.toUpperCase();
+    if (/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) return key;
+
+    return null; // Si presionas una tecla no soportada, no hace nada
+  };
+
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (listeningFor) setListeningFor(null);
+    };
+
+    if (listeningFor) {
+      setTimeout(() => window.addEventListener('click', handleGlobalClick), 50);
+    }
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, [listeningFor]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      // Si no hay ningún botón esperando, ignoramos
       if (!listeningFor) return;
-
-      e.preventDefault(); // Evita que Windows haga cosas raras (como F5 para recargar)
-      let key = e.key;
-
-      // Formateo para que Electron lo entienda perfecto
-      if (key === ' ') key = 'Space';
-      if (key.length === 1) key = key.toUpperCase(); // Convierte 'a' en 'A'
-
-      // Guardamos la tecla en la configuración que estabas escuchando
-      updateTTS({ [listeningFor]: key });
+      e.preventDefault();
       
-      // Apagamos el modo escucha
+      if (e.repeat) return; 
+
+      const electronKey = getElectronKey(e);
+      if (!electronKey) {
+        console.warn("Esta tecla no está soportada por Electron para atajos globales.");
+        return; // Ignora teclas inválidas
+      }
+
+      updateTTS({ [listeningFor]: electronKey });
       setListeningFor(null); 
     };
 
@@ -52,9 +95,8 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
       window.addEventListener('keydown', handleGlobalKeyDown);
     }
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [listeningFor, tts]);
+  }, [listeningFor, tts]); 
 
-  // Cargar dispositivos y voces del sistema al iniciar
   useEffect(() => {
     const loadDevices = async () => {
       try {
@@ -63,15 +105,12 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
         setAudioDevices(devices.filter(d => d.kind === 'audiooutput'));
       } catch (e) { console.warn("No se pudieron cargar dispositivos de audio"); }
     };
-
     const loadBrowserV = () => setBrowserVoices(window.speechSynthesis.getVoices());
-
     loadDevices();
     loadBrowserV();
     window.speechSynthesis.onvoiceschanged = loadBrowserV;
   }, []);
 
-  // Cargar voces de ElevenLabs
   const fetchElevenVoices = async () => {
     if (!tts.elevenLabsKey) return alert('Ingresa tu API Key de ElevenLabs primero');
     const voices = await apiFetch(`/api/tts/elevenlabs/voices?key=${tts.elevenLabsKey}`);
@@ -83,7 +122,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
 
   return (
     <div className="tts-layout">
-      {/* IZQUIERDA: Ajustes */}
       <div className="tts-settings">
         <div className="tts-section-title">⚙️ Configuración General</div>
 
@@ -95,34 +133,85 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           </label>
         </div>
 
-        {/* 👇 NUEVO FILTRO DE LECTURA 👇 */}
-        <div className="tts-row">
+        <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>¿A quién leemos? 🕵️</label>
           <select 
             className="modifier-select" 
-            style={{ flex: 1, marginLeft: '10px' }} 
+            style={{ width: '100%' }} 
             value={tts.filterMode || 'all'} 
-            onChange={e => updateTTS({ filterMode: e.target.value, onlyFanClub: false })}
+            onChange={e => updateTTS({ filterMode: e.target.value })}
           >
             <option value="all">🌎 A Todos</option>
             <option value="followers">❤️ Solo Seguidores y Fans</option>
             <option value="fans">⭐ Solo Club de Fans</option>
           </select>
-          
         </div>
-        {/* 👆 FIN DEL NUEVO FILTRO 👆 */}
 
-        {/* 👇 NUEVO BOTÓN DE PÁNICO 👇 */}
+        {/* 🌟 NUEVOS INTERRUPTORES DE FILTRO Y LECTURA 🌟 */}
+        <div className="tts-row" style={{ marginTop: '8px' }}>
+          <label>🗣️ Leer el nombre de usuario</label>
+          <label className="switch">
+            <input type="checkbox" checked={tts.sayUsername || false} onChange={e => updateTTS({ sayUsername: e.target.checked })} />
+            <span className="slider"></span>
+          </label>
+        </div>
+
+        <div className="tts-row" style={{ marginTop: '8px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>🛡️ Filtro Anti-Spam (Idiomas)</span>
+            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Bloquea ruso, georgiano, árabe, etc.</span>
+          </label>
+          <label className="switch">
+            <input type="checkbox" checked={tts.onlyLatin || false} onChange={e => updateTTS({ onlyLatin: e.target.checked })} />
+            <span className="slider"></span>
+          </label>
+        </div>
+        {/* 🌟 NUEVO: CONTROL DE VELOCIDAD */}
+        <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+            <label>⚡ Velocidad del Bot</label>
+            <span style={{ color: '#00bcd4', fontWeight: 'bold' }}>{speed}x</span>
+          </div>
+          <input 
+            type="range" min="0.5" max="2.0" step="0.1" 
+            value={speed} 
+            onChange={e => setSpeed(parseFloat(e.target.value))}
+            onMouseUp={() => updateTTS({ speed: speed })} // Guarda en disco al soltar
+            style={{ width: '100%', accentColor: '#00bcd4', cursor: 'pointer' }}
+          />
+        </div>
+
+        {/* 🌟 NUEVO: FILTRO DE PREFIJO EXCLUSIVO */}
+        <div className="tts-row" style={{ marginTop: '8px' }}>
+          <label>🔒 Requerir Prefijo obligatorio</label>
+          <label className="switch">
+            <input type="checkbox" checked={tts.usePrefix || false} onChange={e => updateTTS({ usePrefix: e.target.checked })} />
+            <span className="slider"></span>
+          </label>
+        </div>
+
+        {tts.usePrefix && (
+          <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px', background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
+            <label style={{ fontSize: '12px', color: 'var(--text2)' }}>Texto del Prefijo (Minúsculas)</label>
+            <input 
+              type="text" className="key-input" placeholder="Ej: !bot, /leer, l4d2" 
+              value={tts.prefixText || ''} 
+              onChange={e => updateTTS({ prefixText: e.target.value.toLowerCase() })}
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
+
         <div className="tts-section-title" style={{ marginTop: '16px' }}>⌨️ Atajos de Teclado (Globales)</div>
       
         <div className="tts-row">
           <label>⏭️ Omitir actual</label>
           <button 
             className="btn"
-            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipCurrent' ? '#ff9800' : 'var(--bg3)' }}
-            onClick={() => setListeningFor('keySkipCurrent')}
+            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipCurrent' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
+            onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipCurrent' ? setListeningFor(null) : setListeningFor('keySkipCurrent'); }}
           >
-            {listeningFor === 'keySkipCurrent' ? '⏳ Presiona una tecla...' : (tts.keySkipCurrent || 'F9')}
+            {listeningFor === 'keySkipCurrent' ? '⏳ Presiona una tecla...' : (tts.keySkipCurrent || 'Clic para asignar')}
           </button>
         </div>
 
@@ -130,10 +219,10 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           <label>🧹 Limpiar cola</label>
           <button 
             className="btn"
-            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipAll' ? '#ff9800' : 'var(--bg3)' }}
-            onClick={() => setListeningFor('keySkipAll')}
+            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipAll' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
+            onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipAll' ? setListeningFor(null) : setListeningFor('keySkipAll'); }}
           >
-            {listeningFor === 'keySkipAll' ? '⏳ Presiona una tecla...' : (tts.keySkipAll || 'F10')}
+            {listeningFor === 'keySkipAll' ? '⏳ Presiona una tecla...' : (tts.keySkipAll || 'Clic para asignar')}
           </button>
         </div>
 
@@ -141,44 +230,47 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           <label>🛑 Apagar Bot</label>
           <button 
             className="btn"
-            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keyToggleBot' ? '#ff9800' : 'var(--bg3)' }}
-            onClick={() => setListeningFor('keyToggleBot')}
+            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keyToggleBot' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
+            onClick={(e) => { e.stopPropagation(); listeningFor === 'keyToggleBot' ? setListeningFor(null) : setListeningFor('keyToggleBot'); }}
           >
-            {listeningFor === 'keyToggleBot' ? '⏳ Presiona una tecla...' : (tts.keyToggleBot || 'F11')}
+            {listeningFor === 'keyToggleBot' ? '⏳ Presiona una tecla...' : (tts.keyToggleBot || 'Clic para asignar')}
           </button>
         </div>
-        {/* 👆 FIN DEL BOTÓN DE PÁNICO 👆 */}
 
         <div className="tts-section-title" style={{ marginTop: '16px' }}>🎙️ Motor de voz</div>
         
-        <div className="tts-row">
+        <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>Motor</label>
-          <select className="modifier-select" style={{ flex: 1 }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
+          <select className="modifier-select" style={{ width: '100%' }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
             <option value="browser">Voces del sistema (offline)</option>
             <option value="elevenlabs">ElevenLabs (IA Premium)</option>
             <option value="tiktok">TikTok (Voces virales)</option>
           </select>
         </div>
 
-        <div className="tts-row">
+        <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>Dispositivo de salida 🔊</label>
-          <select className="modifier-select" style={{ flex: 1 }} value={tts.audioDeviceId || ''} onChange={e => updateTTS({ audioDeviceId: e.target.value })}>
+          <select 
+            className="modifier-select" 
+            style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
+            value={tts.audioDeviceId || ''} 
+            onChange={e => updateTTS({ audioDeviceId: e.target.value })}
+          >
             <option value="">Por defecto (Principal)</option>
             {audioDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>)}
           </select>
         </div>
 
-        {/* DEPENDIENDO DEL MOTOR ELEGIDO, MOSTRAMOS UN MENÚ U OTRO */}
         {tts.engine === 'elevenlabs' ? (
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
-            <div className="tts-row">
+            <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>API Key</label>
               <input type="password" className="key-input" placeholder="sk-..." value={tts.elevenLabsKey || ''} onChange={e => updateTTS({ elevenLabsKey: e.target.value })} />
             </div>
             <button className="btn btn-secondary" style={{ width: '100%', margin: '8px 0', fontSize: '12px' }} onClick={fetchElevenVoices}>🔄 Cargar voces ElevenLabs</button>
-            <div className="tts-row">
+            <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz</label>
-              <select className="modifier-select" style={{ flex: 1 }} value={tts.elevenLabsVoiceId || ''} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
+              <select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.elevenLabsVoiceId || ''} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
                 <option value="">{elevenVoices.length ? 'Selecciona una voz' : '— carga primero las voces —'}</option>
                 {elevenVoices.map(v => <option key={v.voice_id} value={v.voice_id}>{v.name}</option>)}
               </select>
@@ -186,9 +278,9 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           </div>
         ) : tts.engine === 'tiktok' ? (
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
-            <div className="tts-row">
+            <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz Viral</label>
-              <select className="modifier-select" style={{ flex: 1 }} value={tts.tiktokVoice || 'es_mx_002'} onChange={e => updateTTS({ tiktokVoice: e.target.value })}>
+              <select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.tiktokVoice || 'es_mx_002'} onChange={e => updateTTS({ tiktokVoice: e.target.value })}>
                 <option value="es_mx_002">🇲🇽 Hombre (Loquendo)</option>
                 <option value="es_female_f6">🇲🇽 Mujer (Graciosa)</option>
                 <option value="es_female_fp1">🇪🇸 Mujer (España)</option>
@@ -202,9 +294,14 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           </div>
         ) : (
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
-            <div className="tts-row">
+            <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz del sistema</label>
-              <select className="modifier-select" style={{ flex: 1 }} value={tts.browserVoiceName || ''} onChange={e => updateTTS({ browserVoiceName: e.target.value })}>
+              <select 
+                className="modifier-select" 
+                style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
+                value={tts.browserVoiceName || ''} 
+                onChange={e => updateTTS({ browserVoiceName: e.target.value })}
+              >
                 {browserVoices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
               </select>
             </div>
@@ -214,7 +311,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
         <button className="btn btn-test" style={{ marginTop: '12px', width: '100%' }} onClick={testAudio}>▶ Probar Audio</button>
       </div>
 
-      {/* DERECHA: Log en vivo */}
       <div className="tts-log-panel">
         <div className="tts-section-title">💬 Comentarios leídos</div>
         <div className="tts-log">

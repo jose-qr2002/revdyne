@@ -67,15 +67,21 @@ const destFrontend = path.join(carpetaSalida, 'frontend', 'dist');
 fs.mkdirSync(destFrontend, { recursive: true });
 fs.cpSync('frontend/dist', destFrontend, { recursive: true });
 
-// 👇 NUEVO: Copiar la carpeta de sonidos
+// Copiar la carpeta de sonidos
 const destSounds = path.join(carpetaSalida, 'sounds');
 if (fs.existsSync('sounds')) {
     fs.mkdirSync(destSounds, { recursive: true });
     fs.cpSync('sounds', destSounds, { recursive: true });
 }
 
-if (fs.existsSync('config.json')) {
-    fs.copyFileSync('config.json', path.join(carpetaSalida, 'config.json'));
-}
+// 👇 NUEVO: Copiar TODOS los archivos de la base de datos del bot
+const basesDeDatos = ['config.json', 'catalog.json', 'actions.json', 'events.json'];
 
-console.log('📦 Frontend y Configuración copiados a dist-backend correctamente.');
+basesDeDatos.forEach(archivo => {
+    if (fs.existsSync(archivo)) {
+        fs.copyFileSync(archivo, path.join(carpetaSalida, archivo));
+        console.log(`📄 Archivo de datos copiado: ${archivo}`);
+    }
+});
+
+console.log('📦 Frontend, Sonidos y Bases de Datos copiados a dist-backend correctamente.');
