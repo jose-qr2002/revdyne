@@ -20,7 +20,6 @@ keyboardQueue.setSocketIo(io);
 
 // Configuración global
 const config = loadConfig();
-console.log("🔍 Config cargada:", JSON.stringify(config, null, 2)); // 👈 ESTO ES CRUCIAL
 
 app.use(express.json());
 
@@ -138,7 +137,8 @@ server.listen(PORT, () => {
   console.log(`║  RobotJS: ${isRobotAvailable() ? '✅ Activo' : '❌ No disponible'}                 ║`);
   console.log('╚══════════════════════════════════════════╝\n');
 
-  if (config.username) {
-    tiktokService.connect(config.username);
-  }
+  // DESCOMENTAR EN CASO QUERER AUTOCONEXION
+  // if (config.username) {
+  //   tiktokService.connect(config.username);
+  // }
 });

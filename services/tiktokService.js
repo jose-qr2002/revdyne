@@ -43,8 +43,14 @@ function executeEventActions(triggerType, conditionValue, times = 1) {
     if (action && action.enabled && action.type === 'keyboard' && action.key) {
       const { executeMacro } = require('./keyboardQueue');
       
+      // ⏱️ Leer el delay personalizado de la acción (o usar 80ms por defecto)
+      const actionDelay = action.delay !== undefined ? action.delay : (configRef.keyDelayMs || 80);
+      
+      // 🌟 NUEVO: Extraer si quiere el sonido en cada tecla
+      const playEveryKey = action.soundEveryKey || false;
+
       for (let i = 0; i < times; i++) {
-        executeMacro(action.key, configRef.keyDelayMs || 80, action.sound);
+        executeMacro(action.key, actionDelay, action.sound, playEveryKey); // Pasamos el 4º parámetro
       }
       
       actionExecuted = true;

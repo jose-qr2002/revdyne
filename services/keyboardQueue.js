@@ -7,11 +7,9 @@ try {
 
 const queue = [];
 let isProcessing = false;
-
-// 🎵 NUEVO: Variable para guardar nuestra conexión con React
 let ioInstance = null;
 
-// Función auxiliar para pausas asíncronas1
+// Función auxiliar para pausas asíncronas
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function processQueue() {
@@ -21,22 +19,27 @@ async function processQueue() {
   while (queue.length > 0) {
     const task = queue.shift();
     
-    // 🎵 NUEVO: Justo antes de presionar la tecla, le decimos a React que suene el audio
+    // Solo emitimos el sonido si la tarea lo trae (ahora solo será en la 1ra tecla de la macro)
     if (task.sound && ioInstance) {
       console.log(`🔊 Emitiendo sonido '${task.sound}' para la tecla: ${task.key}`);
       ioInstance.emit('play-macro-sound', task.sound);
     }
 
     if (robot) {
-      if (task.modifier && task.modifier !== 'none') {
-        robot.keyTap(task.key, task.modifier);
-      } else {
-        robot.keyTap(task.key);
+      try {
+        if (task.modifier && task.modifier !== 'none') {
+          robot.keyTap(task.key, task.modifier);
+        } else {
+          robot.keyTap(task.key);
+        }
+      } catch (err) {
+        console.error(`⚠️ Error en RobotJS al presionar '${task.key}':`, err.message);
       }
     }
     
     console.log(`🎹 ${robot ? 'Presionado' : '[SIMULADO]'}: ${task.modifier !== 'none' ? task.modifier + '+' : ''}${task.key}`);
     
+    // ⏳ AQUÍ SUCEDE LA MAGIA: Espera los milisegundos exactos antes de la siguiente tecla
     await sleep(task.delay);
   }
 
@@ -45,24 +48,29 @@ async function processQueue() {
 
 function pressKeyTimes(key, modifier, times, delay = 80, sound = null) {
   if (!key || times <= 0) return;
-  const safeDelay = Math.max(delay, 30);
+  const safeDelay = Math.max(delay, 30); // Mínimo 30ms para no crashear el juego
 
   for (let i = 0; i < times; i++) {
-    queue.push({ key, modifier, delay: safeDelay, sound }); // 🎵 NUEVO: Guardamos el sonido en la cola
+    // Solo enviamos el sonido en la primera repetición
+    const stepSound = (i === 0) ? sound : null;
+    queue.push({ key, modifier, delay: safeDelay, sound: stepSound }); 
   }
 
   processQueue();
 }
 
-/// 🎵 NUEVO: Agregamos el parámetro "sound" a la función que desarma las macros
-function executeMacro(macroStr, delay = 80, sound = null) {
+// 🌟 NUEVO: Añadimos soundEveryKey como 4º parámetro (por defecto false)
+function executeMacro(macroStr, delay = 80, sound = null, soundEveryKey = false) {
   if (!macroStr) return;
   
   const sequence = [];
   const safeDelay = Math.max(delay, 30);
 
   if (!macroStr.includes('{')) {
-    sequence.push({ key: macroStr.toLowerCase(), modifier: 'none' });
+    const chars = macroStr.split('');
+    chars.forEach(char => {
+      sequence.push({ modifier: 'none', key: char.toLowerCase() });
+    });
   } else {
     const regex = /\{([^}]+)\}/g;
     let match;
@@ -77,9 +85,10 @@ function executeMacro(macroStr, delay = 80, sound = null) {
     }
   }
 
-  sequence.forEach(step => {
-    // 🎵 NUEVO: Metemos el sonido junto con cada tecla individual
-    queue.push({ key: step.key, modifier: step.modifier, delay: safeDelay, sound: sound });
+  sequence.forEach((step, index) => {
+    // 🌟 LA MAGIA AQUÍ: Si soundEveryKey es true, todas suenan. Si es false, solo la primera (index === 0).
+    const stepSound = (soundEveryKey || index === 0) ? sound : null;
+    queue.push({ key: step.key, modifier: step.modifier, delay: safeDelay, sound: stepSound });
   });
 
   processQueue(); 
@@ -95,6 +104,5 @@ module.exports = {
   pressKeyTimes,
   executeMacro,
   isRobotAvailable: () => !!robot,
-  // 🎵 NUEVO: Exportamos una función para conectar el Socket
   setSocketIo: (io) => { ioInstance = io; } 
 };

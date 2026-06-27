@@ -1,191 +1,124 @@
-import React, { useState } from 'react';
-
+import React from 'react';
 
 export default function Sidebar({ status, config, onConnect, onUpdateConfig, isConnecting }) {
-  const [usernameInput, setUsernameInput] = useState(config?.username || '');
   return (
-    <aside className="sidebar">
-      <div className="logo">
-        <span className="logo-icon">🎁</span>
+    <aside className="sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', padding: '20px' }}>
+      
+      {/* 🌟 LOGO Y TÍTULO */}
+      <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+        <span className="logo-icon" style={{ fontSize: '32px' }}>🎁</span>
         <div>
-          <h1>Gift Keys</h1>
-          <p>TikTok Live → Teclado</p>
+          <h1 style={{ margin: 0, fontSize: '22px', color: '#00bcd4', letterSpacing: '1px' }}>Gift Keys</h1>
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text2)' }}>TikTok Live → Teclado</p>
         </div>
       </div>
 
-      {/* STATUS */}
-      <div className={`status-card ${status.connected ? 'connected' : ''}`}>
-        <div className={`status-dot ${status.connected ? 'on' : ''}`}></div>
+      {/* 📡 TARJETA DE ESTADO */}
+      <div 
+        className={`status-card ${status.connected ? 'connected' : ''}`} 
+        style={{
+          background: 'var(--card)', 
+          padding: '16px', 
+          borderRadius: '10px', 
+          border: `1px solid ${status.connected ? '#4caf50' : 'var(--border)'}`,
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '14px',
+          transition: 'all 0.3s ease'
+        }}
+      >
+        <div 
+          className="status-dot" 
+          style={{
+            width: '14px', 
+            height: '14px', 
+            borderRadius: '50%', 
+            background: status.connected ? '#4caf50' : '#ff4d4d',
+            boxShadow: status.connected ? '0 0 10px #4caf50' : 'none',
+            transition: 'background 0.3s ease'
+          }}
+        ></div>
         <div>
-          <div className="status-label">{status.connected ? 'Conectado' : 'Desconectado'}</div>
-          <div className="status-sub">{status.message}</div>
+          <div style={{ fontWeight: 'bold', fontSize: '15px', color: status.connected ? '#4caf50' : 'white' }}>
+            {status.connected ? 'Conectado al Directo' : 'Desconectado'}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>
+            {status.message || 'Esperando conexión...'}
+          </div>
         </div>
       </div>
 
-      {/* CONNECT */}
-      <div className="connect-section">
-        <label>Usuario TikTok</label>
-        <div className="input-row">
-          <span className="at">@</span>
+      {/* 🔌 SECCIÓN DE CONEXIÓN */}
+      <div className="connect-section" style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px' }}>
+        <label style={{ display: 'block', fontSize: '13px', color: 'var(--text2)', marginBottom: '8px', fontWeight: 'bold' }}>
+          Usuario de TikTok
+        </label>
+        
+        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <span style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.05)', color: 'var(--text2)', borderRight: '1px solid var(--border)', fontWeight: 'bold' }}>
+            @
+          </span>
           <input 
-          type="text" 
-          value={config.username || ''} 
-          onChange={(e) => onUpdateConfig({ username: e.target.value })} 
-          placeholder="ej: bloxipanda"
-        />
+            type="text" 
+            value={config.username || ''} 
+            onChange={(e) => onUpdateConfig({ username: e.target.value })} 
+            placeholder="ej: tu_canal"
+            style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', color: 'white', outline: 'none', fontSize: '14px' }}
+            disabled={status.connected || isConnecting} // Se bloquea si ya conectó
+          />
         </div>
+
         <button 
-          className="btn btn-connect" 
+          className="btn" 
           style={{ 
             width: '100%', 
-            padding: '12px', 
-            fontSize: '16px', 
+            padding: '14px', 
+            fontSize: '15px', 
+            fontWeight: 'bold',
             marginTop: '16px',
-            // NUEVO: Si está conectado, el botón se pone rojo
-            backgroundColor: status.connected ? '#e74c3c' : 'var(--primary)',
+            // 🎨 Color rojo si ya está conectado, sino el azul estándar
+            backgroundColor: status.connected ? '#e74c3c' : (isConnecting ? '#f39c12' : '#00bcd4'),
             color: 'white',
-            border: 'none'
+            border: 'none',
+            borderRadius: '8px',
+            cursor: isConnecting ? 'not-allowed' : 'pointer'
           }}
-          onClick={() => onConnect(config.username)}
-          disabled={isConnecting} // CORREGIDO: Ahora SOLO se bloquea mientras dice "Conectando..."
+          onClick={() => {
+            // Si ya está conectado, al hacer clic llamamos a la función de desconexión
+            // Si no lo está, intentamos conectar
+            onConnect(config.username);
+          }}
+          // 🛡️ BLOQUEO INTELIGENTE:
+          // Se bloquea si está en medio de una conexión (isConnecting)
+          // PERO si ya está conectado, SIEMPRE está disponible para que puedas "Detener"
+          disabled={isConnecting && !status.connected} 
         >
           {isConnecting ? '⏳ Conectando...' : (status.connected ? '❌ Desconectar' : '🔌 Conectar')}
         </button>
       </div>
 
-      {/* GLOBAL SETTINGS */}
-      <div className="section-title">⚙️ Configuración</div>
+      {/* 🚀 ESPACIADOR FLEXIBLE: Empuja lo de abajo hacia el final de la pantalla */}
+      <div style={{ flex: 1 }}></div>
 
-      {/* Uso de Tecla Global */}
-      <div className="setting-row">
-        <label>Tecla global (todos los regalos)</label>
-        <div className="toggle-row">
-          <label className="switch">
-            <input 
-              type="checkbox" 
-              checked={config.useGlobalKey || false}
-              onChange={(e) => onUpdateConfig({ useGlobalKey: e.target.checked })}
-            />
-            <span className="slider"></span>
-          </label>
-          <input 
-            type="text" 
-            className="key-input" 
-            placeholder="ej: f13" 
-            value={config.globalKey || ''}
-            onChange={(e) => onUpdateConfig({ globalKey: e.target.value.toLowerCase() })}
-          />
-        </div>
-      </div>
-
-      {/* Delay entre teclas */}
-      <div className="setting-row">
-        <label>Delay entre teclas en racha (ms)</label>
-        <input 
-          type="number" 
-          className="small-input" 
-          value={config.keyDelayMs || 80} 
-          min="30"
-          onChange={(e) => onUpdateConfig({ keyDelayMs: parseInt(e.target.value) || 80 })}
-        />
-      </div>
-
-      {/* Mínimo de monedas */}
-      <div className="setting-row">
-        <label>Mínimo de monedas</label>
-        <input 
-          type="number" 
-          className="small-input" 
-          value={config.minCoins || 0} 
-          min="0"
-          onChange={(e) => onUpdateConfig({ minCoins: parseInt(e.target.value) || 0 })}
-        />
-      </div>
-
-      {/* METAS DE LIKES DINÁMICAS */}
-      <div className="section-title" style={{ marginTop: '24px' }}>❤️ Metas de Likes</div>
-      
-      {(config.likeEvents || []).map(ev => (
-        <div className="setting-row" key={ev.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-          <label style={{ flex: 1, margin: 0 }}>Meta:</label>
-          <input 
-            type="number" 
-            className="small-input" 
-            value={ev.threshold} 
-            min="1"
-            style={{ width: '80px' }}
-            onChange={(e) => {
-              const newVal = parseInt(e.target.value) || 0;
-              
-              // 1. Actualiza la regla matemática
-              const newEvents = config.likeEvents.map(item => 
-                item.id === ev.id ? { ...item, threshold: newVal } : item
-              );
-
-              // 2. NUEVO: Actualiza el nombre en la tarjeta visual en tiempo real
-              const newMappings = { ...config.giftMappings };
-              if (newMappings[`action_like_${ev.id}`]) {
-                newMappings[`action_like_${ev.id}`].name = `❤️ Meta de ${newVal} Likes`;
-              }
-
-              // 3. Guarda ambas cosas
-              onUpdateConfig({ likeEvents: newEvents, giftMappings: newMappings });
-            }} 
-          />
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '4px 8px', minWidth: 'auto', color: '#ff4d4d', background: 'var(--bg3)' }}
-            onClick={() => {
-              // 1. Borramos la meta del arreglo de eventos
-              const newEvents = config.likeEvents.filter(item => item.id !== ev.id);
-              
-              // 2. NUEVO: Borramos la tarjeta visual (el "regalo falso") de la lista principal
-              const newMappings = { ...config.giftMappings };
-              delete newMappings[`action_like_${ev.id}`];
-
-              // 3. Enviamos ambas actualizaciones al backend
-              onUpdateConfig({ 
-                likeEvents: newEvents, 
-                giftMappings: newMappings 
-              });
-            }}
-            title="Eliminar meta"
-          >✖</button>
-        </div>
-      ))}
-
-      <button 
-        className="btn btn-secondary" 
-        style={{ width: '100%', marginTop: '4px', fontSize: '13px' }}
-        onClick={() => {
-          const newId = Date.now().toString();
-          
-          // 1. Crea la regla matemática
-          const newEvents = [...(config.likeEvents || []), { id: newId, threshold: 100 }];
-          
-          // 2. NUEVO: Crea la tarjeta visual instantáneamente
-          const newMappings = { ...config.giftMappings };
-          newMappings[`action_like_${newId}`] = {
-            name: "❤️ Meta de 100 Likes",
-            coins: 0,
-            key: "",
-            modifier: "none",
-            enabled: true,
-            icon: "https://cdn-icons-png.flaticon.com/512/833/833472.png"
-          };
-
-          // 3. Guarda ambas cosas
-          onUpdateConfig({ likeEvents: newEvents, giftMappings: newMappings });
+      {/* 🤖 ESTADO DEL ROBOT */}
+      <div 
+        className="robot-status" 
+        style={{
+          background: config.robotAvailable ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
+          border: `1px solid ${config.robotAvailable ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 152, 0, 0.3)'}`,
+          padding: '12px 16px', 
+          borderRadius: '8px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px', 
+          fontSize: '14px',
+          fontWeight: 'bold'
         }}
       >
-        + Añadir evento de Like
-      </button>
-
-
-      {/* Robot Status dinámico */}
-      <div className={`robot-status ${config.robotAvailable ? 'ok' : 'warn'}`}>
-        <span>{config.robotAvailable ? '✅' : '⚠️'}</span>
-        <span>{config.robotAvailable ? 'RobotJS Activo' : 'Solo Simulación'}</span>
+        <span style={{ fontSize: '18px' }}>{config.robotAvailable ? '✅' : '⚠️'}</span>
+        <span style={{ color: config.robotAvailable ? '#4caf50' : '#ff9800' }}>
+          {config.robotAvailable ? 'Motor de Teclado Activo' : 'Modo Simulación'}
+        </span>
       </div>
     </aside>
   );
