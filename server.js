@@ -21,7 +21,7 @@ keyboardQueue.setSocketIo(io);
 // Configuración global
 const config = loadConfig();
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // ❌ LÍNEA ELIMINADA: Ya no servimos la carpeta public antigua
 // app.use(express.static(path.join(__dirname, 'public')));
@@ -89,6 +89,23 @@ app.post('/api/catalog/sync', async (req, res) => {
     console.error('❌ Error sincronizando regalos:', error.message);
     res.status(500).json({ error: error.message });
   }
+});
+
+// 🔄 NUEVA RUTA: Reiniciar la aplicación de forma nativa (Electron)
+app.post('/api/system/restart', (req, res) => {
+  res.json({ success: true });
+
+  // Le damos 500ms al servidor para que responda con éxito al frontend antes de cerrar los procesos
+  setTimeout(() => {
+    try {
+      const { app: electronApp } = require('electron');
+      electronApp.relaunch(); // Prepara el relanzamiento
+      electronApp.exit(0);    // Cierra la instancia actual de forma segura
+    } catch (e) {
+      console.log("⚠️ No se pudo relanzar de forma nativa (¿Modo desarrollo sin Electron?). Forzando apagado.");
+      process.exit(0); // Fallback por si estás probando solo en Node puro
+    }
+  }, 500);
 });
 
 // Configurar Sockets
