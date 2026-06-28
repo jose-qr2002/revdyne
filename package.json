@@ -5,14 +5,13 @@
   "author": "JK REVIL",
   "license": "UNLICENSED",
   "icon": "build/icon.ico",
-  "main": "main.js",
+  "main": "main.js", 
   "scripts": {
     "start": "electron .",
     "dev": "node server.js",
     "install-robot": "npm install robotjs --build-from-source",
     "build:frontend": "cd frontend && npm run build",
-    "build:backend": "node proteger.js",
-    "pack": "npm run build:frontend && npm run build:backend && electron-builder --win"
+    "pack": "npm run build:frontend && electron-builder --win" 
   },
   "dependencies": {
     "@jitsi/robotjs": "^0.6.22",
@@ -32,15 +31,16 @@
     "productName": "REVINITY",
     "copyright": "Copyright © 2026 JK REVIL",
     "asar": false,
-    "extraMetadata": {
-      "main": "dist-backend/main.js"
-    },
+    "afterPack": "./proteger.js",
     "directories": {
       "output": "release"
     },
     "files": [
-      "dist-backend/**/*",
-      "node_modules/**/*"
+      "**/*",
+      "!frontend/src/**/*",
+      "!frontend/node_modules/**/*",
+      "!proteger.js",
+      "!ofuscar.js"
     ],
     "win": {
       "target": [

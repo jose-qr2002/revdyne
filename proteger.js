@@ -2,86 +2,66 @@ const fs = require('fs');
 const path = require('path');
 const obfuscator = require('javascript-obfuscator');
 
-// 1. Lo que vamos a proteger
-const carpetas = ['routes', 'services', 'config'];
-const archivos = ['server.js', 'main.js']; // Tus archivos principales
-const carpetaSalida = 'dist-backend';
-
-// 2. Limpiar carpeta anterior
-if (fs.existsSync(carpetaSalida)) fs.rmSync(carpetaSalida, { recursive: true, force: true });
-fs.mkdirSync(carpetaSalida);
-
-// 3. El motor de ofuscación
-function ofuscarArchivo(rutaOrigen, rutaDestino) {
-    const codigoOriginal = fs.readFileSync(rutaOrigen, 'utf8');
-    const resultado = obfuscator.obfuscate(codigoOriginal, {
-        target: 'node', // 🟢 VITAL: Le dice que es código de servidor, para no romper 'require' ni '__dirname'
-        compact: true,
-        stringArray: true,           // Sigue ocultando tus textos y rutas
-        stringArrayEncoding: ['base64'],
-        // 🔴 APAGAMOS ESTOS DOS en el backend porque rompen la conexión a TikTok
-        controlFlowFlattening: false, 
-        deadCodeInjection: false     
-    });
+// Este módulo es llamado automáticamente por electron-builder
+exports.default = async function(context) {
+    console.log('\n🛡️ [HOOK] Iniciando ofuscación en el empaquetado...');
     
-    fs.mkdirSync(path.dirname(rutaDestino), { recursive: true });
-    fs.writeFileSync(rutaDestino, resultado.getObfuscatedCode());
-    console.log(`✅ Blindado: ${rutaOrigen}`);
-}
-
-// 4. Procesar Archivos
-archivos.forEach(archivo => {
-    if (fs.existsSync(archivo)) ofuscarArchivo(archivo, path.join(carpetaSalida, archivo));
-});
-
-// 5. Procesar Carpetas
-function procesarCarpeta(directorio) {
-    const elementos = fs.readdirSync(directorio);
-    elementos.forEach(elemento => {
-        const rutaCompleta = path.join(directorio, elemento);
-        const esDirectorio = fs.statSync(rutaCompleta).isDirectory();
-        
-        if (esDirectorio) {
-            procesarCarpeta(rutaCompleta);
-        } else if (rutaCompleta.endsWith('.js')) {
-            ofuscarArchivo(rutaCompleta, path.join(carpetaSalida, rutaCompleta));
-        } else {
-            // Si hay archivos que no son código (ej. un JSON de configuración interna) solo se copian
-            const rutaDestino = path.join(carpetaSalida, rutaCompleta);
-            fs.mkdirSync(path.dirname(rutaDestino), { recursive: true });
-            fs.copyFileSync(rutaCompleta, rutaDestino);
-        }
-    });
-}
-
-
-carpetas.forEach(carpeta => {
-    if (fs.existsSync(carpeta)) procesarCarpeta(carpeta);
-});
-
-console.log('🚀 ¡Backend ofuscado con éxito en la carpeta /dist-backend!');
-
-
-// 6. Copiar archivos estáticos para que no se rompan las rutas
-const destFrontend = path.join(carpetaSalida, 'frontend', 'dist');
-fs.mkdirSync(destFrontend, { recursive: true });
-fs.cpSync('frontend/dist', destFrontend, { recursive: true });
-
-// Copiar la carpeta de sonidos
-const destSounds = path.join(carpetaSalida, 'sounds');
-if (fs.existsSync('sounds')) {
-    fs.mkdirSync(destSounds, { recursive: true });
-    fs.cpSync('sounds', destSounds, { recursive: true });
-}
-
-// 👇 NUEVO: Copiar TODOS los archivos de la base de datos del bot
-const basesDeDatos = ['config.json', 'catalog.json', 'actions.json', 'events.json'];
-
-basesDeDatos.forEach(archivo => {
-    if (fs.existsSync(archivo)) {
-        fs.copyFileSync(archivo, path.join(carpetaSalida, archivo));
-        console.log(`📄 Archivo de datos copiado: ${archivo}`);
+    // context.appOutDir es la carpeta donde Electron está creando el .exe
+    // Como tienes "asar: false", el código fuente se copia a "resources/app"
+    const appDir = path.join(context.appOutDir, 'resources', 'app');
+    
+    if (!fs.existsSync(appDir)) {
+        console.log('⚠️ Carpeta resources/app no encontrada. Saltando ofuscación.');
+        return;
     }
-});
 
-console.log('📦 Frontend, Sonidos y Bases de Datos copiados a dist-backend correctamente.');
+    // 1. Lo que vamos a proteger
+    const carpetasAOfuscar = ['routes', 'services', 'config'];
+    const archivosAOfuscar = ['server.js', 'main.js'];
+
+    // 2. Función ofuscadora in-situ (sobreescribe el archivo)
+    function ofuscarArchivo(rutaAbsoluta) {
+        if (!fs.existsSync(rutaAbsoluta)) return;
+        
+        const codigoOriginal = fs.readFileSync(rutaAbsoluta, 'utf8');
+        const resultado = obfuscator.obfuscate(codigoOriginal, {
+            target: 'node', 
+            compact: true,
+            stringArray: true,
+            stringArrayEncoding: ['base64'],
+            controlFlowFlattening: false, 
+            deadCodeInjection: false 
+        });
+        
+        // Sobreescribimos el archivo ya copiado por Electron
+        fs.writeFileSync(rutaAbsoluta, resultado.getObfuscatedCode());
+        console.log(`✅ Blindado: ${path.basename(rutaAbsoluta)}`);
+    }
+
+    // 3. Procesar Carpetas
+    function procesarCarpeta(directorio) {
+        if (!fs.existsSync(directorio)) return;
+        
+        const elementos = fs.readdirSync(directorio);
+        elementos.forEach(elemento => {
+            const rutaCompleta = path.join(directorio, elemento);
+            
+            if (fs.statSync(rutaCompleta).isDirectory()) {
+                procesarCarpeta(rutaCompleta);
+            } else if (rutaCompleta.endsWith('.js')) {
+                ofuscarArchivo(rutaCompleta);
+            }
+        });
+    }
+
+    // 4. Ejecución
+    archivosAOfuscar.forEach(archivo => {
+        ofuscarArchivo(path.join(appDir, archivo));
+    });
+
+    carpetasAOfuscar.forEach(carpeta => {
+        procesarCarpeta(path.join(appDir, carpeta));
+    });
+
+    console.log('🚀 [HOOK] ¡Ofuscación completada exitosamente dentro del paquete!\n');
+};
