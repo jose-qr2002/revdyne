@@ -2,9 +2,10 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
-// Importar módulos
-const { loadConfig } = require('./config/settings');
+const { loadConfig, saveConfig } = require('./config/settings');
 const { isRobotAvailable } = require('./services/keyboardQueue');
 const keyboardQueue = require('./services/keyboardQueue');
 const tiktokService = require('./services/tiktokService');
@@ -15,60 +16,91 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// 👇 NUEVO: Le pasamos el megáfono de sockets a la cola de teclado
 keyboardQueue.setSocketIo(io);
-
-// Configuración global
 const config = loadConfig();
 
+// 1. MIDDLEWARES GLOBALES
 app.use(express.json({ limit: '10mb' }));
 
-// ❌ LÍNEA ELIMINADA: Ya no servimos la carpeta public antigua
-// app.use(express.static(path.join(__dirname, 'public')));
+// 🌟 1. EL BUSCADOR INTELIGENTE DE RUTAS
+const getSoundsDir = () => {
+  const possiblePaths = [
+    path.join(process.cwd(), 'sounds'), // 1️⃣ Ruta en Desarrollo
+    path.join(process.resourcesPath || '', 'app', 'dist-backend', 'sounds'), // 2️⃣ Ruta en Producción
+    path.join(__dirname, 'sounds') // 3️⃣ Fallback de emergencia
+  ];
 
-// Inyectar dependencias en las rutas
-app.use('/api/alerts', require('./routes/alerts')());
-app.use('/api/tts', ttsRoutes(config));
-app.use('/api', apiRoutes(config, io, tiktokService));
+  // Buscamos cuál de estas rutas existe realmente en la PC
+  let activePath = possiblePaths.find(p => fs.existsSync(p));
 
-// ✅ NUEVO: Servir EXCLUSIVAMENTE la aplicación React (Frontend compilado)
-app.use(express.static(path.join(__dirname, 'frontend/dist')));
+  // Si ninguna existe (primera vez arrancando), la creamos en la ruta de desarrollo por defecto
+  if (!activePath) {
+    activePath = possiblePaths[0];
+    fs.mkdirSync(activePath, { recursive: true });
+  }
 
-// Cualquier otra ruta que no sea de API, se la mandamos a React
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
+  return activePath;
+};
+
+const SOUNDS_DIR = getSoundsDir();
+console.log(`[BACKEND] 🎵 Carpeta de sonidos activa en: ${SOUNDS_DIR}`);
+
+// 🎵 2. CONFIGURACIÓN DE SUBIDA DE SONIDOS
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, SOUNDS_DIR); // Usamos la ruta detectada
+  },
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, safeName);
+  }
 });
 
-// 📦 NUEVA RUTA: Sincronizar Catálogo de TikTok
+const upload = multer({ 
+  storage, 
+  limits: { fileSize: 10 * 1024 * 1024 } 
+});
+
+// 🚀 3. RUTA PARA RECIBIR EL ARCHIVO
+app.post('/api/sounds/upload', upload.single('sound'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+  res.json({ success: true, filename: req.file.filename });
+});
+
+// 🌟 4. RUTA PARA LISTAR SONIDOS
+app.get('/api/sounds/list', (req, res) => {
+  if (!fs.existsSync(SOUNDS_DIR)) return res.json([]);
+  
+  fs.readdir(SOUNDS_DIR, (err, files) => {
+    if (err) {
+      console.error("[BACKEND] Error leyendo carpeta:", err);
+      return res.json([]);
+    }
+    const audioFiles = files.filter(f => /\.(mp3|wav|ogg|m4a|aac)$/i.test(f));
+    res.json(audioFiles);
+  });
+});
+
+// Sincronización y Sistema
 app.post('/api/catalog/sync', async (req, res) => {
   try {
     const response = await fetch('https://webcast.tiktok.com/webcast/gift/list/?aid=1988', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
       }
     });
-
     if (!response.ok) throw new Error('Error de conexión con TikTok');
-
     const json = await response.json();
     const gifts = json.data?.gifts || [];
-    
     if (gifts.length === 0) throw new Error('TikTok no devolvió regalos');
 
-    // Cargar la configuración actual (para actualizar el catalog.json)
-    const { loadConfig, saveConfig } = require('./config/settings'); // Ajusta la ruta si es necesario
     const currentConfig = loadConfig();
     const catalogData = currentConfig.catalog || {};
-
-    let nuevos = 0;
-    let actualizados = 0;
+    let nuevos = 0, actualizados = 0;
 
     gifts.forEach(gift => {
       const giftId = String(gift.id);
       const iconUrl = gift.image?.url_list?.[0] || gift.icon?.url_list?.[0] || '';
-      
       if (!catalogData[giftId]) {
         nuevos++;
         catalogData[giftId] = { name: gift.name, coins: gift.diamond_count || 0, icon: iconUrl };
@@ -80,37 +112,46 @@ app.post('/api/catalog/sync', async (req, res) => {
       }
     });
 
-    // Guardar los cambios
     currentConfig.catalog = catalogData;
     saveConfig(currentConfig);
-
     res.json({ success: true, nuevos, actualizados, total: Object.keys(catalogData).length, catalog: catalogData });
   } catch (error) {
-    console.error('❌ Error sincronizando regalos:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 🔄 NUEVA RUTA: Reiniciar la aplicación de forma nativa (Electron)
 app.post('/api/system/restart', (req, res) => {
   res.json({ success: true });
-
-  // Le damos 500ms al servidor para que responda con éxito al frontend antes de cerrar los procesos
   setTimeout(() => {
     try {
       const { app: electronApp } = require('electron');
-      electronApp.relaunch(); // Prepara el relanzamiento
-      electronApp.exit(0);    // Cierra la instancia actual de forma segura
+      electronApp.relaunch();
+      electronApp.exit(0);
     } catch (e) {
-      console.log("⚠️ No se pudo relanzar de forma nativa (¿Modo desarrollo sin Electron?). Forzando apagado.");
-      process.exit(0); // Fallback por si estás probando solo en Node puro
+      process.exit(0);
     }
   }, 500);
 });
 
-// Configurar Sockets
+// Rutas externas (Inyectadas)
+app.use('/api/alerts', require('./routes/alerts')());
+app.use('/api/tts', ttsRoutes(config));
+app.use('/api', apiRoutes(config, io, tiktokService));
+
+// ==========================================
+// 4. CARPETAS ESTÁTICAS Y REACT (Al final)
+// ==========================================
+app.use('/sounds', express.static(path.join(process.cwd(), 'sounds')));
+app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
+});
+
+// ==========================================
+// 5. EVENTOS GLOBALES Y ARRANQUE
+// ==========================================
 io.on('connection', socket => {
-  console.log('🌐 Cliente UI conectado');
   socket.emit('status', {
     connected: tiktokService.isConnected(),
     message: tiktokService.isConnected() ? `✅ Conectado` : 'Desconectado',
@@ -118,31 +159,16 @@ io.on('connection', socket => {
   });
 });
 
-// ATRApar ERRORES GLOBALES Y ENVIARLOS AL FRONTEND
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', err => {
   console.error('🔥 Error Crítico:', err);
-  // ✅ CORRECCIÓN: Cambiado ioInstance por io
-  if (io) {
-    io.emit('systemError', { 
-      type: 'Uncaught Exception', 
-      message: err.message, 
-      stack: err.stack 
-    });
-  }
+  if (io) io.emit('systemError', { type: 'Uncaught Exception', message: err.message, stack: err.stack });
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', reason => {
   console.error('🔥 Promesa Rechazada:', reason);
-  // ✅ CORRECCIÓN: Cambiado ioInstance por io
-  if (io) {
-    io.emit('systemError', { 
-      type: 'Unhandled Rejection', 
-      message: String(reason) 
-    });
-  }
+  if (io) io.emit('systemError', { type: 'Unhandled Rejection', message: String(reason) });
 });
 
-// Arrancar conexión a TikTok y servidor
 tiktokService.init(io, config);
 
 const PORT = process.env.PORT || 3000;
@@ -153,9 +179,4 @@ server.listen(PORT, () => {
   console.log(`║  Abre: http://localhost:${PORT}             ║`);
   console.log(`║  RobotJS: ${isRobotAvailable() ? '✅ Activo' : '❌ No disponible'}                 ║`);
   console.log('╚══════════════════════════════════════════╝\n');
-
-  // DESCOMENTAR EN CASO QUERER AUTOCONEXION
-  // if (config.username) {
-  //   tiktokService.connect(config.username);
-  // }
 });

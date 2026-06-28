@@ -155,7 +155,7 @@ function App() {
           {activeTab === 'actions' && (
             <ActionsTab 
               actions={config.actions} 
-              availableSounds={availableSounds} 
+              //availableSounds={availableSounds} 
               onUpdateConfig={handleUpdateConfig} 
             />
           )}

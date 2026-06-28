@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function ActionsTab({ actions, availableSounds, onUpdateConfig }) {
+export default function ActionsTab({ actions, onUpdateConfig }) {
   const [showForm, setShowForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState(null);
   
@@ -9,24 +9,113 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
   const [key, setKey] = useState('');
   const [sound, setSound] = useState('');
   const [delay, setDelay] = useState(80);
-  const [soundEveryKey, setSoundEveryKey] = useState(false); // 🌟 NUEVO: Estado del interruptor
+  const [soundEveryKey, setSoundEveryKey] = useState(false);
 
-  // 🧠 FUNCIÓN INTELIGENTE: Detecta si la macro tiene más de una tecla
+  const [localSounds, setLocalSounds] = useState([]); // Iniciamos vacío, es correcto
+
+  useEffect(() => {
+    const refreshSounds = async () => {
+      try {
+        const res = await fetch('/api/sounds/list'); // Llama a tu servidor directamente
+        if (!res.ok) return;
+        const files = await res.json();
+        setLocalSounds(files); // Aquí obtenemos la lista real y actualizada
+      } catch (e) {
+        console.error("Error al obtener sonidos");
+      }
+    };
+    
+    refreshSounds();
+  }, []); // Se ejecuta al entrar a la pestaña, trayendo los sonidos frescos
+
+  // 🌟 SISTEMA DE NOTIFICACIONES Y MODALES SEGUROS (Anti-Congelamiento de teclado)
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { file, duration }
+
   const isMultiKeyMacro = (macroStr) => {
     if (!macroStr) return false;
-    if (!macroStr.includes('{')) return macroStr.length > 1; // Ej: "rr" o "wasd" (múltiples teclas)
+    if (!macroStr.includes('{')) return macroStr.length > 1;
     const matches = macroStr.match(/\{[^}]+\}/g);
-    return matches && matches.length > 1; // Ej: "{q}{w}" (múltiples teclas)
+    return matches && matches.length > 1;
   };
 
   const isMultiKey = isMultiKeyMacro(key);
 
-  // Si el usuario borra teclas y deja solo una, apagamos el interruptor automáticamente
   useEffect(() => {
-    if (!isMultiKey && soundEveryKey) {
-      setSoundEveryKey(false);
-    }
+    if (!isMultiKey && soundEveryKey) setSoundEveryKey(false);
   }, [isMultiKey, soundEveryKey]);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const showToast = (type, text) => setNotification({ type, text });
+
+  // 1. Inicia el proceso de subida al elegir el archivo
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      showToast('error', 'Solo se permiten archivos de audio (.mp3, .wav).');
+      e.target.value = '';
+      return;
+    }
+
+    const tempUrl = URL.createObjectURL(file);
+    const audio = new Audio(tempUrl);
+
+    audio.onloadedmetadata = () => {
+      URL.revokeObjectURL(tempUrl);
+      
+      // ⚠️ Si dura más de 10 seg, abrimos nuestro propio Modal (NO el window.confirm)
+      if (audio.duration > 10) {
+        setConfirmDialog({ file, duration: audio.duration });
+        e.target.value = ''; 
+        return;
+      }
+
+      // Si es corto, lo subimos de frente
+      executeUpload(file);
+      e.target.value = ''; 
+    };
+  };
+
+  // 2. Ejecuta la petición al servidor
+  const executeUpload = async (file) => {
+    setIsUploading(true);
+    setConfirmDialog(null); // Cerramos el modal si estaba abierto
+
+    const formData = new FormData();
+    formData.append('sound', file);
+
+    try {
+      const res = await fetch('/api/sounds/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      
+      if (data.error) {
+        showToast('error', 'Error del servidor: ' + data.error);
+      } else {
+        showToast('success', '¡Sonido subido con éxito!');
+        
+        // 🚀 MAGIA EN VIVO: Agregamos el sonido a la lista y lo seleccionamos automáticamente
+        setLocalSounds(prev => {
+          if (!prev.includes(data.filename)) return [...prev, data.filename];
+          return prev;
+        });
+        setSound(data.filename); // Lo auto-seleccionamos en el formulario
+      }
+    } catch (err) {
+      showToast('error', 'Error de red al intentar subir el archivo.');
+    }
+    
+    setIsUploading(false);
+  };
 
   const handleEditAction = (id, act) => {
     setEditingActionId(id);
@@ -35,27 +124,25 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
     setKey(act.key || '');
     setSound(act.sound || '');
     setDelay(act.delay || 80);
-    setSoundEveryKey(act.soundEveryKey || false); // 🌟 Cargar preferencia
+    setSoundEveryKey(act.soundEveryKey || false);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSaveAction = () => {
-    if (!name.trim()) return alert('Por favor, ponle un nombre a la acción');
-    if (type === 'keyboard' && !key.trim()) return alert('Por favor, ingresa la tecla o macro');
+    if (!name.trim()) return showToast('error', 'Ponle un nombre a la acción');
+    if (type === 'keyboard' && !key.trim()) return showToast('error', 'Ingresa la tecla o macro');
 
     const actionId = editingActionId || `act_${Date.now()}`;
     const isCurrentlyEnabled = editingActionId && actions[editingActionId] ? actions[editingActionId].enabled : true;
 
     const newAction = {
-      name,
-      type,
-      enabled: isCurrentlyEnabled,
+      name, type, enabled: isCurrentlyEnabled,
       ...(type === 'keyboard' && { 
         key: key.toLowerCase(), 
         sound: sound || null,
         delay: parseInt(delay) || 80,
-        soundEveryKey: isMultiKey ? soundEveryKey : false // 🌟 Guardar preferencia real
+        soundEveryKey: isMultiKey ? soundEveryKey : false
       })
     };
 
@@ -66,11 +153,7 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
 
   const resetForm = () => {
     setEditingActionId(null);
-    setName('');
-    setKey('');
-    setSound('');
-    setDelay(80);
-    setSoundEveryKey(false);
+    setName(''); setKey(''); setSound(''); setDelay(80); setSoundEveryKey(false);
     setShowForm(false);
   };
 
@@ -81,16 +164,58 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
   };
 
   const handleToggleAction = (id, currentStatus) => {
-    const updatedActions = {
-      ...actions,
-      [id]: { ...actions[id], enabled: !currentStatus }
-    };
+    const updatedActions = { ...actions, [id]: { ...actions[id], enabled: !currentStatus } };
     onUpdateConfig({ actions: updatedActions });
   };
 
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
       
+      {/* 🌟 NOTIFICACIONES FLOTANTES (En lugar del alert bloqueante) */}
+      {notification && (
+        <div style={{
+          position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
+          background: notification.type === 'error' ? '#f44336' : '#4caf50',
+          color: 'white', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', alignItems: 'center', gap: '10px',
+          animation: 'fadeInDown 0.3s ease-out'
+        }}>
+          <span>{notification.type === 'error' ? '❌' : '✅'}</span>
+          <span>{notification.text}</span>
+        </div>
+      )}
+
+      {/* 🌟 MODAL DE ADVERTENCIA PERSONALIZADO (En lugar del window.confirm) */}
+      {confirmDialog && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--card)', border: '2px solid #ff9800', borderRadius: '12px',
+            width: '100%', maxWidth: '450px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)', animation: 'fadeInDown 0.2s ease-out', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '40px' }}>⚠️</div>
+            <h3 style={{ margin: 0, color: '#ff9800' }}>ADVERTENCIA DE DURACIÓN</h3>
+            <p style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
+              El audio <strong>"{confirmDialog.file.name}"</strong> dura <strong>{confirmDialog.duration.toFixed(1)} segundos</strong>.
+              <br/><br/>
+              Si te envían muchos regalos seguidos, estos audios largos se solaparán y causarán un caos de ruido en tu directo.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setConfirmDialog(null)}>
+                Cancelar
+              </button>
+              <button className="btn" style={{ flex: 1, background: '#ff9800', color: 'white' }} onClick={() => executeUpload(confirmDialog.file)}>
+                Subir de todos modos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Arsenal de Acciones Disponibles</h3>
         <button className="btn" onClick={() => showForm ? resetForm() : setShowForm(true)}>
@@ -122,26 +247,40 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 
-                <div style={{ flex: 2, minWidth: '200px' }}>
+                <div style={{ flex: 2, minWidth: '180px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Secuencia / Tecla</label>
                   <input type="text" className="key-input" placeholder="Ej: r, o {shift+w}{space}" value={key} onChange={e => setKey(e.target.value)} style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }} />
                 </div>
 
-                <div style={{ flex: 1, minWidth: '120px' }}>
+                <div style={{ flex: 1, minWidth: '90px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms) ⏳</label>
                   <input type="number" className="key-input" value={delay} onChange={e => setDelay(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="10" max="5000" />
                 </div>
 
-                <div style={{ flex: 1, minWidth: '150px' }}>
+                {/* SELECTOR DE SONIDO CON LA MEMORIA LOCAL */}
+                <div style={{ flex: 2, minWidth: '220px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Sonido de Alerta</label>
-                  <select className="modifier-select" value={sound} onChange={e => setSound(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">Sin sonido</option>
-                    {availableSounds.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select className="modifier-select" value={sound} onChange={e => setSound(e.target.value)} style={{ flex: 1 }}>
+                      <option value="">Sin sonido</option>
+                      {localSounds.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    
+                    <input type="file" accept="audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
+                    
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={() => fileInputRef.current.click()} 
+                      disabled={isUploading} 
+                      title="Subir audio (.mp3, .wav)"
+                      style={{ padding: '0 12px', fontWeight: 'bold' }}
+                    >
+                      {isUploading ? '⏳' : '➕ Subir'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* 🌟 NUEVO: OPCIONES AVANZADAS DE SONIDO (Solo visible si hay sonido y macro múltiple) */}
               {sound && isMultiKey && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px', padding: '8px', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '6px', borderLeft: '3px solid #ff9800' }}>
                   <label style={{ fontSize: '12px', color: '#ffeb3b', margin: 0, cursor: 'pointer' }}>
@@ -178,7 +317,6 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
                     <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>{act.key}</span>
                     <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>⏳ {act.delay || 80}ms</span>
                     
-                    {/* 🌟 Mostrar insignia visual si configuró ametralladora de sonido */}
                     {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}>🔊 {act.sound} (1 vez)</span>}
                     {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}>🔊 {act.sound} (En cada tecla)</span>}
                   </div>
@@ -197,6 +335,13 @@ export default function ActionsTab({ actions, availableSounds, onUpdateConfig })
           ))
         )}
       </div>
+
+      <style>{`
+        @keyframes fadeInDown {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+      `}</style>
     </div>
   );
 }
