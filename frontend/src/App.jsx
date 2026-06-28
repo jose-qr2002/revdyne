@@ -25,7 +25,7 @@ function App() {
   // 🎵 Función de sonido (Se mantiene igual)
   function playAlertSound(filename) {
     if (!filename) return;
-    const urlCompleta = `http://localhost:3000/api/alerts/play/${filename}`;
+    const urlCompleta = `/api/alerts/play/${filename}`;
     const audio = new Audio(urlCompleta);
     if (config && config.tts && config.tts.audioDeviceId && audio.setSinkId) {
       audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);

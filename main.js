@@ -63,23 +63,26 @@ function createWindow () {
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
+      contextIsolation: false
     }
   });
 
-  win.loadURL('http://localhost:3000');
-  win.webContents.openDevTools();
+  // 🚀 CÁMBIO CLAVE: Detecta si la app está empaquetada o en desarrollo
+  const isDev = !app.isPackaged;
+
+  if (isDev) {
+    win.loadURL('http://localhost:5173'); // ⚡ En desarrollo: Apunta a Vite para ver cambios al instante
+  } else {
+    win.loadURL('http://localhost:3000'); // 📦 En producción: Apunta al servidor Express local
+  }
 
   // Registramos las teclas una vez la ventana existe
-  registerShortcuts(win);
+  win.webContents.on('did-finish-load', () => registerShortcuts(win));
 
-  // Vigilar cambios en la ruta correcta con "Debounce" (Filtro anti-rebotes)
+  // Vigilar cambios en la ruta correcta con "Debounce"
   if (fs.existsSync(configPath)) {
-    fs.watchFile(configPath, { interval: 500 }, () => {
-      // Si hay varios cambios seguidos, solo procesamos el último
-      if (watchTimeout) clearTimeout(watchTimeout);
-      watchTimeout = setTimeout(() => {
-        registerShortcuts(win);
-      }, 500); 
+    fs.watchFile(configPath, { interval: 1000 }, () => {
+      registerShortcuts(win);
     });
   }
 }

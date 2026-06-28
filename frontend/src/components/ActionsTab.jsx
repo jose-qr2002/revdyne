@@ -296,7 +296,7 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button className="btn btn-sm" style={{ background: editingActionId ? '#00bcd4' : '', color: 'white' }} onClick={handleSaveAction}>
+            <button className="btn btn-sm" style={{ background: editingActionId ? '#00bcd4' : '', color: editingActionId ? 'white' : 'black' }} onClick={handleSaveAction}>
               {editingActionId ? 'Actualizar Acción' : 'Guardar Acción'}
             </button>
           </div>
