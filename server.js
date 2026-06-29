@@ -146,6 +146,29 @@ app.post('/api/stickers/assign', (req, res) => {
   res.json({ success: true, assignments: stickersManager.db.assignments });
 });
 
+// 🗑️ Eliminar un sticker del catálogo
+app.delete('/api/stickers/:emoteId', (req, res) => {
+  const { emoteId } = req.params;
+  
+  // Asumiendo que importaste stickersManager arriba en tu server.js
+  const stickersManager = require('./services/stickersManager');
+  
+  if (stickersManager.db.catalog[emoteId]) {
+    // 1. Lo borramos del catálogo
+    delete stickersManager.db.catalog[emoteId];
+    // 2. Borramos sus asignaciones (para que no queden datos fantasma)
+    if (stickersManager.db.assignments[emoteId]) {
+      delete stickersManager.db.assignments[emoteId];
+    }
+    // 3. Guardamos los cambios
+    stickersManager.save();
+    
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ success: false, message: 'Sticker no encontrado' });
+  }
+});
+
 app.post('/api/system/restart', (req, res) => {
   res.json({ success: true });
   setTimeout(() => {

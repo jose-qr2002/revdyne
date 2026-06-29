@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import ConfirmModal from './ConfirmModal';
 
 export default function StickersTab({ actions, availableSounds, ioSocket }) {
   const [catalog, setCatalog] = useState({});
   const [assignments, setAssignments] = useState({});
   const [notification, showToast] = useState(null);
+
+  // 🌟 Estados para el Modal de Confirmación
+  const [modalOpen, setModalOpen] = useState(false);
+  const [stickerToDelete, setStickerToDelete] = useState(null);
 
   // Carga inicial desde la API
   useEffect(() => {
@@ -36,7 +41,7 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
       const data = await res.json();
       if (data.success) {
         setAssignments(data.assignments);
-        showToast('¡Sticker vinculado con éxito!');
+        // showToast('¡Sticker vinculado con éxito!');
       }
     } catch {
       showToast('Error al guardar vinculación');
@@ -58,8 +63,50 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
     }
   };
 
+  // 🗑️ Preparar eliminación (Abre el modal)
+  const requestDelete = (emoteId, data) => {
+    setStickerToDelete({ id: emoteId, name: data.name });
+    setModalOpen(true);
+  };
+
+  // 🗑️ Ejecutar eliminación real
+  const confirmDelete = async () => {
+    if (!stickerToDelete) return;
+    
+    try {
+      const res = await fetch(`/api/stickers/${stickerToDelete.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      
+      if (data.success) {
+        // Actualizar el estado local para que desaparezca al instante sin recargar
+        const newCatalog = { ...catalog };
+        delete newCatalog[stickerToDelete.id];
+        setCatalog(newCatalog);
+        
+        const newAssignments = { ...assignments };
+        delete newAssignments[stickerToDelete.id];
+        setAssignments(newAssignments);
+      }
+    } catch (e) {
+      console.error('Error al eliminar sticker', e);
+    }
+    
+    // Cerrar modal y limpiar
+    setModalOpen(false);
+    setStickerToDelete(null);
+  };
+
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* 🌟 Invocamos el Modal (está oculto hasta que modalOpen sea true) */}
+      <ConfirmModal 
+        isOpen={modalOpen}
+        title="⚠️ Eliminar Sticker"
+        message={`¿Estás seguro que deseas eliminar el sticker "${stickerToDelete?.name}"? Dejará de funcionar en tus alertas.`}
+        onConfirm={confirmDelete}
+        onCancel={() => setModalOpen(false)}
+      />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>🎴 Radar de Stickers de Suscriptores</h3>
         <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
@@ -121,6 +168,18 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
                     />
                     <span className="slider"></span>
                   </label>
+                  {/* 🗑️ BOTÓN DE ELIMINAR */}
+                  <button 
+                    onClick={() => requestDelete(emoteId, data)}
+                    style={{ 
+                      marginTop: '16px', background: 'transparent', border: 'none', 
+                      cursor: 'pointer', fontSize: '18px', padding: '4px 8px', 
+                      borderRadius: '4px', transition: '0.2s' 
+                    }}
+                    title="Eliminar Sticker"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             );

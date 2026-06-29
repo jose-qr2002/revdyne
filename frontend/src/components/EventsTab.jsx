@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import ConfirmModal from './ConfirmModal';
 
 export default function EventsTab({ events, actions, catalog, onUpdateConfig }) {
   const [showForm, setShowForm] = useState(false);
@@ -13,6 +14,10 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
   const [giftSearch, setGiftSearch] = useState('');
   const [giftCurrentPage, setGiftCurrentPage] = useState(1);
   const GIFTS_PER_PAGE = 30; // Mostramos 30 por página en el modal para que sea súper fluido
+
+  // 🌟 2. NUEVOS ESTADOS PARA EL MODAL DE ELIMINACIÓN
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
 
   const safeEvents = Array.isArray(events) ? events : (events?.likeEvents || []);
   const actionsArray = Object.entries(actions || {});
@@ -91,6 +96,20 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
     setGiftSearch('');
   };
 
+  // 🌟 3. FUNCIONES PARA MANEJAR EL BORRADO SEGURO
+  const requestDeleteEvent = (evt) => {
+    setEventToDelete(evt);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteEvent = () => {
+    if (!eventToDelete) return;
+    const updatedEvents = safeEvents.filter(e => e.id !== eventToDelete.id);
+    onUpdateConfig({ events: updatedEvents });
+    setIsDeleteModalOpen(false);
+    setEventToDelete(null);
+  };
+
   const handleDeleteEvent = (eventId) => {
     const updatedEvents = safeEvents.filter(e => e.id !== eventId);
     onUpdateConfig({ events: updatedEvents });
@@ -128,6 +147,15 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
+      {/* 🌟 4. INSERTAMOS EL COMPONENTE CONFIRM MODAL */}
+      <ConfirmModal 
+        isOpen={isDeleteModalOpen}
+        title="⚠️ Eliminar Regla"
+        message="¿Estás seguro de que deseas eliminar este vínculo? Esta acción dejará de ejecutarse en tus directos."
+        onConfirm={confirmDeleteEvent}
+        onCancel={() => { setIsDeleteModalOpen(false); setEventToDelete(null); }}
+      />
+
       {/* 🌟 NUEVO: EL MODAL DE REGALOS (Se sobrepone a todo cuando se activa) */}
       {isGiftModalOpen && (
         <div style={{
@@ -303,7 +331,14 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
                     <span className="slider"></span>
                   </label>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleEditEvent(evt)}>✏️</button>
-                  <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => handleDeleteEvent(evt.id)}>🗑️</button>
+                  {/* 🌟 5. REEMPLAZAMOS EL onClick DEL BOTÓN BASURA */}
+                  <button 
+                    className="btn btn-secondary btn-sm" 
+                    style={{ background: '#ff4d4d', color: 'white', border: 'none' }} 
+                    onClick={() => requestDeleteEvent(evt)} 
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             );

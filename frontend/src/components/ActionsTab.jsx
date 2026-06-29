@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ConfirmModal from './ConfirmModal';
 
 export default function ActionsTab({ actions, onUpdateConfig }) {
   const [showForm, setShowForm] = useState(false);
@@ -11,28 +12,31 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
   const [delay, setDelay] = useState(80);
   const [soundEveryKey, setSoundEveryKey] = useState(false);
 
-  const [localSounds, setLocalSounds] = useState([]); // Iniciamos vacío, es correcto
+  const [localSounds, setLocalSounds] = useState([]);
+
+  // 🌟 2. NUEVOS ESTADOS PARA EL MODAL DE ELIMINACIÓN
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [actionToDelete, setActionToDelete] = useState(null);
 
   useEffect(() => {
     const refreshSounds = async () => {
       try {
-        const res = await fetch('/api/sounds/list'); // Llama a tu servidor directamente
+        const res = await fetch('/api/sounds/list');
         if (!res.ok) return;
         const files = await res.json();
-        setLocalSounds(files); // Aquí obtenemos la lista real y actualizada
+        setLocalSounds(files);
       } catch (e) {
         console.error("Error al obtener sonidos");
       }
     };
     
     refreshSounds();
-  }, []); // Se ejecuta al entrar a la pestaña, trayendo los sonidos frescos
+  }, []);
 
-  // 🌟 SISTEMA DE NOTIFICACIONES Y MODALES SEGUROS (Anti-Congelamiento de teclado)
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState(null); // { file, duration }
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   const isMultiKeyMacro = (macroStr) => {
     if (!macroStr) return false;
@@ -56,7 +60,6 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
 
   const showToast = (type, text) => setNotification({ type, text });
 
-  // 1. Inicia el proceso de subida al elegir el archivo
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -73,23 +76,20 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
     audio.onloadedmetadata = () => {
       URL.revokeObjectURL(tempUrl);
       
-      // ⚠️ Si dura más de 10 seg, abrimos nuestro propio Modal (NO el window.confirm)
       if (audio.duration > 10) {
         setConfirmDialog({ file, duration: audio.duration });
         e.target.value = ''; 
         return;
       }
 
-      // Si es corto, lo subimos de frente
       executeUpload(file);
       e.target.value = ''; 
     };
   };
 
-  // 2. Ejecuta la petición al servidor
   const executeUpload = async (file) => {
     setIsUploading(true);
-    setConfirmDialog(null); // Cerramos el modal si estaba abierto
+    setConfirmDialog(null);
 
     const formData = new FormData();
     formData.append('sound', file);
@@ -103,12 +103,11 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
       } else {
         showToast('success', '¡Sonido subido con éxito!');
         
-        // 🚀 MAGIA EN VIVO: Agregamos el sonido a la lista y lo seleccionamos automáticamente
         setLocalSounds(prev => {
           if (!prev.includes(data.filename)) return [...prev, data.filename];
           return prev;
         });
-        setSound(data.filename); // Lo auto-seleccionamos en el formulario
+        setSound(data.filename); 
       }
     } catch (err) {
       showToast('error', 'Error de red al intentar subir el archivo.');
@@ -157,10 +156,19 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
     setShowForm(false);
   };
 
-  const handleDeleteAction = (id) => {
+  // 🌟 3. NUEVAS FUNCIONES PARA EL MODAL DE BORRADO
+  const requestDeleteAction = (id) => {
+    setActionToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteAction = () => {
+    if (!actionToDelete) return;
     const updatedActions = { ...actions };
-    delete updatedActions[id];
+    delete updatedActions[actionToDelete];
     onUpdateConfig({ actions: updatedActions });
+    setIsDeleteModalOpen(false);
+    setActionToDelete(null);
   };
 
   const handleToggleAction = (id, currentStatus) => {
@@ -171,7 +179,16 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
       
-      {/* 🌟 NOTIFICACIONES FLOTANTES (En lugar del alert bloqueante) */}
+      {/* 🌟 4. INSERTAMOS EL COMPONENTE CONFIRM MODAL */}
+      <ConfirmModal 
+        isOpen={isDeleteModalOpen}
+        title="⚠️ Eliminar Acción"
+        message="¿Estás seguro de que deseas eliminar esta acción del arsenal? Cualquier evento de TikTok o Sticker vinculado a ella dejará de funcionar."
+        onConfirm={confirmDeleteAction}
+        onCancel={() => { setIsDeleteModalOpen(false); setActionToDelete(null); }}
+      />
+
+      {/* NOTIFICACIONES FLOTANTES */}
       {notification && (
         <div style={{
           position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
@@ -185,7 +202,7 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
         </div>
       )}
 
-      {/* 🌟 MODAL DE ADVERTENCIA PERSONALIZADO (En lugar del window.confirm) */}
+      {/* MODAL DE ADVERTENCIA DE AUDIO LARGO */}
       {confirmDialog && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -257,7 +274,6 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
                   <input type="number" className="key-input" value={delay} onChange={e => setDelay(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="10" max="5000" />
                 </div>
 
-                {/* SELECTOR DE SONIDO CON LA MEMORIA LOCAL */}
                 <div style={{ flex: 2, minWidth: '220px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Sonido de Alerta</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -329,7 +345,16 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
                   <span className="slider"></span>
                 </label>
                 <button className="btn btn-secondary btn-sm" onClick={() => handleEditAction(id, act)}>✏️</button>
-                <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => handleDeleteAction(id)}>🗑️</button>
+                
+                {/* 🌟 5. REEMPLAZAMOS EL onClick DEL BOTÓN BASURA */}
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  style={{ background: '#ff4d4d', color: 'white', border: 'none' }} 
+                  onClick={() => requestDeleteAction(id)}
+                >
+                  🗑️
+                </button>
+                
               </div>
             </div>
           ))
