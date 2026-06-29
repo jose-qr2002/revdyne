@@ -147,6 +147,37 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           </select>
         </div>
 
+        {/* 🌟 NUEVO: Sub-menú de Nivel Mínimo (Solo visible si elige 'fans') */}
+        {config?.tts?.filterMode === 'fans' && (
+          <div style={{ 
+            marginTop: '12px', 
+            padding: '12px', 
+            background: 'rgba(255, 77, 110, 0.05)', 
+            borderLeft: '4px solid #ff4d6e',
+            borderRadius: '0 4px 4px 0'
+          }}>
+            <label style={{ color: '#ff4d6e', fontWeight: 'bold' }}>❤️ Nivel Mínimo Exigido:</label>
+            <select 
+              value={config?.tts?.minFanLevel || 1} 
+              onChange={(e) => onUpdateConfig({ tts: { ...config.tts, minFanLevel: parseInt(e.target.value, 10) } })}
+              className='modifier-select'
+              style={{ marginTop: '8px', width: '100%' }}
+            >
+              <option value={1}>Cualquier Nivel (1+)</option>
+              
+              {/* Truco ninja de React para generar los 49 <option> restantes sin escribirlos a mano */}
+              {Array.from({ length: 49 }, (_, i) => i + 2).map(nivel => (
+                <option key={nivel} value={nivel}>
+                  Nivel {nivel} o superior
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '6px' }}>
+              Los fans con nivel inferior a este serán ignorados por el bot.
+            </div>
+          </div>
+        )}
+
         {/* 🌟 NUEVOS INTERRUPTORES DE FILTRO Y LECTURA 🌟 */}
         <div className="tts-row" style={{ marginTop: '8px' }}>
           <label>🗣️ Leer el nombre de usuario</label>
@@ -321,8 +352,27 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
               <div key={i} className={`tts-entry ${ev.isMod ? 'mod' : ev.isFanClub ? 'fan' : ''}`}>
                 <div className="tts-user">
                   @{ev.username}
-                  {ev.isFanClub && <span className="tts-badge fan">❤️ Fan</span>}
-                  {ev.isMod && <span className="tts-badge mod">🛡️ Mod</span>}
+
+                  {/* 💎 NUEVO: Badge de Donador (Team/Level) con CSS puro */}
+                  {ev.isDonator && (
+                    <span className="tts-badge donator" style={{ background: '#f59e0b', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', fontSize: '11px', fontWeight: 'bold' }}>
+                      💎 Nvl {ev.donatorLevel}
+                    </span>
+                  )}
+
+                  {/* ❤️ ACTUALIZADO: Badge de Fan con su nivel */}
+                  {ev.isFanClub && (
+                    <span className="tts-badge fan" style={{ marginLeft: '6px' }}>
+                      ❤️ Fan {ev.fanLevel > 0 ? ev.fanLevel : ''}
+                    </span>
+                  )}
+
+                  {/* 🛡️ Badge de Mod */}
+                  {ev.isMod && (
+                    <span className="tts-badge mod" style={{ marginLeft: '6px' }}>
+                      🛡️ Mod
+                    </span>
+                  )}
                 </div>
                 <div className="tts-comment">{ev.comment}</div>
               </div>

@@ -1,6 +1,6 @@
 const { TikTokLiveConnection } = require('tiktok-live-connector');
 const { saveConfig } = require('../config/settings');
-
+const stickersManager = require('./stickersManager');
 // ==========================================
 // 1. ESTADO GLOBAL DEL SERVICIO
 // ==========================================
@@ -173,43 +173,142 @@ function handleLike(data) {
 }
 
 function handleChat(data) {
+  // 🛡️ 1. CAPTURA DE BADGES (EMBLEMAS VIP Y CLUB DE FANS)
+  const badges = (data.user?.badgeList || []).map(b => {
+    const iconUrl =
+      b.combine?.icon?.urlList?.[0] ||
+      b.image?.urlList?.[0] ||
+      b.icons?.urlList?.[0] ||
+      null;
+      
+    const label = b.combine?.str || b.label || '';
+    
+    // SceneType 10 = FansClub, SceneType 8 = Donador/Nivel
+    const isFans = b.sceneType === 10 || (label && isNaN(Number(label)));
+    const isLevel = b.sceneType === 8 || (!isNaN(Number(label)) && label !== '');
+    const type = isFans ? 'fans' : isLevel ? 'level' : 'other';
+    
+    return { 
+      label, 
+      iconUrl, 
+      type, 
+      level: b.privilegeLogExtra?.level || null 
+    };
+  }).filter(b => b.label || b.iconUrl);
+
+  // 🎁 2. EXTRACCIÓN Y REGISTRO DE STICKERS / EMOTES
+  if (data.emotes && data.emotes.length > 0) {
+    let catalogUpdated = false; 
+    
+    data.emotes.forEach(emoteWrapper => {
+      const emote = emoteWrapper.emote; 
+      if (!emote) return;
+
+      const emoteId = emote.id || emote.emoteId; 
+      const emoteName = emote.name || emote.emoteId || "Sticker";
+
+      const iconUrl = 
+        emote.image?.urlList?.[0] || 
+        emote.image?.imageList?.[0]?.url || 
+        emote.imageUrl || '';
+      
+      // ⚡ CONSULTAMOS LA MEMORIA RAM
+      if (emoteId && emoteId !== '?' && !stickersManager.db.catalog[emoteId]) {
+        stickersManager.db.catalog[emoteId] = { name: emoteName, icon: iconUrl };
+        catalogUpdated = true; 
+        console.log(`✅ [CATÁLOGO] Sticker NUEVO detectado y cargado en memoria: ${emoteName}`);
+      }
+      
+      // ⚡ DISPARADOR DE MACROS O SONIDOS POR STICKER
+      const assignment = stickersManager.db.assignments?.[emoteId];
+
+      if (assignment && assignment.enabled && assignment.actionId) {
+        const target = assignment.actionId;
+
+        // ⌨️ CASO A: Es una Acción de Teclado
+        if (target.startsWith('action:')) {
+          const actionId = target.replace('action:', '');
+          const actionGlobal = configRef.actions?.[actionId];
+          
+          if (actionGlobal && actionGlobal.enabled && actionGlobal.type === 'keyboard' && actionGlobal.key) {
+            console.log(`🎯 [ACCIÓN] Ejecutando macro de Sticker: ${actionGlobal.name}`);
+            
+            const { executeMacro } = require('./keyboardQueue');
+            
+            const actionDelay = actionGlobal.delay !== undefined ? actionGlobal.delay : (configRef.keyDelayMs || 80);
+            const playEveryKey = actionGlobal.soundEveryKey || false;
+            const soundToPlay = actionGlobal.soundFile || actionGlobal.sound; 
+
+            executeMacro(actionGlobal.key, actionDelay, soundToPlay, playEveryKey);
+          }
+        } 
+        
+        // 🎵 CASO B: Es solo un Sonido Directo
+        else if (target.startsWith('sound:')) {
+          const soundFile = target.replace('sound:', '');
+          console.log(`🎵 [SONIDO] Reproduciendo sonido por Sticker: ${soundFile}`);
+          
+          if (typeof ioInstance !== 'undefined') {
+            ioInstance.emit('play-macro-sound', soundFile);
+          } else if (typeof io !== 'undefined') {
+            io.emit('play-macro-sound', soundFile);
+          }
+        }
+      }
+    });
+
+    // 💾 3. GUARDAR A DISCO
+    if (catalogUpdated) {
+      stickersManager.save(); 
+      if (typeof ioInstance !== 'undefined') {
+        ioInstance.emit('catalog:newSticker', stickersManager.db.catalog);
+      }
+    }
+  }
+
+  // 🔊 3. LÓGICA DE TEXT-TO-SPEECH (TTS) ORIGINAL MEJORADA
   const tts = configRef.tts;
   if (!tts || !tts.enabled) return;
   
   const identity = data.userIdentity || {};
   const isFollower = identity.isFollowerOfAnchor;
-  const isFanClub = identity.isSubscriberOfAnchor || identity.isGiftGiverOfAnchor;
   const isMod = identity.isModeratorOfAnchor;
   const isAnchor = identity.isAnchor;
   const username = getUsername(data);
+
+  // 🌟 NUEVO: Detectar Club de Fans y Donadores analizando los Badges reales
+  const fanBadge = badges.find(b => b.type === 'fans');
+  const donatorBadge = badges.find(b => b.type === 'level');
+
+  const isFanClub = !!fanBadge;
+  const fanLevel = fanBadge && fanBadge.level ? parseInt(fanBadge.level, 10) : 0;
+  
+  const isDonator = !!donatorBadge;
+  const donatorLevel = donatorBadge && donatorBadge.level ? parseInt(donatorBadge.level, 10) : 0;
 
   // 1. Filtrar por permisos
   const filterMode = tts.filterMode || 'all';
   if (filterMode === 'followers' && !isFollower && !isFanClub && !isMod && !isAnchor) return;
   if (filterMode === 'fans' && !isFanClub && !isMod && !isAnchor) return;
+  
+  // 🚀 Filtro por Nivel de Fan Club (Opcional, si agregas 'minFanLevel' al config del front)
+  if (filterMode === 'fans' && tts.minFanLevel && fanLevel < tts.minFanLevel && !isMod && !isAnchor) return;
 
   let commentText = (data.comment || data.content || '').trim();
   if (!commentText) return;
 
-  // 🛡️ 2. FILTRO DE PREFIJO EXCLUSIVO (NUEVO)
+  // 🛡️ 2. FILTRO DE PREFIJO EXCLUSIVO
   if (tts.usePrefix && tts.prefixText) {
     const lowerComment = commentText.toLowerCase();
     const prefix = tts.prefixText.trim();
-
-    // Si el comentario no arranca con el prefijo, lo destruimos e ignoramos el spam de "xd"
     if (!lowerComment.startsWith(prefix)) return;
-
-    // Limpiamos el prefijo del texto final para que el bot no lea "!bot" a cada rato
     commentText = commentText.slice(prefix.length).trim();
-    if (!commentText) return; // Si solo pusieron el prefijo vacío, abortamos
+    if (!commentText) return; 
   }
 
   // 3. Filtro Anti-Idiomas Raros
   if (tts.onlyLatin) {
-    // Busca cualquier carácter que NO sea Latino, Número, Puntuación, Espacio o Símbolo.
-    // Emojis, letras españolas, acentos y portugués pasan el filtro perfectamente.
     const containsWeirdChars = /[^\p{Script=Latin}\p{N}\p{P}\p{Z}\p{S}\p{M}]/u.test(commentText);
-    
     if (containsWeirdChars) {
       console.log(`🚫 Comentario ignorado por filtro de idioma: ${commentText}`);
       return; 
@@ -221,8 +320,18 @@ function handleChat(data) {
 
   const textToSay = tts.sayUsername ? `${username} dice: ${commentText}` : commentText;
 
+  // Emitimos el evento de TTS enviando todo lo necesario al frontend
   ioInstance.emit('ttsComment', { 
-    username, comment: commentText, text: textToSay, isFanClub, isMod, timestamp: Date.now()
+    username, 
+    comment: commentText, 
+    text: textToSay, 
+    isFanClub, 
+    fanLevel,      // <- Nivel del Club de Fans
+    isDonator, 
+    donatorLevel,  // <- Nivel de Donador
+    isMod, 
+    badges,        // <- Lista completa de badges
+    timestamp: Date.now()
   });
 }
 

@@ -9,6 +9,7 @@ const { loadConfig, saveConfig } = require('./config/settings');
 const { isRobotAvailable } = require('./services/keyboardQueue');
 const keyboardQueue = require('./services/keyboardQueue');
 const tiktokService = require('./services/tiktokService');
+const stickersManager = require('./services/stickersManager');
 const apiRoutes = require('./routes/api');
 const ttsRoutes = require('./routes/tts');
 
@@ -118,6 +119,31 @@ app.post('/api/catalog/sync', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get('/api/stickers/config', (req, res) => {
+  res.json({
+    catalog: stickersManager.db.catalog || {},
+    assignments: stickersManager.db.assignments || {}
+  });
+});
+
+// 💾 Guardar asignación de un sticker a una macro
+app.post('/api/stickers/assign', (req, res) => {
+  const { emoteId, actionId, enabled } = req.body;
+  
+  if (!stickersManager.db.assignments) stickersManager.db.assignments = {};
+  
+  // Guardamos en RAM
+  stickersManager.db.assignments[emoteId] = {
+    actionId,
+    enabled: enabled !== undefined ? enabled : true
+  };
+  
+  // Guardamos en Disco
+  stickersManager.save();
+  
+  res.json({ success: true, assignments: stickersManager.db.assignments });
 });
 
 app.post('/api/system/restart', (req, res) => {

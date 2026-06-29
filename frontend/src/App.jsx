@@ -7,6 +7,7 @@ import EventLog from './components/EventLog';
 import CatalogTab from './components/CatalogTab'; 
 import ActionsTab from './components/ActionsTab';
 import EventsTab from './components/EventsTab';
+import StickersTab from './components/StickersTab';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import './index.css';
@@ -139,6 +140,7 @@ function App() {
           <button className={`tab ${activeTab === 'catalog' ? 'active' : ''}`} onClick={() => setActiveTab('catalog')}>🎁 Catálogo TikTok</button>
           <button className={`tab ${activeTab === 'log' ? 'active' : ''}`} onClick={() => setActiveTab('log')}>📋 Log en vivo</button>
           <button className={`tab ${activeTab === 'tts' ? 'active' : ''}`} onClick={() => setActiveTab('tts')}>🔊 Bot TTS</button>
+          <button className={`tab ${activeTab === 'stickers' ? 'active' : ''}`} onClick={() => setActiveTab('stickers')}>🖼️ Stickers</button>
         </div>
 
         <div className="tab-content">
@@ -165,6 +167,14 @@ function App() {
           {activeTab === 'log' && <EventLog events={liveEvents} />}
           
           {activeTab === 'tts' && <TTSControl config={config} onUpdateConfig={handleUpdateConfig} ttsEvents={ttsEvents} />}
+        
+          {activeTab === 'stickers' && (
+            <StickersTab 
+              actions={config.actions} 
+              availableSounds={availableSounds} // 👈 AÑADE ESTA LÍNEA
+              ioSocket={socket}
+            />
+          )}
         </div>
 
         {systemError && (
