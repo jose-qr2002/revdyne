@@ -1,29 +1,20 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const os = require('os'); // 🌟 NUEVO: Necesario para leer la ruta del usuario
 
 module.exports = function() {
   const router = express.Router();
 
-  // 🎵 NUEVO: Buscador a prueba de balas
-  const possiblePaths = [
-    path.join(__dirname, '../sounds'), // Desarrollo clásico
-    path.join(process.cwd(), 'sounds'), // Raíz del proyecto
-    path.join(__dirname, 'sounds'), // Mismo nivel
-    path.join(process.resourcesPath || '', 'app', 'dist-backend', 'sounds'), // EXACTAMENTE lo que muestran tus fotos
-    path.join(__dirname, '../../dist-backend/sounds') // Por si acaso las relativas cambian
-  ];
+  // 🎵 1. ÚNICA RUTA: Apuntamos directamente a Documentos
+  const soundsPath = path.join(os.homedir(), 'Documents', 'REVINITY', 'sounds');
 
-  // Encuentra la primera ruta de la lista que realmente exista en tu PC
-  let soundsPath = possiblePaths.find(p => fs.existsSync(p));
-
-  // Si no encuentra ninguna (muy raro), creamos la de por defecto para evitar crasheos
-  if (!soundsPath) {
-    soundsPath = path.join(__dirname, '../sounds');
+  // Si no existe, la creamos (por seguridad)
+  if (!fs.existsSync(soundsPath)) {
     fs.mkdirSync(soundsPath, { recursive: true });
   }
 
-  console.log(`🎵 Sonidos cargados con éxito desde: ${soundsPath}`);
+  console.log(`🎵 [ALERTAS] Conectado a la carpeta global: ${soundsPath}`);
 
   // 2. Ruta para que React pueda leer la lista de mp3 disponibles
   router.get('/list', (req, res) => {
@@ -37,7 +28,7 @@ module.exports = function() {
     }
   });
 
-  // 3. Ruta para que React reproduzca el archivo directamente
+  // 3. Ruta de compatibilidad (por si alguna parte de tu front aún usa /api/alerts/play)
   router.use('/play', express.static(soundsPath));
 
   return router;

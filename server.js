@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
+const os = require('os'); // Detectar carpeta del usuario
 
 const { loadConfig, saveConfig } = require('./config/settings');
 const { isRobotAvailable } = require('./services/keyboardQueue');
@@ -23,20 +24,13 @@ const config = loadConfig();
 // 1. MIDDLEWARES GLOBALES
 app.use(express.json({ limit: '10mb' }));
 
-// 🌟 1. EL BUSCADOR INTELIGENTE DE RUTAS
+// 🌟 1. EL BUSCADOR INTELIGENTE DE RUTAS (ACTUALIZADO A DOCUMENTOS)
 const getSoundsDir = () => {
-  const possiblePaths = [
-    path.join(process.cwd(), 'sounds'), // 1️⃣ Ruta en Desarrollo
-    path.join(process.resourcesPath || '', 'app', 'dist-backend', 'sounds'), // 2️⃣ Ruta en Producción
-    path.join(__dirname, 'sounds') // 3️⃣ Fallback de emergencia
-  ];
+  // Apuntamos directamente a Documentos/REVINITY/sounds
+  const activePath = path.join(os.homedir(), 'Documents', 'REVINITY', 'sounds');
 
-  // Buscamos cuál de estas rutas existe realmente en la PC
-  let activePath = possiblePaths.find(p => fs.existsSync(p));
-
-  // Si ninguna existe (primera vez arrancando), la creamos en la ruta de desarrollo por defecto
-  if (!activePath) {
-    activePath = possiblePaths[0];
+  // Si no existe, la creamos
+  if (!fs.existsSync(activePath)) {
     fs.mkdirSync(activePath, { recursive: true });
   }
 
@@ -49,7 +43,7 @@ console.log(`[BACKEND] 🎵 Carpeta de sonidos activa en: ${SOUNDS_DIR}`);
 // 🎵 2. CONFIGURACIÓN DE SUBIDA DE SONIDOS
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, SOUNDS_DIR); // Usamos la ruta detectada
+    cb(null, SOUNDS_DIR); // Usamos la ruta en Documentos
   },
   filename: (req, file, cb) => {
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -150,17 +144,11 @@ app.post('/api/stickers/assign', (req, res) => {
 app.delete('/api/stickers/:emoteId', (req, res) => {
   const { emoteId } = req.params;
   
-  // Asumiendo que importaste stickersManager arriba en tu server.js
-  const stickersManager = require('./services/stickersManager');
-  
   if (stickersManager.db.catalog[emoteId]) {
-    // 1. Lo borramos del catálogo
     delete stickersManager.db.catalog[emoteId];
-    // 2. Borramos sus asignaciones (para que no queden datos fantasma)
     if (stickersManager.db.assignments[emoteId]) {
       delete stickersManager.db.assignments[emoteId];
     }
-    // 3. Guardamos los cambios
     stickersManager.save();
     
     res.json({ success: true });
@@ -190,7 +178,8 @@ app.use('/api', apiRoutes(config, io, tiktokService));
 // ==========================================
 // 4. CARPETAS ESTÁTICAS Y REACT (Al final)
 // ==========================================
-app.use('/sounds', express.static(path.join(process.cwd(), 'sounds')));
+// 🌟 NUEVO: Servimos los audios desde la variable SOUNDS_DIR (Documentos)
+app.use('/sounds', express.static(SOUNDS_DIR));
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
 app.get('*', (req, res) => {

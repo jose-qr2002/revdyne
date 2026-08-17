@@ -67,6 +67,8 @@ function createWindow () {
     }
   });
 
+  win.webContents.openDevTools();
+
   // 🚀 CÁMBIO CLAVE: Detecta si la app está empaquetada o en desarrollo
   const isDev = !app.isPackaged;
 

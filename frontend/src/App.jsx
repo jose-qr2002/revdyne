@@ -23,14 +23,22 @@ function App() {
   const [systemError, setSystemError] = useState(null);
   const [availableSounds, setAvailableSounds] = useState([]);
 
-  // 🎵 Función de sonido (Se mantiene igual)
+  // 🎵 Función de sonido (Actualizada a la carpeta Documentos)
   function playAlertSound(filename) {
     if (!filename) return;
-    const urlCompleta = `/api/alerts/play/${filename}`;
+    
+    // 🌟 VOLVEMOS A LA RUTA /API/ QUE REACT SÍ DEJA PASAR HACIA EL BACKEND
+    const safeFilename = encodeURIComponent(filename);
+    const urlCompleta = `/api/alerts/play/${safeFilename}`; 
+    
+    console.log("🔊 Intentando reproducir por API:", urlCompleta);
+
     const audio = new Audio(urlCompleta);
+    
     if (config && config.tts && config.tts.audioDeviceId && audio.setSinkId) {
       audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
     }
+    
     audio.play().catch(e => console.error("❌ Error reproduciendo alerta:", e));
   }
 

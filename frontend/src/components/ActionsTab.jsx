@@ -277,7 +277,19 @@ export default function ActionsTab({ actions, onUpdateConfig }) {
                 <div style={{ flex: 2, minWidth: '220px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Sonido de Alerta</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <select className="modifier-select" value={sound} onChange={e => setSound(e.target.value)} style={{ flex: 1 }}>
+                    <select 
+                      className="modifier-select" 
+                      value={sound} 
+                      onChange={e => setSound(e.target.value)} 
+                      style={{ 
+                        flex: 1, 
+                        minWidth: 0,              // 🌟 Truco vital para que Flexbox permita cortar el texto
+                        maxWidth: '200px',        // 🌟 Límite de seguridad
+                        overflow: 'hidden',       // 🌟 Oculta el texto que sobra
+                        textOverflow: 'ellipsis', // 🌟 Agrega los 3 puntitos (...)
+                        whiteSpace: 'nowrap'      // 🌟 Evita que se haga de dos líneas
+                      }}
+                    >
                       <option value="">Sin sonido</option>
                       {localSounds.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>

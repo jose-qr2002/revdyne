@@ -318,7 +318,11 @@ function handleChat(data) {
   const maxChars = tts.maxChars || 150;
   if (commentText.length > maxChars) commentText = commentText.slice(0, maxChars) + '...';
 
-  const textToSay = tts.sayUsername ? `${username} dice: ${commentText}` : commentText;
+  const clearedName = username.replace(/[_.-]/g, ' ').trim();
+  const clearedComment = commentText.replace(/[_.-]/g, ' ').trim();
+
+
+  const textToSay = tts.sayUsername ? `${clearedName} dice: ${clearedComment}` : clearedComment;
 
   // Emitimos el evento de TTS enviando todo lo necesario al frontend
   ioInstance.emit('ttsComment', { 

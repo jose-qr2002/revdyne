@@ -1,25 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import ConfirmModal from './ConfirmModal';
 
-export default function StickersTab({ actions, availableSounds, ioSocket }) {
+export default function StickersTab({ actions, ioSocket }) { // 🌟 Removido availableSounds
   const [catalog, setCatalog] = useState({});
   const [assignments, setAssignments] = useState({});
   const [notification, showToast] = useState(null);
 
-  // 🌟 Estados para el Modal de Confirmación
   const [modalOpen, setModalOpen] = useState(false);
   const [stickerToDelete, setStickerToDelete] = useState(null);
 
+  // 🌟 NUEVO: Estado local para los sonidos
+  const [localSounds, setLocalSounds] = useState([]);
+
   // Carga inicial desde la API
   useEffect(() => {
+    // 1. Cargar Stickers
     fetch('/api/stickers/config')
       .then(res => res.json())
       .then(data => {
-        console.log("🔍 [FRONTEND DEBUG] Datos recibidos de la API:", data); // ¡MIRA ESTO!
         setCatalog(data.catalog || {});
         setAssignments(data.assignments || {});
       })
-      .catch((e) => console.error("Error cargando:", e));
+      .catch((e) => console.error("Error cargando stickers:", e));
+
+    // 🌟 2. Cargar Sonidos directamente desde el Backend
+    fetch('/api/sounds/list')
+      .then(res => res.json())
+      .then(files => setLocalSounds(files))
+      .catch(e => console.error("Error cargando sonidos:", e));
   }, []);
 
   // Escuchar en tiempo real si aparece un sticker nuevo mientras juegas
@@ -41,7 +49,6 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
       const data = await res.json();
       if (data.success) {
         setAssignments(data.assignments);
-        // showToast('¡Sticker vinculado con éxito!');
       }
     } catch {
       showToast('Error al guardar vinculación');
@@ -63,13 +70,11 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
     }
   };
 
-  // 🗑️ Preparar eliminación (Abre el modal)
   const requestDelete = (emoteId, data) => {
     setStickerToDelete({ id: emoteId, name: data.name });
     setModalOpen(true);
   };
 
-  // 🗑️ Ejecutar eliminación real
   const confirmDelete = async () => {
     if (!stickerToDelete) return;
     
@@ -78,7 +83,6 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
       const data = await res.json();
       
       if (data.success) {
-        // Actualizar el estado local para que desaparezca al instante sin recargar
         const newCatalog = { ...catalog };
         delete newCatalog[stickerToDelete.id];
         setCatalog(newCatalog);
@@ -91,7 +95,6 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
       console.error('Error al eliminar sticker', e);
     }
     
-    // Cerrar modal y limpiar
     setModalOpen(false);
     setStickerToDelete(null);
   };
@@ -99,7 +102,6 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* 🌟 Invocamos el Modal (está oculto hasta que modalOpen sea true) */}
       <ConfirmModal 
         isOpen={modalOpen}
         title="⚠️ Eliminar Sticker"
@@ -141,7 +143,13 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
                       className="modifier-select"
                       value={currentAssign.actionId}
                       onChange={(e) => handleAssignAction(emoteId, e.target.value)}
-                      style={{ minWidth: '180px' }}
+                      style={{ 
+                        minWidth: '180px', 
+                        maxWidth: '220px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
                     >
                       <option value="">🚫 Ninguna (Ignorar)</option>
                       
@@ -151,8 +159,9 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
                         ))}
                       </optgroup>
                       
+                      {/* 🌟 NUEVO: Usamos el estado localSounds en lugar de availableSounds */}
                       <optgroup label="🎵 SONIDOS DIRECTOS">
-                        {(availableSounds || []).map(sound => (
+                        {localSounds.map(sound => (
                           <option key={sound} value={`sound:${sound}`}>🎵 {sound}</option>
                         ))}
                       </optgroup>
@@ -168,7 +177,7 @@ export default function StickersTab({ actions, availableSounds, ioSocket }) {
                     />
                     <span className="slider"></span>
                   </label>
-                  {/* 🗑️ BOTÓN DE ELIMINAR */}
+                  
                   <button 
                     onClick={() => requestDelete(emoteId, data)}
                     style={{ 
