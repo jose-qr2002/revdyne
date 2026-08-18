@@ -23,14 +23,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
     }
   }, [tts.speed]);
 
-  useEffect(() => {
-    const handleToggle = () => {
-      updateTTS({ enabled: !tts.enabled });
-    };
-    window.addEventListener('tts-action-toggle-bot', handleToggle);
-    return () => window.removeEventListener('tts-action-toggle-bot', handleToggle);
-  }, [tts]); 
-
   // 🛡️ BLINDAJE MEJORADO: Soporte para combinaciones seguras (Ctrl+Tecla, Shift+Tecla)
   const getElectronKey = (e) => {
     const code = e.code;

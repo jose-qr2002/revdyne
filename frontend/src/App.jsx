@@ -89,6 +89,26 @@ function App() {
     }
   }, [status]);
 
+  // Escuchador GLOBAL de Atajos de Teclado (Siempre activo)
+  useEffect(() => {
+    // Si la configuración aún no carga, no hacemos nada
+    if (!config || !config.tts) return;
+
+    // Función para apagar/prender el bot
+    const handleToggleBot = () => {
+      handleUpdateConfig({ 
+        tts: { ...config.tts, enabled: !config.tts.enabled } 
+      });
+    };
+
+    // Prender los "oídos"
+    window.addEventListener('tts-action-toggle-bot', handleToggleBot);
+    // Apagar los "oídos" cuando se recarga la app para que no se dupliquen
+    return () => {
+      window.removeEventListener('tts-action-toggle-bot', handleToggleBot);
+    };
+  }, [config]); // Dependemos de config para saber si estaba prendido o apagado
+
   const handleConnect = async (username) => {
     if (isConnecting) return; 
     setIsConnecting(true); 
