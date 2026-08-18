@@ -31,36 +31,61 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
     return () => window.removeEventListener('tts-action-toggle-bot', handleToggle);
   }, [tts]); 
 
-  // 🛡️ BLINDAJE: Solo teclas que Electron soporta (Inglés A-Z, 0-9, F1-F24, Numpad y Especiales)
+  // 🛡️ BLINDAJE MEJORADO: Soporte para combinaciones seguras (Ctrl+Tecla, Shift+Tecla)
   const getElectronKey = (e) => {
     const code = e.code;
     const key = e.key;
 
+    // 1. Ignorar si el usuario solo presionó el modificador (esperamos a que presione la tecla final)
     if (['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return null;
+
+    // 2. Construir la cadena de modificadores
+    const modifiers = [];
+    if (e.ctrlKey || e.metaKey) modifiers.push('CommandOrControl'); // MetaKey es 'Cmd' en Mac
+    if (e.altKey) modifiers.push('Alt');
+    if (e.shiftKey) modifiers.push('Shift');
+
+    // 3. Obtener la tecla principal presionada
+    let mainKey = null;
 
     if (code.startsWith('Numpad')) {
       const num = code.replace('Numpad', '');
-      if (!isNaN(num)) return `num${num}`; 
-      const numMap = { 'Add': 'numadd', 'Subtract': 'numsub', 'Multiply': 'nummult', 'Divide': 'numdiv', 'Decimal': 'numdec', 'Enter': 'Enter' };
-      return numMap[num] || key;
+      if (!isNaN(num)) {
+        mainKey = `num${num}`; 
+      } else {
+        const numMap = { 'Add': 'numadd', 'Subtract': 'numsub', 'Multiply': 'nummult', 'Divide': 'numdiv', 'Decimal': 'numdec', 'Enter': 'Enter' };
+        mainKey = numMap[num] || key;
+      }
+    } else {
+      const specialMap = {
+        ' ': 'Space', 'Tab': 'Tab', 'CapsLock': 'Capslock', 
+        'PageUp': 'PageUp', 'PageDown': 'PageDown', 
+        'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
+        'Escape': 'Esc', 'Enter': 'Enter', 'Backspace': 'Backspace', 
+        'Delete': 'Delete', 'Insert': 'Insert', 'Home': 'Home', 'End': 'End',
+        '+': 'Plus', '-': 'Minus'
+      };
+
+      if (specialMap[key]) {
+        mainKey = specialMap[key];
+      } else if (/^[a-zA-Z0-9]$/.test(key)) {
+        mainKey = key.toUpperCase();
+      } else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) {
+        mainKey = key;
+      }
     }
 
-    const specialMap = {
-      ' ': 'Space', 'Tab': 'Tab', 'CapsLock': 'Capslock', 
-      'PageUp': 'PageUp', 'PageDown': 'PageDown', 
-      'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
-      'Escape': 'Esc', 'Enter': 'Enter', 'Backspace': 'Backspace', 
-      'Delete': 'Delete', 'Insert': 'Insert', 'Home': 'Home', 'End': 'End',
-      '+': 'Plus', '-': 'Minus'
-    };
+    // 4. Si la tecla principal no es válida, abortamos
+    if (!mainKey) return null;
 
-    if (specialMap[key]) return specialMap[key];
+    // 5. Unir los modificadores con la tecla principal usando el formato de Electron (Ej: "CommandOrControl+Shift+A")
+    if (modifiers.length > 0) {
+      return `${modifiers.join('+')}+${mainKey}`;
+    }
 
-    // Expresión regular: Solo letras inglesas, números y F1 al F24. Rechaza ñ, ç, º, etc.
-    if (/^[a-zA-Z0-9]$/.test(key)) return key.toUpperCase();
-    if (/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) return key;
-
-    return null; // Si presionas una tecla no soportada, no hace nada
+    
+    // Si no hay modificadores, devuelve solo la tecla (aunque ahora tú como usuario presionarás combinaciones)
+    return mainKey;
   };
 
   useEffect(() => {
@@ -119,6 +144,11 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
   };
 
   const testAudio = () => enqueueTTS('Prueba de sonido. Bot activado.');
+
+  const formatShortcutDisplay = (shortcutString) => {
+    if (!shortcutString) return 'Clic para asignar atajo';
+    return shortcutString.replace(/CommandOrControl/g, 'Ctrl');
+  };
 
   return (
     <div className="tts-layout">
@@ -234,7 +264,11 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
         )}
 
         <div className="tts-section-title" style={{ marginTop: '16px' }}>⌨️ Atajos de Teclado (Globales)</div>
-      
+        
+        <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '12px' }}>
+          💡 <strong>Recomendación:</strong> Usa combinaciones con <strong>Ctrl</strong> o <strong>Alt</strong> + Tecla (Ej: Ctrl+S). Evita usar teclas sueltas para no apagar el bot accidentalmente mientras juegas.
+        </div>
+
         <div className="tts-row">
           <label>⏭️ Omitir actual</label>
           <button 
@@ -242,7 +276,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipCurrent' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
             onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipCurrent' ? setListeningFor(null) : setListeningFor('keySkipCurrent'); }}
           >
-            {listeningFor === 'keySkipCurrent' ? '⏳ Presiona una tecla...' : (tts.keySkipCurrent || 'Clic para asignar')}
+            {listeningFor === 'keySkipCurrent' ? '⏳ Presiona atajo...' : formatShortcutDisplay(tts.keySkipCurrent)}
           </button>
         </div>
 
@@ -253,7 +287,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipAll' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
             onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipAll' ? setListeningFor(null) : setListeningFor('keySkipAll'); }}
           >
-            {listeningFor === 'keySkipAll' ? '⏳ Presiona una tecla...' : (tts.keySkipAll || 'Clic para asignar')}
+            {listeningFor === 'keySkipAll' ? '⏳ Presiona atajo...' : formatShortcutDisplay(tts.keySkipAll)}
           </button>
         </div>
 
@@ -264,7 +298,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keyToggleBot' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
             onClick={(e) => { e.stopPropagation(); listeningFor === 'keyToggleBot' ? setListeningFor(null) : setListeningFor('keyToggleBot'); }}
           >
-            {listeningFor === 'keyToggleBot' ? '⏳ Presiona una tecla...' : (tts.keyToggleBot || 'Clic para asignar')}
+            {listeningFor === 'keyToggleBot' ? '⏳ Presiona atajo...' : formatShortcutDisplay(tts.keyToggleBot)}
           </button>
         </div>
 
