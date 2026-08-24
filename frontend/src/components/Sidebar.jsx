@@ -1,6 +1,9 @@
 import React from 'react';
 
-export default function Sidebar({ status, config, onConnect, onUpdateConfig, isConnecting }) {
+export default function Sidebar({ 
+  status, config, onConnect, onUpdateConfig, isConnecting,
+  activeProfileId, profilesList, onChangeProfile, onCreateProfile
+}) {
   return (
     <aside className="sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', padding: '20px' }}>
       
@@ -96,6 +99,30 @@ export default function Sidebar({ status, config, onConnect, onUpdateConfig, isC
           {isConnecting ? '⏳ Conectando...' : (status.connected ? '❌ Desconectar' : '🔌 Conectar')}
         </button>
       </div>
+      
+      {/* SELECTOR DE JUEGOS (Solo visual, la lógica la maneja App.jsx) */}
+      {profilesList && (
+        <div style={{ background: 'var(--card)', padding: '15px', borderRadius: '8px', margin: '20px 10px', display: 'flex', flexDirection: 'column', gap: '10px', border: '1px solid var(--border)' }}>
+          <h3 style={{ margin: 0, color: 'white', fontSize: '14px', textAlign: 'center' }}>🕹️ Perfil Activo</h3>
+          
+          <select 
+            className="modifier-select" 
+            style={{ width: '100%', fontSize: '14px', padding: '8px', background: 'var(--bg3)' }}
+            value={activeProfileId}
+            onChange={(e) => onChangeProfile(e.target.value)} // 👈 Usamos la prop de App
+          >
+            {Object.entries(profilesList).map(([id, prof]) => (
+              <option key={id} value={id}>
+                {prof.isGlobal ? '🌐 ' : '🎮 '} {prof.name}
+              </option>
+            ))}
+          </select>
+          
+          <button className="btn btn-secondary" onClick={onCreateProfile} style={{ width: '100%', fontSize: '13px', padding: '8px' }}>
+            ➕ Nuevo Juego
+          </button>
+        </div>
+      )}
 
       {/* 🚀 ESPACIADOR FLEXIBLE: Empuja lo de abajo hacia el final de la pantalla */}
       <div style={{ flex: 1 }}></div>

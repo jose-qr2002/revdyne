@@ -3,7 +3,6 @@ import TTSControl from './components/TTSControl';
 import { updateTTSConfig, enqueueTTS } from './services/ttsPlayer';
 import Sidebar from './components/Sidebar';
 import EventLog from './components/EventLog';
-// 👇 IMPORTACIONES FUTURAS (Aún no existen, pero las dejaremos listas)
 import CatalogTab from './components/CatalogTab'; 
 import ActionsTab from './components/ActionsTab';
 import EventsTab from './components/EventsTab';
@@ -11,10 +10,16 @@ import StickersTab from './components/StickersTab';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import './index.css';
+import { SUPPORTED_ENGINES } from '../../src/utils/supportedEngines';
 
 function App() {
   const { socket, status, events: liveEvents, ttsEvents, clearEvents } = useSocket();
   
+  // Estados para el Modal de Nuevo Perfil
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileType, setNewProfileType] = useState(SUPPORTED_ENGINES[0].id);
+
   // 🌟 NUEVO SISTEMA DE PESTAÑAS TIPO TIKFINITY
   const [activeTab, setActiveTab] = useState('events'); 
   
@@ -23,11 +28,10 @@ function App() {
   const [systemError, setSystemError] = useState(null);
   const [availableSounds, setAvailableSounds] = useState([]);
 
-  // 🎵 Función de sonido (Actualizada a la carpeta Documentos)
+  // 🎵 Función de sonido
   function playAlertSound(filename) {
     if (!filename) return;
     
-    // 🌟 VOLVEMOS A LA RUTA /API/ QUE REACT SÍ DEJA PASAR HACIA EL BACKEND
     const safeFilename = encodeURIComponent(filename);
     const urlCompleta = `/api/alerts/play/${safeFilename}`; 
     
@@ -48,7 +52,7 @@ function App() {
     }
   }, [ttsEvents]);
 
-  // 📡 Carga Inicial de Datos (Sonidos y Configuración Nueva)
+  // 📡 Carga Inicial de Datos
   useEffect(() => {
     fetch('/api/alerts/list')
       .then(res => res.json())
@@ -63,7 +67,7 @@ function App() {
     });
   }, []);
 
-  // 📡 Manejo de Sockets (Errores y Sonidos)
+  // 📡 Manejo de Sockets
   useEffect(() => {
     if (!socket) return;
     
@@ -89,25 +93,21 @@ function App() {
     }
   }, [status]);
 
-  // Escuchador GLOBAL de Atajos de Teclado (Siempre activo)
+  // Escuchador GLOBAL de Atajos de Teclado
   useEffect(() => {
-    // Si la configuración aún no carga, no hacemos nada
     if (!config || !config.tts) return;
 
-    // Función para apagar/prender el bot
     const handleToggleBot = () => {
       handleUpdateConfig({ 
         tts: { ...config.tts, enabled: !config.tts.enabled } 
       });
     };
 
-    // Prender los "oídos"
     window.addEventListener('tts-action-toggle-bot', handleToggleBot);
-    // Apagar los "oídos" cuando se recarga la app para que no se dupliquen
     return () => {
       window.removeEventListener('tts-action-toggle-bot', handleToggleBot);
     };
-  }, [config]); // Dependemos de config para saber si estaba prendido o apagado
+  }, [config]); 
 
   const handleConnect = async (username) => {
     if (isConnecting) return; 
@@ -143,6 +143,54 @@ function App() {
     );
   }
 
+  // ==========================================
+  // 🌟 LÓGICA DE PERFILES CORREGIDA Y LIBERADA
+  // ==========================================
+  const profilesData = config?.profiles || { list: {}, activeProfileId: 'prof_default' };
+  const activeProfileId = profilesData.activeProfileId;
+  const currentProfile = profilesData.list[activeProfileId] || { actions: {}, events: [] };
+
+  const handleProfileUpdate = (updates) => {
+    const newProfiles = JSON.parse(JSON.stringify(profilesData));
+    newProfiles.list[activeProfileId] = {
+      ...newProfiles.list[activeProfileId],
+      ...updates 
+    };
+    handleUpdateConfig({ profiles: newProfiles });
+  };
+
+  const changeProfile = (newId) => {
+    handleUpdateConfig({ profiles: { ...profilesData, activeProfileId: newId } });
+  };
+
+  // 👇 ESTAS DOS FUNCIONES AHORA ESTÁN SUELTAS Y ACCESIBLES
+  const openNewProfileModal = () => {
+    setNewProfileName('');
+    setNewProfileType('keyboard_universal');
+    setShowProfileModal(true);
+  };
+
+  const saveNewProfile = () => {
+    if (!newProfileName.trim()) {
+      alert("Por favor, ingresa un nombre para el juego.");
+      return;
+    }
+
+    const newId = 'prof_' + Date.now();
+    const newProfiles = JSON.parse(JSON.stringify(profilesData));
+    
+    newProfiles.list[newId] = { 
+      name: newProfileName, 
+      type: newProfileType, 
+      actions: {}, 
+      events: [] 
+    };
+    newProfiles.activeProfileId = newId;
+    
+    handleUpdateConfig({ profiles: newProfiles });
+    setShowProfileModal(false); 
+  };
+
   return (
     <>
       <Sidebar 
@@ -151,6 +199,10 @@ function App() {
         onConnect={handleConnect} 
         onUpdateConfig={handleUpdateConfig} 
         isConnecting={isConnecting}
+        activeProfileId={activeProfileId}
+        profilesList={profilesData.list}
+        onChangeProfile={changeProfile}
+        onCreateProfile={openNewProfileModal} // 👈 Conectado a la función liberada
       />
 
       <main className="main">
@@ -161,7 +213,6 @@ function App() {
           </div>
         </div>
 
-        {/* 🌟 LA NUEVA NAVEGACIÓN MODULAR */}
         <div className="tabs">
           <button className={`tab ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>🔗 Mis Eventos</button>
           <button className={`tab ${activeTab === 'actions' ? 'active' : ''}`} onClick={() => setActiveTab('actions')}>⚙️ Mis Acciones</button>
@@ -172,21 +223,19 @@ function App() {
         </div>
 
         <div className="tab-content">
-          {/* Aquí inyectaremos los nuevos componentes en los próximos pasos */}
           {activeTab === 'events' && (
             <EventsTab 
-              events={config.events} 
-              actions={config.actions} 
-              catalog={config.catalog} 
-              onUpdateConfig={handleUpdateConfig} 
+              events={currentProfile.events || []} 
+              actions={currentProfile.actions || {}} 
+              catalog={config.catalog || {}} 
+              onUpdateConfig={handleProfileUpdate} 
             />
           )}
-          
+
           {activeTab === 'actions' && (
             <ActionsTab 
-              actions={config.actions} 
-              //availableSounds={availableSounds} 
-              onUpdateConfig={handleUpdateConfig} 
+              actions={currentProfile.actions || {}} 
+              onUpdateConfig={handleProfileUpdate} 
             />
           )}
           
@@ -199,7 +248,7 @@ function App() {
           {activeTab === 'stickers' && (
             <StickersTab 
               actions={config.actions} 
-              availableSounds={availableSounds} // 👈 AÑADE ESTA LÍNEA
+              availableSounds={availableSounds} 
               ioSocket={socket}
             />
           )}
@@ -212,6 +261,68 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* 🌟 LA VENTANA MODAL FLOTANTE */}
+      {showProfileModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.8)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'var(--bg2)', padding: '24px', borderRadius: '12px',
+            width: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'white' }}>➕ Agregar Nuevo Juego</h3>
+            
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text2)' }}>
+              Nombre del Juego / Perfil
+            </label>
+            <input 
+              type="text" 
+              className="key-input" 
+              placeholder="Ej: Minecraft, The Forest..." 
+              value={newProfileName}
+              onChange={e => setNewProfileName(e.target.value)}
+              style={{ width: '100%', marginBottom: '16px' }}
+              autoFocus
+            />
+
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text2)' }}>
+              Motor de Conexión
+            </label>
+            <select 
+              className="modifier-select" 
+              value={newProfileType}
+              onChange={e => setNewProfileType(e.target.value)}
+              style={{ width: '100%', marginBottom: '24px' }}
+            >
+              {/* 🌟 REACT DIBUJA LAS OPCIONES SOLITO */}
+              {SUPPORTED_ENGINES.map(engine => (
+                <option key={engine.id} value={engine.id}>
+                  {engine.icon} {engine.name}
+                </option>
+              ))}
+            </select>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowProfileModal(false)}
+              >
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }}
+                onClick={saveNewProfile}
+              >
+                Crear Perfil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
