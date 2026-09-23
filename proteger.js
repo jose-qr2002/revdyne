@@ -16,7 +16,7 @@ exports.default = async function(context) {
     }
 
     // 1. Lo que vamos a proteger
-    const carpetasAOfuscar = ['routes', 'services', 'config'];
+    const carpetasAOfuscar = ['backend'];
     const archivosAOfuscar = ['server.js', 'main.js'];
 
     // 2. Función ofuscadora in-situ (sobreescribe el archivo)
