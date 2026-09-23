@@ -1,0 +1,14 @@
+{
+  "piper": {
+    "label": "Piper TTS",
+    "description": "Motor local rápido, sin GPU. Buena base para cualquier voz.",
+    "requiresGPU": false,
+    "sizeMB": 25,
+    "platforms": {
+      "win32": {
+        "downloadUrl": "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip",
+        "executablePath": "piper/piper.exe"
+      }
+    }
+  }
+}

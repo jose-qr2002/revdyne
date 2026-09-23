@@ -1,56 +1,65 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ConfirmModal from './ConfirmModal';
 
-export default function EventsTab({ events, actions, catalog, onUpdateConfig }) {
+export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [showForm, setShowForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState(null);
-  
+
   const [trigger, setTrigger] = useState('gift');
   const [condition, setCondition] = useState('');
   const [selectedActionId, setSelectedActionId] = useState('');
 
-  // 🌟 NUEVO: Estados para la Ventana Modal de Regalos
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [giftSearch, setGiftSearch] = useState('');
   const [giftCurrentPage, setGiftCurrentPage] = useState(1);
-  const GIFTS_PER_PAGE = 30; // Mostramos 30 por página en el modal para que sea súper fluido
+  const GIFTS_PER_PAGE = 30;
 
-  // 🌟 2. NUEVOS ESTADOS PARA EL MODAL DE ELIMINACIÓN
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
 
-  const safeEvents = Array.isArray(events) ? events : (events?.likeEvents || []);
-  const actionsArray = Object.entries(actions || {});
+  const activeProfileId = profiles.activeProfileId;
+
+  const scopeProfileId = activeProfileId;
+  const scopeProfile = profiles.list[scopeProfileId] || { actions: {}, events: [] };
+  const scopeActionsArray = Object.entries(scopeProfile.actions || {});
+  const allScopeEvents = scopeProfile.events || [];
+
+  // Los eventos de sticker se editan solo desde la pestaña Stickers,
+  // pero conviven en el mismo events[] del perfil.
+  const displayEvents = allScopeEvents.filter(e => e.trigger !== 'sticker');
 
   const catalogArray = useMemo(() => {
-    return Object.entries(catalog || {}).sort((a, b) => (b[1].coins || 0) - (a[1].coins || 0)); // Ordenado por defecto de mayor a menor
+    return Object.entries(catalog || {}).sort((a, b) => (b[1].coins || 0) - (a[1].coins || 0));
   }, [catalog]);
 
-  // 🌟 MEJORA: Filtro que incluye búsqueda por Monedas
   const filteredGifts = useMemo(() => {
-    let filtered = catalogArray;
-    if (giftSearch) {
-      const searchLower = giftSearch.toLowerCase();
-      filtered = catalogArray.filter(([id, data]) => {
-        const matchName = data.name.toLowerCase().includes(searchLower);
-        const matchId = id.includes(searchLower);
-        // Convertimos las monedas a texto para ver si coincide con la búsqueda
-        const matchCoins = data.coins && data.coins.toString().includes(searchLower);
-        
-        return matchName || matchId || matchCoins;
-      });
-    }
-    return filtered;
+    if (!giftSearch) return catalogArray;
+    const searchLower = giftSearch.toLowerCase();
+    return catalogArray.filter(([id, data]) => {
+      const matchName = data.name.toLowerCase().includes(searchLower);
+      const matchId = id.includes(searchLower);
+      const matchCoins = data.coins && data.coins.toString().includes(searchLower);
+      return matchName || matchId || matchCoins;
+    });
   }, [catalogArray, giftSearch]);
 
-  // Paginación del modal
   const totalGiftPages = Math.ceil(filteredGifts.length / GIFTS_PER_PAGE);
   const paginatedGifts = filteredGifts.slice((giftCurrentPage - 1) * GIFTS_PER_PAGE, giftCurrentPage * GIFTS_PER_PAGE);
 
-  // Volver a la página 1 si el usuario escribe algo nuevo en el buscador del modal
   useEffect(() => {
     setGiftCurrentPage(1);
   }, [giftSearch]);
+
+  // Reescribe SOLO el events[] del perfil que corresponde al scope actual,
+  // preservando todo lo demás del perfil (incluidos los eventos de sticker).
+  const updateScopeEvents = (updatedEvents) => {
+    const newProfiles = JSON.parse(JSON.stringify(profiles));
+    newProfiles.list[scopeProfileId] = {
+      ...newProfiles.list[scopeProfileId],
+      events: updatedEvents
+    };
+    onUpdateProfiles(newProfiles);
+  };
 
   const handleEditEvent = (evt) => {
     setEditingEventId(evt.id);
@@ -66,7 +75,7 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
     if (trigger === 'gift' && !condition) return alert('Debes seleccionar un regalo del catálogo.');
     if (trigger === 'like' && (!condition || isNaN(condition) || condition <= 0)) return alert('Debes ingresar una cantidad válida de likes.');
 
-    const isCurrentlyEnabled = editingEventId ? safeEvents.find(e => e.id === editingEventId)?.enabled : true;
+    const isCurrentlyEnabled = editingEventId ? allScopeEvents.find(e => e.id === editingEventId)?.enabled : true;
 
     const newEvent = {
       id: editingEventId || `evt_${Date.now()}`,
@@ -76,14 +85,11 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
       enabled: isCurrentlyEnabled !== undefined ? isCurrentlyEnabled : true
     };
 
-    let updatedEvents;
-    if (editingEventId) {
-      updatedEvents = safeEvents.map(e => e.id === editingEventId ? newEvent : e);
-    } else {
-      updatedEvents = [...safeEvents, newEvent];
-    }
-    
-    onUpdateConfig({ events: updatedEvents });
+    const updatedEvents = editingEventId
+      ? allScopeEvents.map(e => e.id === editingEventId ? newEvent : e)
+      : [...allScopeEvents, newEvent];
+
+    updateScopeEvents(updatedEvents);
     resetForm();
   };
 
@@ -96,7 +102,6 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
     setGiftSearch('');
   };
 
-  // 🌟 3. FUNCIONES PARA MANEJAR EL BORRADO SEGURO
   const requestDeleteEvent = (evt) => {
     setEventToDelete(evt);
     setIsDeleteModalOpen(true);
@@ -104,29 +109,20 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
 
   const confirmDeleteEvent = () => {
     if (!eventToDelete) return;
-    const updatedEvents = safeEvents.filter(e => e.id !== eventToDelete.id);
-    onUpdateConfig({ events: updatedEvents });
+    updateScopeEvents(allScopeEvents.filter(e => e.id !== eventToDelete.id));
     setIsDeleteModalOpen(false);
     setEventToDelete(null);
   };
 
-  const handleDeleteEvent = (eventId) => {
-    const updatedEvents = safeEvents.filter(e => e.id !== eventId);
-    onUpdateConfig({ events: updatedEvents });
-  };
-
   const handleToggleEvent = (eventId, currentStatus) => {
-    const updatedEvents = safeEvents.map(e =>
-      e.id === eventId ? { ...e, enabled: !currentStatus } : e
-    );
-    onUpdateConfig({ events: updatedEvents });
+    updateScopeEvents(allScopeEvents.map(e => e.id === eventId ? { ...e, enabled: !currentStatus } : e));
   };
 
   const renderTriggerName = (evt) => {
     if (evt.trigger === 'follow') return <span>👤 Alguien te sigue</span>;
     if (evt.trigger === 'share') return <span>📢 Alguien comparte el directo</span>;
     if (evt.trigger === 'like') return <span>❤️ Al llegar a {evt.condition} Likes</span>;
-    
+
     if (evt.trigger === 'gift') {
       const gift = catalog[evt.condition];
       if (gift) {
@@ -146,9 +142,8 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
 
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
-      {/* 🌟 4. INSERTAMOS EL COMPONENTE CONFIRM MODAL */}
-      <ConfirmModal 
+
+      <ConfirmModal
         isOpen={isDeleteModalOpen}
         title="⚠️ Eliminar Regla"
         message="¿Estás seguro de que deseas eliminar este vínculo? Esta acción dejará de ejecutarse en tus directos."
@@ -156,49 +151,30 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
         onCancel={() => { setIsDeleteModalOpen(false); setEventToDelete(null); }}
       />
 
-      {/* 🌟 NUEVO: EL MODAL DE REGALOS (Se sobrepone a todo cuando se activa) */}
       {isGiftModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999,
-          display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px'
-        }}>
-          <div style={{
-            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px',
-            width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)', animation: 'fadeInDown 0.2s ease-out'
-          }}>
-            {/* Cabecera del Modal */}
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: '#00bcd4' }}>Seleccionar Regalo</h3>
               <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>✖</button>
             </div>
-            
-            {/* Buscador */}
+
             <div style={{ padding: '16px 20px', background: 'rgba(0,0,0,0.2)' }}>
-              <input 
-                type="text" className="key-input" 
-                placeholder="🔍 Busca por nombre o valor de monedas (ej. 1, 99, rosa...)" 
+              <input
+                type="text" className="key-input"
+                placeholder="🔍 Busca por nombre o valor de monedas (ej. 1, 99, rosa...)"
                 value={giftSearch} onChange={e => setGiftSearch(e.target.value)}
                 style={{ width: '100%', fontSize: '15px', padding: '12px' }} autoFocus
               />
             </div>
 
-            {/* Grilla de Regalos Paginada */}
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
                 {paginatedGifts.map(([id, data]) => (
-                  <div 
+                  <div
                     key={id}
-                    onClick={() => {
-                      setCondition(id);
-                      setIsGiftModalOpen(false);
-                      setGiftSearch('');
-                    }}
-                    style={{
-                      background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px',
-                      display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'background 0.2s'
-                    }}
+                    onClick={() => { setCondition(id); setIsGiftModalOpen(false); setGiftSearch(''); }}
+                    style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'background 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
                   >
@@ -215,7 +191,6 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
               {filteredGifts.length === 0 && <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text2)' }}>No se encontraron regalos con esa búsqueda.</div>}
             </div>
 
-            {/* Paginación del Modal */}
             {totalGiftPages > 1 && (
               <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', background: 'rgba(0,0,0,0.1)' }}>
                 <button className="btn btn-secondary btn-sm" disabled={giftCurrentPage === 1} onClick={() => setGiftCurrentPage(prev => prev - 1)}>◀ Ant</button>
@@ -239,9 +214,9 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
           <h4 style={{ color: editingEventId ? '#ffeb3b' : 'white' }}>
             {editingEventId ? '✏️ Editando Regla' : '✨ Diseñar Regla'}
           </h4>
-          
+
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            
+
             <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
               <label style={{ display: 'block', fontSize: '13px', color: '#ffeb3b', marginBottom: '8px', fontWeight: 'bold' }}>1. CUANDO OCURRA ESTO...</label>
               <select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
@@ -251,9 +226,8 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
                 <option value="share">📢 Compartir Directo</option>
               </select>
 
-              {/* 🌟 NUEVO: Botón que abre el Modal */}
               {trigger === 'gift' && (
-                <div 
+                <div
                   onClick={() => setIsGiftModalOpen(true)}
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'border 0.2s' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = '#00bcd4'}
@@ -273,7 +247,7 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
                   )}
                 </div>
               )}
-              
+
               {trigger === 'like' && (
                 <input type="number" className="key-input" placeholder="Ej: 500" value={condition} onChange={e => setCondition(e.target.value)} style={{ width: '100%' }} />
               )}
@@ -285,12 +259,14 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
 
             <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
               <label style={{ display: 'block', fontSize: '13px', color: '#4caf50', marginBottom: '8px', fontWeight: 'bold' }}>2. EJECUTAR ESTA ACCIÓN...</label>
-              {actionsArray.length === 0 ? (
-                <div style={{ fontSize: '12px', color: '#ff4d4d' }}>No tienes acciones creadas. Ve a la pestaña "Mis Acciones" primero.</div>
+              {scopeActionsArray.length === 0 ? (
+                <div style={{ fontSize: '12px', color: '#ff4d4d' }}>
+                  No tienes acciones creadas en este perfil. Ve a la pestaña "Mis Acciones" primero.
+                </div>
               ) : (
                 <select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
                   <option value="">-- Selecciona una acción --</option>
-                  {actionsArray.map(([id, act]) => (
+                  {scopeActionsArray.map(([id, act]) => (
                     <option key={id} value={id}>{act.name} (Tipo: {act.type})</option>
                   ))}
                 </select>
@@ -307,11 +283,11 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {safeEvents.length === 0 ? (
-          <div className="log-empty">No has vinculado ningún evento. ¡Crea tu primera regla arriba!</div>
+        {displayEvents.length === 0 ? (
+          <div className="log-empty">No has vinculado ningún evento en este alcance. ¡Crea tu primera regla arriba!</div>
         ) : (
-          safeEvents.map(evt => {
-            const actionData = actions?.[evt.actionId];
+          displayEvents.map(evt => {
+            const actionData = scopeProfile.actions?.[evt.actionId];
             return (
               <div key={evt.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -331,14 +307,7 @@ export default function EventsTab({ events, actions, catalog, onUpdateConfig }) 
                     <span className="slider"></span>
                   </label>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleEditEvent(evt)}>✏️</button>
-                  {/* 🌟 5. REEMPLAZAMOS EL onClick DEL BOTÓN BASURA */}
-                  <button 
-                    className="btn btn-secondary btn-sm" 
-                    style={{ background: '#ff4d4d', color: 'white', border: 'none' }} 
-                    onClick={() => requestDeleteEvent(evt)} 
-                  >
-                    🗑️
-                  </button>
+                  <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => requestDeleteEvent(evt)}>🗑️</button>
                 </div>
               </div>
             );

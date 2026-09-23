@@ -1,34 +1,20 @@
 const { app, BrowserWindow, globalShortcut } = require('electron');
-const path = require('path');
 const fs = require('fs');
 
-require('./server.js'); 
+require('./server.js');
 
-let watchTimeout = null;
-
-// 🧠 NUEVO: Obligamos a main.js a buscar la configuración en la carpeta correcta de Windows
-const ROOT_DIR = app.getPath('userData');
-const configPath = path.join(ROOT_DIR, 'config.json');
+const paths = require('./backend/paths');
+const store = require('./backend/data/store');
 
 function registerShortcuts(win) {
   globalShortcut.unregisterAll(); // Limpia los viejos por si los cambiaste en la UI
 
-  let config = {};
-  if (fs.existsSync(configPath)) {
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch (e) {
-      console.log("⚠️ Error leyendo config en main.js:", e.message);
-      return; 
-    }
-  }
-
-  const ttsSettings = config.tts || {};
+  const settings = store.loadSettings();
+  const ttsSettings = settings.tts || {};
   const keySkipCurrent = ttsSettings.keySkipCurrent || null;
   const keySkipAll = ttsSettings.keySkipAll || null;
   const keyToggleBot = ttsSettings.keyToggleBot || null;
 
-  // Función segura para registrar teclas sin que crashee Electron
   const safeRegister = (key, actionName, callback) => {
     if (!key) return;
     try {
@@ -39,17 +25,14 @@ function registerShortcuts(win) {
     }
   };
 
-  // 1. Saltar Comentario Actual
   safeRegister(keySkipCurrent, 'Omitir Actual', () => {
     if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-skip-current'))");
   });
 
-  // 2. Saltar Todos (Limpiar Cola)
   safeRegister(keySkipAll, 'Limpiar Cola', () => {
     if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-skip-all'))");
   });
 
-  // 3. Apagar / Encender Bot
   safeRegister(keyToggleBot, 'Toggle Bot', () => {
     if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-toggle-bot'))");
   });
@@ -59,7 +42,7 @@ function createWindow () {
   const win = new BrowserWindow({
     width: 1100,
     height: 750,
-    title: "TikTok L4D2 Controller",
+    title: "REVINITY",
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
@@ -69,24 +52,17 @@ function createWindow () {
 
   win.webContents.openDevTools();
 
-  // 🚀 CÁMBIO CLAVE: Detecta si la app está empaquetada o en desarrollo
   const isDev = !app.isPackaged;
+  win.loadURL(isDev ? 'http://localhost:5173' : 'http://localhost:3000');
 
-  if (isDev) {
-    win.loadURL('http://localhost:5173'); // ⚡ En desarrollo: Apunta a Vite para ver cambios al instante
-  } else {
-    win.loadURL('http://localhost:3000'); // 📦 En producción: Apunta al servidor Express local
-  }
-
-  // Registramos las teclas una vez la ventana existe
   win.webContents.on('did-finish-load', () => registerShortcuts(win));
 
-  // Vigilar cambios en la ruta correcta con "Debounce"
-  if (fs.existsSync(configPath)) {
-    fs.watchFile(configPath, { interval: 1000 }, () => {
-      registerShortcuts(win);
-    });
-  }
+  // bootstrap.js (disparado por require('./server.js') arriba) ya garantiza
+  // que config.json existe antes de llegar aquí, así que no hace falta
+  // comprobar fs.existsSync antes de vigilarlo.
+  fs.watchFile(paths.CONFIG_FILE, { interval: 1000 }, () => {
+    registerShortcuts(win);
+  });
 }
 
 app.whenReady().then(createWindow);

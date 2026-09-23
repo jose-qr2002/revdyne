@@ -1,199 +1,63 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const multer = require('multer');
-const fs = require('fs');
-const os = require('os'); // Detectar carpeta del usuario
 
-const { loadConfig, saveConfig } = require('./config/settings');
-const { isRobotAvailable } = require('./services/keyboardQueue');
-const keyboardQueue = require('./services/keyboardQueue');
-const tiktokService = require('./services/tiktokService');
-const stickersManager = require('./services/stickersManager');
-const apiRoutes = require('./routes/api');
-const ttsRoutes = require('./routes/tts');
+const paths = require('./backend/paths');
+const { ensureFirstRun } = require('./backend/data/bootstrap');
+
+// Garantiza config.json, catalog.json, stickers.json y profiles.json
+// antes de que cualquier otra cosa intente leerlos.
+ensureFirstRun();
+
+const store = require('./backend/data/store');
+const { isRobotAvailable } = require('./backend/services/actionQueue');
+const actionQueue = require('./backend/services/actionQueue');
+const tiktokService = require('./backend/services/tiktokService');
+
+const apiRoutes = require('./backend/routes/api');
+const ttsRoutes = require('./backend/routes/tts');
+const alertsRoutes = require('./backend/routes/alerts');
+const soundsRoutes = require('./backend/routes/sounds');
+const catalogRoutes = require('./backend/routes/catalog');
+const stickersRoutes = require('./backend/routes/stickers');
+const systemRoutes = require('./backend/routes/system');
+const gamesRoutes = require('./backend/routes/games')
+const profilesRoutes = require('./backend/routes/profiles')
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-keyboardQueue.setSocketIo(io);
-const config = loadConfig();
+actionQueue.setSocketIo(io);
+const settings = store.loadSettings();
 
-// 1. MIDDLEWARES GLOBALES
 app.use(express.json({ limit: '10mb' }));
 
-// 🌟 1. EL BUSCADOR INTELIGENTE DE RUTAS (ACTUALIZADO A DOCUMENTOS)
-const getSoundsDir = () => {
-  // Apuntamos directamente a Documentos/REVINITY/sounds
-  const activePath = path.join(os.homedir(), 'Documents', 'REVINITY', 'sounds');
+app.use('/api/tts/engines', require('./backend/routes/ttsEngines')());
+app.use('/api/sounds', soundsRoutes());
+app.use('/api/catalog', catalogRoutes());
+app.use('/api/stickers', stickersRoutes());
+app.use('/api/profiles', profilesRoutes());
+app.use('/api/games', gamesRoutes());
+app.use('/api/system', systemRoutes());
+app.use('/api/alerts', alertsRoutes());
+app.use('/api/tts', ttsRoutes(settings));
+app.use('/api', apiRoutes(settings, io, tiktokService));
 
-  // Si no existe, la creamos
-  if (!fs.existsSync(activePath)) {
-    fs.mkdirSync(activePath, { recursive: true });
-  }
-
-  return activePath;
-};
-
-const SOUNDS_DIR = getSoundsDir();
-console.log(`[BACKEND] 🎵 Carpeta de sonidos activa en: ${SOUNDS_DIR}`);
-
-// 🎵 2. CONFIGURACIÓN DE SUBIDA DE SONIDOS
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, SOUNDS_DIR); // Usamos la ruta en Documentos
-  },
-  filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, safeName);
-  }
-});
-
-const upload = multer({ 
-  storage, 
-  limits: { fileSize: 10 * 1024 * 1024 } 
-});
-
-// 🚀 3. RUTA PARA RECIBIR EL ARCHIVO
-app.post('/api/sounds/upload', upload.single('sound'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
-  res.json({ success: true, filename: req.file.filename });
-});
-
-// 🌟 4. RUTA PARA LISTAR SONIDOS
-app.get('/api/sounds/list', (req, res) => {
-  if (!fs.existsSync(SOUNDS_DIR)) return res.json([]);
-  
-  fs.readdir(SOUNDS_DIR, (err, files) => {
-    if (err) {
-      console.error("[BACKEND] Error leyendo carpeta:", err);
-      return res.json([]);
-    }
-    const audioFiles = files.filter(f => /\.(mp3|wav|ogg|m4a|aac)$/i.test(f));
-    res.json(audioFiles);
-  });
-});
-
-// Sincronización y Sistema
-app.post('/api/catalog/sync', async (req, res) => {
-  try {
-    const response = await fetch('https://webcast.tiktok.com/webcast/gift/list/?aid=1988', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      }
-    });
-    if (!response.ok) throw new Error('Error de conexión con TikTok');
-    const json = await response.json();
-    const gifts = json.data?.gifts || [];
-    if (gifts.length === 0) throw new Error('TikTok no devolvió regalos');
-
-    const currentConfig = loadConfig();
-    const catalogData = currentConfig.catalog || {};
-    let nuevos = 0, actualizados = 0;
-
-    gifts.forEach(gift => {
-      const giftId = String(gift.id);
-      const iconUrl = gift.image?.url_list?.[0] || gift.icon?.url_list?.[0] || '';
-      if (!catalogData[giftId]) {
-        nuevos++;
-        catalogData[giftId] = { name: gift.name, coins: gift.diamond_count || 0, icon: iconUrl };
-      } else {
-        actualizados++;
-        catalogData[giftId].name = gift.name;
-        catalogData[giftId].coins = gift.diamond_count || 0;
-        catalogData[giftId].icon = iconUrl;
-      }
-    });
-
-    currentConfig.catalog = catalogData;
-    saveConfig(currentConfig);
-    res.json({ success: true, nuevos, actualizados, total: Object.keys(catalogData).length, catalog: catalogData });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/stickers/config', (req, res) => {
-  res.json({
-    catalog: stickersManager.db.catalog || {},
-    assignments: stickersManager.db.assignments || {}
-  });
-});
-
-// 💾 Guardar asignación de un sticker a una macro
-app.post('/api/stickers/assign', (req, res) => {
-  const { emoteId, actionId, enabled } = req.body;
-  
-  if (!stickersManager.db.assignments) stickersManager.db.assignments = {};
-  
-  // Guardamos en RAM
-  stickersManager.db.assignments[emoteId] = {
-    actionId,
-    enabled: enabled !== undefined ? enabled : true
-  };
-  
-  // Guardamos en Disco
-  stickersManager.save();
-  
-  res.json({ success: true, assignments: stickersManager.db.assignments });
-});
-
-// 🗑️ Eliminar un sticker del catálogo
-app.delete('/api/stickers/:emoteId', (req, res) => {
-  const { emoteId } = req.params;
-  
-  if (stickersManager.db.catalog[emoteId]) {
-    delete stickersManager.db.catalog[emoteId];
-    if (stickersManager.db.assignments[emoteId]) {
-      delete stickersManager.db.assignments[emoteId];
-    }
-    stickersManager.save();
-    
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ success: false, message: 'Sticker no encontrado' });
-  }
-});
-
-app.post('/api/system/restart', (req, res) => {
-  res.json({ success: true });
-  setTimeout(() => {
-    try {
-      const { app: electronApp } = require('electron');
-      electronApp.relaunch();
-      electronApp.exit(0);
-    } catch (e) {
-      process.exit(0);
-    }
-  }, 500);
-});
-
-// Rutas externas (Inyectadas)
-app.use('/api/alerts', require('./routes/alerts')());
-app.use('/api/tts', ttsRoutes(config));
-app.use('/api', apiRoutes(config, io, tiktokService));
-
-// ==========================================
-// 4. CARPETAS ESTÁTICAS Y REACT (Al final)
-// ==========================================
-// 🌟 NUEVO: Servimos los audios desde la variable SOUNDS_DIR (Documentos)
-app.use('/sounds', express.static(SOUNDS_DIR));
+app.use('/sounds', express.static(paths.SOUNDS_DIR));
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
-// ==========================================
-// 5. EVENTOS GLOBALES Y ARRANQUE
-// ==========================================
 io.on('connection', socket => {
   socket.emit('status', {
     connected: tiktokService.isConnected(),
     message: tiktokService.isConnected() ? `✅ Conectado` : 'Desconectado',
-    username: config.username
+    username: settings.username
   });
 });
 
@@ -207,12 +71,12 @@ process.on('unhandledRejection', reason => {
   if (io) io.emit('systemError', { type: 'Unhandled Rejection', message: String(reason) });
 });
 
-tiktokService.init(io, config);
+tiktokService.init(io, settings);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log('\n╔══════════════════════════════════════════╗');
-  console.log('║  🎁 TikTok Gift Keys Bot Activo          ║');
+  console.log('║  🎁 REVINITY Activo                      ║');
   console.log('╠══════════════════════════════════════════╣');
   console.log(`║  Abre: http://localhost:${PORT}             ║`);
   console.log(`║  RobotJS: ${isRobotAvailable() ? '✅ Activo' : '❌ No disponible'}                 ║`);

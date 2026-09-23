@@ -5,16 +5,17 @@
   "author": "JK REVIL",
   "license": "UNLICENSED",
   "icon": "build/icon.ico",
-  "main": "main.js", 
+  "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "node server.js",
     "install-robot": "npm install robotjs --build-from-source",
     "build:frontend": "cd frontend && npm run build",
-    "pack": "npm run build:frontend && electron-builder --win" 
+    "pack": "npm run build:frontend && electron-builder --win"
   },
   "dependencies": {
     "@jitsi/robotjs": "^0.6.22",
+    "adm-zip": "^0.6.1",
     "express": "^4.18.2",
     "multer": "^2.2.0",
     "node-fetch": "^3.3.2",

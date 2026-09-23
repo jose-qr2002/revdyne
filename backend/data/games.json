@@ -1,0 +1,10 @@
+{
+  "generic_keyboard": {
+    "label": "Juego con bindeo de teclas",
+    "allowedActionTypes": ["keyboard"]
+  },
+  "l4d2": {
+    "label": "Left 4 Dead 2",
+    "allowedActionTypes": ["keyboard", "l4d2_command"]
+  }
+}

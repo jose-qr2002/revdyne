@@ -8,6 +8,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
   const [elevenVoices, setElevenVoices] = useState([]);
   const [audioDevices, setAudioDevices] = useState([]);
   const [listeningFor, setListeningFor] = useState(null);
+  const [piperVoices, setPiperVoices] = useState([]);
 
   // Estado local para la velocidad visual
   const [speed, setSpeed] = useState(tts.speed || 1.0);
@@ -134,6 +135,12 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
     if (voices.error) alert('Error: ' + voices.error);
     else setElevenVoices(voices);
   };
+
+  useEffect(() => {
+    apiFetch('/api/tts/piper/voices')
+      .then(voices => setPiperVoices(Array.isArray(voices) ? voices : []))
+      .catch(() => setPiperVoices([]));
+  }, []);
 
   const testAudio = () => enqueueTTS('Prueba de sonido. Bot activado.');
 
@@ -302,6 +309,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             <option value="browser">Voces del sistema (offline)</option>
             <option value="elevenlabs">ElevenLabs (IA Premium)</option>
             <option value="tiktok">TikTok (Voces virales)</option>
+            <option value="piper">Piper (IA local, sin internet)</option>
           </select>
         </div>
 
@@ -347,6 +355,27 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
                 <option value="en_us_stitch">👽 Stitch</option>
                 <option value="en_us_001">🇺🇸 Mujer (Siri Inglés)</option>
               </select>
+            </div>
+          </div>
+        ) : tts.engine === 'piper' ? (
+          <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+            <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+              <label>Voz de Piper (local)</label>
+              {piperVoices.length === 0 ? (
+                <div style={{ fontSize: '12px', color: '#ff9800' }}>
+                  No hay voces instaladas. Coloca un modelo (.onnx + .onnx.json) en <code>backend/bin/piper/voices/</code> y reinicia la app.
+                </div>
+              ) : (
+                <select
+                  className="modifier-select"
+                  style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                  value={tts.piperVoice || ''}
+                  onChange={e => updateTTS({ piperVoice: e.target.value })}
+                >
+                  <option value="">Selecciona una voz</option>
+                  {piperVoices.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              )}
             </div>
           </div>
         ) : (
