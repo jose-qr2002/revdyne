@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
 
-export default function CatalogTab({ catalog }) { 
+export default function CatalogTab({ catalog, onCatalogSynced }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('coinsDesc');
   const [currentPage, setCurrentPage] = useState(1);
   const [isSyncing, setIsSyncing] = useState(false);
-  
-  const [notification, setNotification] = useState(null); 
-  const [countdown, setCountdown] = useState(null); // ⏳ NUEVO: Estado para la cuenta regresiva
+  const [notification, setNotification] = useState(null);
 
   const ITEMS_PER_PAGE = 50;
 
@@ -16,7 +14,6 @@ export default function CatalogTab({ catalog }) {
     setCurrentPage(1);
   }, [searchTerm, sortBy]);
 
-  // 🛡️ Ocultar notificaciones de error normales de forma automática
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 4000);
@@ -24,24 +21,8 @@ export default function CatalogTab({ catalog }) {
     }
   }, [notification]);
 
-  // 🧠 EL TEMPORIZADOR MAESTRO: Controla la cuenta regresiva de 3, 2, 1...
-  useEffect(() => {
-    if (countdown === null) return;
-
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      // Cuando el contador llega a 0, le pedimos al backend el reinicio inmediato
-      apiFetch('/api/system/restart', 'POST').catch(() => {
-        // Fallback drástico si el servidor no responde
-        window.location.reload(); 
-      });
-    }
-  }, [countdown]);
-
   const handleSyncGifts = async () => {
-    if (isSyncing || countdown !== null) return;
+    if (isSyncing) return;
     setIsSyncing(true);
     setNotification(null);
 
@@ -49,19 +30,18 @@ export default function CatalogTab({ catalog }) {
       const res = await apiFetch('/api/catalog/sync', 'POST');
       if (res.error) {
         setNotification({ type: 'error', text: 'Error al descargar: ' + res.error });
-        setIsSyncing(false);
       } else {
-        // 🚀 ¡ÉXITO! En lugar de alert o mensaje fijo, iniciamos la cuenta regresiva en 3
-        setCountdown(3);
+        onCatalogSynced(res.catalog); // actualiza el estado en App.jsx, sin reiniciar nada
+        setNotification({ type: 'success', text: `✅ ${res.nuevos} nuevos, ${res.actualizados} actualizados` });
       }
     } catch (e) {
       setNotification({ type: 'error', text: 'Error de red al intentar sincronizar.' });
-      setIsSyncing(false);
     }
+    setIsSyncing(false);
   };
 
   const allFilteredGifts = Object.entries(catalog || {})
-    .filter(([id, data]) => 
+    .filter(([id, data]) =>
       data.name.toLowerCase().includes(searchTerm.toLowerCase()) || id.includes(searchTerm)
     )
     .sort((a, b) => {
@@ -89,30 +69,15 @@ export default function CatalogTab({ catalog }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', position: 'relative' }}>
-      
-      {/* 🛑 ALERTA DE ERROR ESTÁNDAR */}
+
       {notification && (
         <div style={{
           position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
-          background: '#f44336', color: 'white', padding: '10px 20px', borderRadius: '8px',
+          background: notification.type === 'error' ? '#f44336' : '#4caf50', color: 'white', padding: '10px 20px', borderRadius: '8px',
           fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 1000,
           display: 'flex', alignItems: 'center', gap: '10px', animation: 'fadeInDown 0.3s ease-out'
         }}>
-          <span>❌</span><span>{notification.text}</span>
-        </div>
-      )}
-
-      {/* 🔄 🌟 NUEVA PANTALLA VISUAL FLOTANTE: CUENTA REGRESIVA DE REINICIO */}
-      {countdown !== null && (
-        <div style={{
-          position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
-          background: '#ff9800', color: 'white', padding: '14px 28px', borderRadius: '8px',
-          fontWeight: 'bold', boxShadow: '0 6px 20px rgba(0,0,0,0.4)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px',
-          border: '2px solid #ffb74d', animation: 'fadeInDown 0.3s ease-out'
-        }}>
-          <span>🔄</span>
-          <span>¡Regalos listos! Reiniciando aplicación en <strong style={{ fontSize: '18px', color: '#fff', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '4px', marginLeft: '4px' }}>{countdown > 0 ? countdown : '¡Ya!'}</strong></span>
+          <span>{notification.type === 'error' ? '❌' : '✅'}</span><span>{notification.text}</span>
         </div>
       )}
 
@@ -123,23 +88,23 @@ export default function CatalogTab({ catalog }) {
             Total en tu base de datos: {Object.keys(catalog || {}).length} regalos mapeados
           </div>
         </div>
-        <button 
-          className="btn" 
-          onClick={handleSyncGifts} 
-          disabled={isSyncing || countdown !== null}
-          style={{ 
-            background: (isSyncing || countdown !== null) ? 'gray' : '#00bcd4', 
+        <button
+          className="btn"
+          onClick={handleSyncGifts}
+          disabled={isSyncing}
+          style={{
+            background: isSyncing ? 'gray' : '#00bcd4',
             color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px',
-            cursor: (isSyncing || countdown !== null) ? 'not-allowed' : 'pointer', fontWeight: 'bold'
+            cursor: isSyncing ? 'not-allowed' : 'pointer', fontWeight: 'bold'
           }}
         >
-          {isSyncing ? '⏳ Conectando con TikTok...' : (countdown !== null ? '🔄 Reiniciando...' : '🔄 Actualizar / Descargar Regalos')}
+          {isSyncing ? '⏳ Conectando con TikTok...' : '🔄 Actualizar / Descargar Regalos'}
         </button>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-        <input 
-          type="text" className="key-input" placeholder="🔍 Buscar por nombre o ID del regalo..." 
+        <input
+          type="text" className="key-input" placeholder="🔍 Buscar por nombre o ID del regalo..."
           value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ flex: 1 }}
         />
         <select className="modifier-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ minWidth: '180px' }}>

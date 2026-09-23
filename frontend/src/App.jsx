@@ -236,7 +236,12 @@ function App() {
             />
           )}
 
-          {activeTab === 'catalog' && <CatalogTab catalog={config.catalog} />}
+          {activeTab === 'catalog' && (
+            <CatalogTab
+              catalog={config.catalog}
+              onCatalogSynced={(newCatalog) => setConfig(prev => ({ ...prev, catalog: newCatalog }))}
+            />
+          )}
 
           {activeTab === 'log' && <EventLog events={liveEvents} />}
 
