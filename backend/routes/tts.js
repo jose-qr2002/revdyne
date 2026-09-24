@@ -3,6 +3,7 @@ const express = require('express');
 const store = require('../data/store');
 const piperService = require('../services/piperService');
 const ttsEngineManager = require('../services/ttsEngineManager');
+const edgeTtsService = require('../services/edgeTtsService');
 
 module.exports = function ttsRoutes(settings) {
   const router = express.Router();
@@ -85,6 +86,31 @@ module.exports = function ttsRoutes(settings) {
       res.send(wavBuffer);
     } catch (e) {
       console.error('🔥 Error generando voz con Piper:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/edge/voices', async (req, res) => {
+    try {
+      res.json(await edgeTtsService.listVoices());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/edge', async (req, res) => {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Falta texto' });
+
+    const voiceName = settings.tts?.edgeVoice;
+    if (!voiceName) return res.status(400).json({ error: 'No hay una voz de Edge TTS configurada' });
+
+    try {
+      const audioBuffer = await edgeTtsService.synthesizeWithEdge(text, voiceName);
+      res.set('Content-Type', 'audio/mpeg');
+      res.send(audioBuffer);
+    } catch (e) {
+      console.error('🔥 Error generando voz con Edge TTS:', e.message);
       res.status(500).json({ error: e.message });
     }
   });

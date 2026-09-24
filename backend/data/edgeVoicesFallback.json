@@ -1,0 +1,437 @@
+{
+  "_comment": "Voces neurales de Microsoft Edge Read Aloud — solo las confirmadas que funcionan. Esta lista es FALLBACK; al arrancar el server intenta pedir la lista live a Microsoft (más completa).",
+  "voices": [
+    {
+      "name": "es-ES-ElviraNeural",
+      "lang": "es-ES",
+      "gender": "Female",
+      "label": "Elvira (España)"
+    },
+    {
+      "name": "es-ES-AlvaroNeural",
+      "lang": "es-ES",
+      "gender": "Male",
+      "label": "Álvaro (España)"
+    },
+    {
+      "name": "es-ES-XimenaNeural",
+      "lang": "es-ES",
+      "gender": "Female",
+      "label": "Ximena (España)"
+    },
+    {
+      "name": "es-MX-DaliaNeural",
+      "lang": "es-MX",
+      "gender": "Female",
+      "label": "Dalia (México)"
+    },
+    {
+      "name": "es-MX-JorgeNeural",
+      "lang": "es-MX",
+      "gender": "Male",
+      "label": "Jorge (México)"
+    },
+    {
+      "name": "es-US-PalomaNeural",
+      "lang": "es-US",
+      "gender": "Female",
+      "label": "Paloma (EE.UU. español)"
+    },
+    {
+      "name": "es-US-AlonsoNeural",
+      "lang": "es-US",
+      "gender": "Male",
+      "label": "Alonso (EE.UU. español)"
+    },
+    {
+      "name": "es-AR-ElenaNeural",
+      "lang": "es-AR",
+      "gender": "Female",
+      "label": "Elena (Argentina)"
+    },
+    {
+      "name": "es-AR-TomasNeural",
+      "lang": "es-AR",
+      "gender": "Male",
+      "label": "Tomás (Argentina)"
+    },
+    {
+      "name": "es-BO-MarceloNeural",
+      "lang": "es-BO",
+      "gender": "Male",
+      "label": "Marcelo (Bolivia)"
+    },
+    {
+      "name": "es-BO-SofiaNeural",
+      "lang": "es-BO",
+      "gender": "Female",
+      "label": "Sofía (Bolivia)"
+    },
+    {
+      "name": "es-CL-CatalinaNeural",
+      "lang": "es-CL",
+      "gender": "Female",
+      "label": "Catalina (Chile)"
+    },
+    {
+      "name": "es-CL-LorenzoNeural",
+      "lang": "es-CL",
+      "gender": "Male",
+      "label": "Lorenzo (Chile)"
+    },
+    {
+      "name": "es-CO-GonzaloNeural",
+      "lang": "es-CO",
+      "gender": "Male",
+      "label": "Gonzalo (Colombia)"
+    },
+    {
+      "name": "es-CO-SalomeNeural",
+      "lang": "es-CO",
+      "gender": "Female",
+      "label": "Salomé (Colombia)"
+    },
+    {
+      "name": "es-CR-JuanNeural",
+      "lang": "es-CR",
+      "gender": "Male",
+      "label": "Juan (Costa Rica)"
+    },
+    {
+      "name": "es-CR-MariaNeural",
+      "lang": "es-CR",
+      "gender": "Female",
+      "label": "María (Costa Rica)"
+    },
+    {
+      "name": "es-CU-BelkysNeural",
+      "lang": "es-CU",
+      "gender": "Female",
+      "label": "Belkys (Cuba)"
+    },
+    {
+      "name": "es-CU-ManuelNeural",
+      "lang": "es-CU",
+      "gender": "Male",
+      "label": "Manuel (Cuba)"
+    },
+    {
+      "name": "es-DO-EmilioNeural",
+      "lang": "es-DO",
+      "gender": "Male",
+      "label": "Emilio (Rep. Dominicana)"
+    },
+    {
+      "name": "es-DO-RamonaNeural",
+      "lang": "es-DO",
+      "gender": "Female",
+      "label": "Ramona (Rep. Dominicana)"
+    },
+    {
+      "name": "es-EC-AndreaNeural",
+      "lang": "es-EC",
+      "gender": "Female",
+      "label": "Andrea (Ecuador)"
+    },
+    {
+      "name": "es-EC-LuisNeural",
+      "lang": "es-EC",
+      "gender": "Male",
+      "label": "Luis (Ecuador)"
+    },
+    {
+      "name": "es-GQ-JavierNeural",
+      "lang": "es-GQ",
+      "gender": "Male",
+      "label": "Javier (Guinea Ecuatorial)"
+    },
+    {
+      "name": "es-GQ-TeresaNeural",
+      "lang": "es-GQ",
+      "gender": "Female",
+      "label": "Teresa (Guinea Ecuatorial)"
+    },
+    {
+      "name": "es-GT-AndresNeural",
+      "lang": "es-GT",
+      "gender": "Male",
+      "label": "Andrés (Guatemala)"
+    },
+    {
+      "name": "es-GT-MartaNeural",
+      "lang": "es-GT",
+      "gender": "Female",
+      "label": "Marta (Guatemala)"
+    },
+    {
+      "name": "es-HN-CarlosNeural",
+      "lang": "es-HN",
+      "gender": "Male",
+      "label": "Carlos (Honduras)"
+    },
+    {
+      "name": "es-HN-KarlaNeural",
+      "lang": "es-HN",
+      "gender": "Female",
+      "label": "Karla (Honduras)"
+    },
+    {
+      "name": "es-NI-FedericoNeural",
+      "lang": "es-NI",
+      "gender": "Male",
+      "label": "Federico (Nicaragua)"
+    },
+    {
+      "name": "es-NI-YolandaNeural",
+      "lang": "es-NI",
+      "gender": "Female",
+      "label": "Yolanda (Nicaragua)"
+    },
+    {
+      "name": "es-PA-MargaritaNeural",
+      "lang": "es-PA",
+      "gender": "Female",
+      "label": "Margarita (Panamá)"
+    },
+    {
+      "name": "es-PA-RobertoNeural",
+      "lang": "es-PA",
+      "gender": "Male",
+      "label": "Roberto (Panamá)"
+    },
+    {
+      "name": "es-PE-AlexNeural",
+      "lang": "es-PE",
+      "gender": "Male",
+      "label": "Alex (Perú)"
+    },
+    {
+      "name": "es-PE-CamilaNeural",
+      "lang": "es-PE",
+      "gender": "Female",
+      "label": "Camila (Perú)"
+    },
+    {
+      "name": "es-PR-KarinaNeural",
+      "lang": "es-PR",
+      "gender": "Female",
+      "label": "Karina (Puerto Rico)"
+    },
+    {
+      "name": "es-PR-VictorNeural",
+      "lang": "es-PR",
+      "gender": "Male",
+      "label": "Víctor (Puerto Rico)"
+    },
+    {
+      "name": "es-PY-MarioNeural",
+      "lang": "es-PY",
+      "gender": "Male",
+      "label": "Mario (Paraguay)"
+    },
+    {
+      "name": "es-PY-TaniaNeural",
+      "lang": "es-PY",
+      "gender": "Female",
+      "label": "Tania (Paraguay)"
+    },
+    {
+      "name": "es-SV-LorenaNeural",
+      "lang": "es-SV",
+      "gender": "Female",
+      "label": "Lorena (El Salvador)"
+    },
+    {
+      "name": "es-SV-RodrigoNeural",
+      "lang": "es-SV",
+      "gender": "Male",
+      "label": "Rodrigo (El Salvador)"
+    },
+    {
+      "name": "es-UY-MateoNeural",
+      "lang": "es-UY",
+      "gender": "Male",
+      "label": "Mateo (Uruguay)"
+    },
+    {
+      "name": "es-UY-ValentinaNeural",
+      "lang": "es-UY",
+      "gender": "Female",
+      "label": "Valentina (Uruguay)"
+    },
+    {
+      "name": "es-VE-PaolaNeural",
+      "lang": "es-VE",
+      "gender": "Female",
+      "label": "Paola (Venezuela)"
+    },
+    {
+      "name": "es-VE-SebastianNeural",
+      "lang": "es-VE",
+      "gender": "Male",
+      "label": "Sebastián (Venezuela)"
+    },
+    {
+      "name": "en-US-AnaNeural",
+      "lang": "en-US",
+      "gender": "Female",
+      "label": "Ana (US)"
+    },
+    {
+      "name": "en-US-AriaNeural",
+      "lang": "en-US",
+      "gender": "Female",
+      "label": "Aria (US)"
+    },
+    {
+      "name": "en-US-ChristopherNeural",
+      "lang": "en-US",
+      "gender": "Male",
+      "label": "Christopher (US)"
+    },
+    {
+      "name": "en-US-EricNeural",
+      "lang": "en-US",
+      "gender": "Male",
+      "label": "Eric (US)"
+    },
+    {
+      "name": "en-US-GuyNeural",
+      "lang": "en-US",
+      "gender": "Male",
+      "label": "Guy (US)"
+    },
+    {
+      "name": "en-US-JennyNeural",
+      "lang": "en-US",
+      "gender": "Female",
+      "label": "Jenny (US)"
+    },
+    {
+      "name": "en-US-MichelleNeural",
+      "lang": "en-US",
+      "gender": "Female",
+      "label": "Michelle (US)"
+    },
+    {
+      "name": "en-US-RogerNeural",
+      "lang": "en-US",
+      "gender": "Male",
+      "label": "Roger (US)"
+    },
+    {
+      "name": "en-US-SteffanNeural",
+      "lang": "en-US",
+      "gender": "Male",
+      "label": "Steffan (US)"
+    },
+    {
+      "name": "fr-FR-DeniseNeural",
+      "lang": "fr-FR",
+      "gender": "Female",
+      "label": "Denise (Francia)"
+    },
+    {
+      "name": "fr-FR-EloiseNeural",
+      "lang": "fr-FR",
+      "gender": "Female",
+      "label": "Eloïse (Francia)"
+    },
+    {
+      "name": "fr-FR-HenriNeural",
+      "lang": "fr-FR",
+      "gender": "Male",
+      "label": "Henri (Francia)"
+    },
+    {
+      "name": "fr-CA-AntoineNeural",
+      "lang": "fr-CA",
+      "gender": "Male",
+      "label": "Antoine (Canadá)"
+    },
+    {
+      "name": "fr-CA-JeanNeural",
+      "lang": "fr-CA",
+      "gender": "Male",
+      "label": "Jean (Canadá)"
+    },
+    {
+      "name": "fr-CA-SylvieNeural",
+      "lang": "fr-CA",
+      "gender": "Female",
+      "label": "Sylvie (Canadá)"
+    },
+    {
+      "name": "fr-CH-ArianeNeural",
+      "lang": "fr-CH",
+      "gender": "Female",
+      "label": "Ariane (Suiza)"
+    },
+    {
+      "name": "fr-CH-FabriceNeural",
+      "lang": "fr-CH",
+      "gender": "Male",
+      "label": "Fabrice (Suiza)"
+    },
+    {
+      "name": "fr-BE-CharlineNeural",
+      "lang": "fr-BE",
+      "gender": "Female",
+      "label": "Charline (Bélgica)"
+    },
+    {
+      "name": "fr-BE-GerardNeural",
+      "lang": "fr-BE",
+      "gender": "Male",
+      "label": "Gérard (Bélgica)"
+    },
+    {
+      "name": "it-IT-DiegoNeural",
+      "lang": "it-IT",
+      "gender": "Male",
+      "label": "Diego (Italia)"
+    },
+    {
+      "name": "it-IT-ElsaNeural",
+      "lang": "it-IT",
+      "gender": "Female",
+      "label": "Elsa (Italia)"
+    },
+    {
+      "name": "it-IT-GiuseppeNeural",
+      "lang": "it-IT",
+      "gender": "Male",
+      "label": "Giuseppe (Italia)"
+    },
+    {
+      "name": "it-IT-IsabellaNeural",
+      "lang": "it-IT",
+      "gender": "Female",
+      "label": "Isabella (Italia)"
+    },
+    {
+      "name": "pt-PT-DuarteNeural",
+      "lang": "pt-PT",
+      "gender": "Male",
+      "label": "Duarte (Portugal)"
+    },
+    {
+      "name": "pt-PT-RaquelNeural",
+      "lang": "pt-PT",
+      "gender": "Female",
+      "label": "Raquel (Portugal)"
+    },
+    {
+      "name": "pt-BR-AntonioNeural",
+      "lang": "pt-BR",
+      "gender": "Male",
+      "label": "Antônio (Brasil)"
+    },
+    {
+      "name": "pt-BR-FranciscaNeural",
+      "lang": "pt-BR",
+      "gender": "Female",
+      "label": "Francisca (Brasil)"
+    }
+  ]
+}

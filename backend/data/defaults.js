@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
     sayUsername: false,
     tiktokVoice: 'es_male_m3',
     piperVoice: null,
+    edgeVoice: null,
     usePrefix: false,
     prefixText: '!tts',
     minFanLevel: 0

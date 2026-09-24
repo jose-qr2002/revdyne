@@ -55,6 +55,15 @@ function preFetchAudio(text) {
       .then(blob => ({ type: 'audio', url: URL.createObjectURL(blob), isBlob: true }));
   }
 
+  if (engine === 'edge') {
+    return fetch('/api/tts/edge', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    })
+      .then(res => { if (!res.ok) throw new Error(); return res.blob(); })
+      .then(blob => ({ type: 'audio', url: URL.createObjectURL(blob), isBlob: true }));
+  }
+
   // Si es voz del sistema (browser), se resuelve instantáneamente
   return Promise.resolve({ type: 'browser', text });
 }

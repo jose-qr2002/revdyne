@@ -9,6 +9,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
   const [audioDevices, setAudioDevices] = useState([]);
   const [listeningFor, setListeningFor] = useState(null);
   const [piperVoices, setPiperVoices] = useState([]);
+  const [edgeVoices, setEdgeVoices] = useState([]);
 
   // Estado local para la velocidad visual
   const [speed, setSpeed] = useState(tts.speed || 1.0);
@@ -140,6 +141,10 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
     apiFetch('/api/tts/piper/voices')
       .then(voices => setPiperVoices(Array.isArray(voices) ? voices : []))
       .catch(() => setPiperVoices([]));
+  }, []);
+
+  useEffect(() => {
+    apiFetch('/api/tts/edge/voices').then(v => setEdgeVoices(Array.isArray(v) ? v : []));
   }, []);
 
   const testAudio = () => enqueueTTS('Prueba de sonido. Bot activado.');
@@ -310,6 +315,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
             <option value="elevenlabs">ElevenLabs (IA Premium)</option>
             <option value="tiktok">TikTok (Voces virales)</option>
             <option value="piper">Piper (IA local, sin internet)</option>
+            <option value="edge">Edge TTS (Microsoft, gratis)</option>
           </select>
         </div>
 
@@ -376,6 +382,30 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
                   {piperVoices.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               )}
+            </div>
+          </div>
+        ) : tts.engine === 'edge' ? (
+          <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+            <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+              <label>Voz de Edge TTS</label>
+              <select
+                className="modifier-select"
+                style={{ width: '100%' }}
+                value={tts.edgeVoice || ''}
+                onChange={e => updateTTS({ edgeVoice: e.target.value })}
+              >
+                <option value="">Selecciona una voz</option>
+                {Object.entries(
+                  edgeVoices.reduce((groups, v) => {
+                    (groups[v.lang] = groups[v.lang] || []).push(v);
+                    return groups;
+                  }, {})
+                ).map(([lang, voices]) => (
+                  <optgroup key={lang} label={lang}>
+                    {voices.map(v => <option key={v.name} value={v.name}>{v.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
             </div>
           </div>
         ) : (

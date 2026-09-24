@@ -49,6 +49,34 @@ function executeEventActions(triggerType, conditionValue, times = 1) {
 
 const getUsername = (data) => (data.user?.displayId) || data.uniqueId || (data.user?.nickname) || 'alguien';
 
+function normalizeForSpeech(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFKC')                          // 𝓒𝓸𝓸𝓵 → Cool (arregla fuentes estilizadas)
+    .replace(/\p{Extended_Pictographic}/gu, '')  // quita emojis
+    .trim();
+}
+
+function isSpeakable(normalizedStr) {
+  if (!normalizedStr) return false;
+  const letters = normalizedStr.match(/\p{L}|\p{N}/gu) || [];
+  // al menos un tercio del texto debe ser letras/números reales
+  return letters.length > 0 && (letters.length / normalizedStr.length) >= 0.34;
+}
+
+function getSpeakableName(data) {
+  const nickname = data.user?.nickname;
+  const fallbackUsername = data.user?.displayId || data.uniqueId || 'alguien';
+
+  if (nickname) {
+    const normalized = normalizeForSpeech(nickname);
+    if (isSpeakable(normalized)) {
+      return normalized;
+    }
+  }
+  return fallbackUsername;
+}
+
 // ==========================================
 // 3. CONTROLADORES DE EVENTOS DE TIKTOK
 // ==========================================
@@ -219,6 +247,7 @@ function handleChat(data) {
   const isMod = identity.isModeratorOfAnchor;
   const isAnchor = identity.isAnchor;
   const username = getUsername(data);
+  const speakableName = getSpeakableName(data); // 🌟 nuevo: para lo que se lee en voz alta
 
   const fanBadge = badges.find(b => b.type === 'fans');
   const donatorBadge = badges.find(b => b.type === 'level');
@@ -256,7 +285,7 @@ function handleChat(data) {
   const maxChars = tts.maxChars || 150;
   if (commentText.length > maxChars) commentText = commentText.slice(0, maxChars) + '...';
 
-  const clearedName = username.replace(/[_.-]/g, ' ').trim();
+  const clearedName = speakableName.replace(/[_.-]/g, ' ').trim();
   const clearedComment = commentText.replace(/[_.-]/g, ' ').trim();
   const textToSay = tts.sayUsername ? `${clearedName} dice: ${clearedComment}` : clearedComment;
 
