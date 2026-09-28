@@ -97,6 +97,17 @@ function getActiveAssignments() {
   return [...globalEvents, ...activeEvents].filter((e) => e.trigger === 'sticker');
 }
 
+function upsertManyCatalogEntries(entries) {
+  const stickers = store.loadStickers();
+  let added = 0;
+  entries.forEach(({ id, name, icon, category }) => {
+    if (!stickers.catalog[id]) added++;
+    stickers.catalog[id] = { name, icon, category };
+  });
+  store.saveStickers(stickers);
+  return { catalog: stickers.catalog, added };
+}
+
 module.exports = {
   getCatalog,
   upsertCatalogEntry,
@@ -104,4 +115,5 @@ module.exports = {
   assign,
   unassign,
   getActiveAssignments,
+  upsertManyCatalogEntries,
 };

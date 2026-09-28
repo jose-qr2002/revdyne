@@ -3,6 +3,10 @@ const stickersManager = require('./stickersManager');
 const catalogService = require('./catalogService');
 const eventEngine = require('./eventEngine');
 const actionDispatcher = require('./actionDispatcher');
+const stickerCatalogService = require('./stickerCatalogService');
+const store = require('../data/store');
+const { findSecUidDeep } = require('./secUidUtils');
+const secUidResolver = require('./secUidResolver'); // agregar arriba
 
 // ==========================================
 // 1. ESTADO GLOBAL DEL SERVICIO
@@ -75,6 +79,21 @@ function getSpeakableName(data) {
     }
   }
   return fallbackUsername;
+}
+
+async function ensureRoomInfoWithRetry(connection, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const secUid = findSecUidDeep(connection.roomInfo);
+    if (secUid) return secUid;
+
+    console.warn(`⚠️ [ROOMINFO] Intento ${attempt}/${maxAttempts} sin sec_uid (status_code: ${connection.roomInfo?.status_code || 'desconocido'}), reintentando...`);
+    try {
+      await connection.fetchRoomInfo();
+    } catch (e) {
+      console.warn(`⚠️ [ROOMINFO] fetchRoomInfo() falló: ${e.message}`);
+    }
+  }
+  return findSecUidDeep(connection.roomInfo);
 }
 
 // ==========================================
@@ -299,6 +318,10 @@ function handleChat(data) {
 // ==========================================
 // 4. GESTIÓN DE CONEXIÓN (sin cambios)
 // ==========================================
+function getCurrentSecUid() {
+  return findSecUidDeep(tiktokConnection?.roomInfo);
+}
+
 function connect(username) {
   if (tiktokConnection) disconnect();
 
@@ -310,12 +333,30 @@ function connect(username) {
   console.log(`\n🔄 Conectando a @${username}...`);
   ioInstance.emit('status', { connected: false, message: `Conectando a @${username}...` });
 
-  tiktokConnection = new TikTokLiveConnection(username, { processInitialData: false });
+  tiktokConnection = new TikTokLiveConnection(username, { processInitialData: false,  });
 
-  tiktokConnection.connect().then(state => {
+  tiktokConnection.connect().then(async state => {
     isConnected = true;
     console.log(`✅ Conectado a @${username} | Room ID: ${state.roomId}`);
     ioInstance.emit('status', { connected: true, message: `✅ Conectado a @${username}`, roomId: state.roomId, username });
+
+    
+
+    const secUid = await ensureRoomInfoWithRetry(tiktokConnection);
+    if (secUid) secUidResolver.saveSecUid(username, secUid);
+    /*if (secUid) {
+      try {
+        const freshSettings = store.loadSettings();
+        const entries = await stickerCatalogService.fetchStickerCatalog(secUid, freshSettings.tiktokAuth);
+        const { catalog, added } = stickersManager.upsertManyCatalogEntries(entries);
+        console.log(`🎴 [STICKERS] Catálogo sincronizado: ${entries.length} encontrados (${added} nuevos)`);
+        ioInstance.emit('catalog:newSticker', catalog);
+      } catch (e) {
+        console.warn('⚠️ [STICKERS] No se pudo sincronizar automáticamente, sigue la detección reactiva:', e.message);
+      }
+    } else {
+      console.warn('⚠️ [STICKERS] roomInfo no trajo sec_uid, sigue la detección reactiva');
+    }*/
   }).catch(err => {
     console.error('❌ Error de conexión:', err.message);
     ioInstance.emit('status', { connected: false, message: `❌ Error: ${err.message}` });
@@ -327,7 +368,7 @@ function connect(username) {
   tiktokConnection.on('like', handleLike);
   tiktokConnection.on('chat', handleChat);
 
-  tiktokConnection.on('disconnected', () => {
+  tiktokConnection.on('disconnected', (state) => {
     isConnected = false;
     console.log('🔌 Desconectado de TikTok Live');
     ioInstance.emit('status', { connected: false, message: '🔌 Desconectado' });
@@ -337,6 +378,8 @@ function connect(username) {
     console.error('❌ Error TikTok:', err.message);
     ioInstance.emit('error', { message: err.message });
   });
+  
+  
 }
 
 function disconnect() {
@@ -347,4 +390,4 @@ function disconnect() {
   }
 }
 
-module.exports = { init, connect, disconnect, isConnected: () => isConnected };
+module.exports = { init, connect, disconnect, isConnected: () => isConnected , getCurrentSecUid };

@@ -1,6 +1,10 @@
 // backend/routes/stickers.js
 const express = require('express');
 const stickersManager = require('../services/stickersManager');
+const stickerCatalogService = require('../services/stickerCatalogService');
+const tiktokService = require('../services/tiktokService');
+const store = require('../data/store');
+const secUidResolver = require('../services/secUidResolver'); // agregar arriba
 
 module.exports = function stickersRoutes() {
   const router = express.Router();
@@ -31,6 +35,18 @@ module.exports = function stickersRoutes() {
     const { stickerId, profileId } = req.params;
     const removed = stickersManager.unassign(profileId, stickerId);
     res.json({ success: true, removed });
+  });
+
+  router.post('/sync', async (req, res) => {
+    const settings = store.loadSettings();
+    try {
+      const secUid = await secUidResolver.getSecUid(settings.username, tiktokService.getCurrentSecUid());
+      const entries = await stickerCatalogService.fetchStickerCatalog(secUid, settings.tiktokAuth);
+      const { catalog, added } = stickersManager.upsertManyCatalogEntries(entries);
+      res.json({ success: true, total: entries.length, added, catalog });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   return router;

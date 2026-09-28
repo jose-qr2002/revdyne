@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut } = require('electron');
+const { ipcMain, app, BrowserWindow, globalShortcut, session } = require('electron');
 const fs = require('fs');
 
 require('./server.js');
@@ -7,7 +7,7 @@ const paths = require('./backend/paths');
 const store = require('./backend/data/store');
 
 function registerShortcuts(win) {
-  globalShortcut.unregisterAll(); // Limpia los viejos por si los cambiaste en la UI
+  globalShortcut.unregisterAll();
 
   const settings = store.loadSettings();
   const ttsSettings = settings.tts || {};
@@ -57,13 +57,52 @@ function createWindow () {
 
   win.webContents.on('did-finish-load', () => registerShortcuts(win));
 
-  // bootstrap.js (disparado por require('./server.js') arriba) ya garantiza
-  // que config.json existe antes de llegar aquí, así que no hace falta
-  // comprobar fs.existsSync antes de vigilarlo.
   fs.watchFile(paths.CONFIG_FILE, { interval: 1000 }, () => {
     registerShortcuts(win);
   });
 }
+
+// ==========================================
+// AUTENTICACIÓN DE TIKTOK (para el catálogo de stickers)
+// ==========================================
+ipcMain.on('open-tiktok-login', (event) => {
+  const authSession = session.fromPartition('persist:tiktok-auth');
+
+  const loginWin = new BrowserWindow({
+    width: 480,
+    height: 720,
+    title: 'Inicia sesión en TikTok (con cualquier cuenta)',
+    autoHideMenuBar: true,
+    webPreferences: { session: authSession, nodeIntegration: false, contextIsolation: true }
+  });
+
+  loginWin.loadURL('https://www.tiktok.com/login');
+
+  const checkForSession = async () => {
+    try {
+      const sessionCookies = await authSession.cookies.get({ domain: '.tiktok.com', name: 'sessionid' });
+      if (sessionCookies.length === 0) return;
+
+      const idcCookies = await authSession.cookies.get({ domain: '.tiktok.com', name: 'tt-target-idc' });
+
+      const settings = store.loadSettings();
+      settings.tiktokAuth = {
+        sessionId: sessionCookies[0].value,
+        ttTargetIdc: idcCookies[0]?.value || null
+      };
+      store.saveSettings(settings);
+
+      event.reply('tiktok-login-success');
+      loginWin.close();
+    } catch (e) {
+      console.error('Error verificando sesión de TikTok:', e.message);
+    }
+  };
+
+  loginWin.webContents.on('did-navigate', checkForSession);
+  const poller = setInterval(checkForSession, 1500);
+  loginWin.on('closed', () => clearInterval(poller));
+});
 
 app.whenReady().then(createWindow);
 
