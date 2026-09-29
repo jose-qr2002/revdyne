@@ -1,152 +1,123 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useProfilePreview } from '../hooks/useProfilePreview';
 
-export default function Sidebar({ 
+const SUBLINES = {
+  loading: 'Buscando perfil…',
+  notfound: 'No encontramos ese usuario',
+  invalid: 'Solo letras, números, _ y .',
+  unavailable: 'Vista previa no disponible',
+};
+
+export default function Sidebar({
   status, config, onConnect, onUpdateConfig, isConnecting,
   activeProfileId, profilesList, onChangeProfile, onCreateProfile
 }) {
+  // Borrador local: escribir ya no guarda en disco en cada tecla
+  const [draft, setDraft] = useState(config.username || '');
+  const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => { setDraft(config.username || ''); }, [config.username]);
+
+  const cleanDraft = draft.replace(/^@/, '').trim();
+  const preview = useProfilePreview(cleanDraft);
+  const profile = preview.profile;
+
+  useEffect(() => { setImgFailed(false); }, [profile?.avatar]);
+
+  const commitUsername = () => {
+    if (cleanDraft !== (config.username || '')) onUpdateConfig({ username: cleanDraft });
+  };
+
+  const handleConnectClick = () => { commitUsername(); onConnect(cleanDraft); };
+
+  const found = preview.status === 'found';
+  const showImg = found && profile?.avatar && !imgFailed;
+  const displayName = found
+    ? (profile.nickname || `@${profile.uniqueId}`)
+    : (cleanDraft ? `@${cleanDraft}` : 'Sin usuario');
+  const subline = found
+    ? `@${profile.uniqueId}`
+    : (SUBLINES[preview.status] || (cleanDraft ? '' : 'Escribe un usuario de TikTok'));
+
+  const locked = status.connected || isConnecting;
+  const btnClass = `btn btn-connect ${status.connected ? 'disconnect' : ''} ${isConnecting && !status.connected ? 'busy' : ''}`;
+
   return (
-    <aside className="sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', padding: '20px' }}>
-      
-      {/* 🌟 LOGO Y TÍTULO */}
-      <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-        <span className="logo-icon" style={{ fontSize: '32px' }}>🎁</span>
+    <aside className="sidebar">
+
+      <div className="logo">
+        <div className="logo-mark">R</div>
         <div>
-          <h1 style={{ margin: 0, fontSize: '22px', color: '#00bcd4', letterSpacing: '1px' }}>Gift Keys</h1>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text2)' }}>TikTok Live → Teclado</p>
+          <h1>REVINITY</h1>
+          <p>Interacción para TikTok LIVE</p>
         </div>
       </div>
 
-      {/* 📡 TARJETA DE ESTADO */}
-      <div 
-        className={`status-card ${status.connected ? 'connected' : ''}`} 
-        style={{
-          background: 'var(--card)', 
-          padding: '16px', 
-          borderRadius: '10px', 
-          border: `1px solid ${status.connected ? '#4caf50' : 'var(--border)'}`,
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '14px',
-          transition: 'all 0.3s ease'
-        }}
-      >
-        <div 
-          className="status-dot" 
-          style={{
-            width: '14px', 
-            height: '14px', 
-            borderRadius: '50%', 
-            background: status.connected ? '#4caf50' : '#ff4d4d',
-            boxShadow: status.connected ? '0 0 10px #4caf50' : 'none',
-            transition: 'background 0.3s ease'
-          }}
-        ></div>
+      <div className={`status-card ${status.connected ? 'connected' : ''}`}>
+        <div className={`status-dot ${status.connected ? 'on' : ''}`}></div>
         <div>
-          <div style={{ fontWeight: 'bold', fontSize: '15px', color: status.connected ? '#4caf50' : 'white' }}>
-            {status.connected ? 'Conectado al Directo' : 'Desconectado'}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>
-            {status.message || 'Esperando conexión...'}
-          </div>
+          <div className="status-label">{status.connected ? 'Conectado al Directo' : 'Desconectado'}</div>
+          <div className="status-sub">{status.message || 'Esperando conexión...'}</div>
         </div>
       </div>
 
-      {/* 🔌 SECCIÓN DE CONEXIÓN */}
-      <div className="connect-section" style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px' }}>
-        <label style={{ display: 'block', fontSize: '13px', color: 'var(--text2)', marginBottom: '8px', fontWeight: 'bold' }}>
-          Usuario de TikTok
-        </label>
-        
-        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <span style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.05)', color: 'var(--text2)', borderRight: '1px solid var(--border)', fontWeight: 'bold' }}>
-            @
-          </span>
-          <input 
-            type="text" 
-            value={config.username || ''} 
-            onChange={(e) => onUpdateConfig({ username: e.target.value })} 
+      <div className="connect-section">
+        <div className="profile-card">
+          <div className={`avatar ${preview.status}`}>
+            {showImg
+              ? <img src={profile.avatar} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} />
+              : <span className="avatar-fallback">{(cleanDraft[0] || '?').toUpperCase()}</span>}
+            {preview.status === 'loading' && <span className="avatar-spinner" />}
+          </div>
+          <div className="profile-info">
+            <div className="profile-name" title={displayName}>{displayName}{found && profile.verified ? ' ✔' : ''}</div>
+            <div className={`profile-handle ${preview.status === 'notfound' || preview.status === 'invalid' ? 'error' : ''}`}>
+              {subline || '\u00A0'}
+            </div>
+          </div>
+        </div>
+
+        <label>Usuario de TikTok</label>
+        <div className="input-row">
+          <span className="at">@</span>
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitUsername}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !locked) handleConnectClick(); }}
             placeholder="ej: tu_canal"
-            style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', color: 'white', outline: 'none', fontSize: '14px' }}
-            disabled={status.connected || isConnecting} // Se bloquea si ya conectó
+            disabled={locked}
           />
         </div>
 
-        <button 
-          className="btn" 
-          style={{ 
-            width: '100%', 
-            padding: '14px', 
-            fontSize: '15px', 
-            fontWeight: 'bold',
-            marginTop: '16px',
-            // 🎨 Color rojo si ya está conectado, sino el azul estándar
-            backgroundColor: status.connected ? '#e74c3c' : (isConnecting ? '#f39c12' : '#00bcd4'),
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: isConnecting ? 'not-allowed' : 'pointer'
-          }}
-          onClick={() => {
-            // Si ya está conectado, al hacer clic llamamos a la función de desconexión
-            // Si no lo está, intentamos conectar
-            onConnect(config.username);
-          }}
-          // 🛡️ BLOQUEO INTELIGENTE:
-          // Se bloquea si está en medio de una conexión (isConnecting)
-          // PERO si ya está conectado, SIEMPRE está disponible para que puedas "Detener"
-          disabled={isConnecting && !status.connected} 
+        <button
+          className={btnClass}
+          onClick={handleConnectClick}
+          disabled={isConnecting && !status.connected}
         >
-          {isConnecting ? '⏳ Conectando...' : (status.connected ? '❌ Desconectar' : '🔌 Conectar')}
+          {isConnecting ? '⏳ Conectando...' : (status.connected ? 'Desconectar' : 'Conectar')}
         </button>
       </div>
-      
-      {/* SELECTOR DE JUEGOS (Solo visual, la lógica la maneja App.jsx) */}
+
       {profilesList && (
-        <div style={{ background: 'var(--card)', padding: '15px', borderRadius: '8px', margin: '20px 10px', display: 'flex', flexDirection: 'column', gap: '10px', border: '1px solid var(--border)' }}>
-          <h3 style={{ margin: 0, color: 'white', fontSize: '14px', textAlign: 'center' }}>🕹️ Perfil Activo</h3>
-          
-          <select 
-            className="modifier-select" 
-            style={{ width: '100%', fontSize: '14px', padding: '8px', background: 'var(--bg3)' }}
-            value={activeProfileId}
-            onChange={(e) => onChangeProfile(e.target.value)} // 👈 Usamos la prop de App
-          >
+        <div className="profile-box">
+          <div className="section-title">🕹️ Perfil activo</div>
+          <select className="modifier-select" value={activeProfileId || ''} onChange={(e) => onChangeProfile(e.target.value)}>
             {Object.entries(profilesList).map(([id, prof]) => (
-              <option key={id} value={id}>
-                {prof.isGlobal ? '🌐 ' : '🎮 '} {prof.name}
-              </option>
+              <option key={id} value={id}>{prof.isGlobal ? '🌐 ' : '🎮 '} {prof.name}</option>
             ))}
           </select>
-          
-          <button className="btn btn-secondary" onClick={onCreateProfile} style={{ width: '100%', fontSize: '13px', padding: '8px' }}>
-            ➕ Nuevo Juego
-          </button>
+          <button className="btn btn-secondary" onClick={onCreateProfile}>➕ Nuevo juego</button>
         </div>
       )}
 
-      {/* 🚀 ESPACIADOR FLEXIBLE: Empuja lo de abajo hacia el final de la pantalla */}
-      <div style={{ flex: 1 }}></div>
-
-      {/* 🤖 ESTADO DEL ROBOT */}
-      <div 
-        className="robot-status" 
-        style={{
-          background: config.robotAvailable ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
-          border: `1px solid ${config.robotAvailable ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 152, 0, 0.3)'}`,
-          padding: '12px 16px', 
-          borderRadius: '8px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '12px', 
-          fontSize: '14px',
-          fontWeight: 'bold'
-        }}
-      >
-        <span style={{ fontSize: '18px' }}>{config.robotAvailable ? '✅' : '⚠️'}</span>
-        <span style={{ color: config.robotAvailable ? '#4caf50' : '#ff9800' }}>
-          {config.robotAvailable ? 'Motor de Teclado Activo' : 'Modo Simulación'}
-        </span>
+      <div className={`robot-status ${config.robotAvailable ? 'ok' : 'warn'}`}>
+        <span>{config.robotAvailable ? '✅' : '⚠️'}</span>
+        <span>{config.robotAvailable ? 'Motor de teclado activo' : 'Modo simulación'}</span>
       </div>
+
+      {config.appVersion && <div className="app-version">REVINITY v{config.appVersion}</div>}
     </aside>
   );
 }

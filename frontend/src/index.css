@@ -1139,3 +1139,60 @@ body {
   animation: pulse 1s infinite;
 
 }
+
+/* ── SIDEBAR: marca REVINITY ── */
+.logo-mark {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), #8a0030);
+  color: #fff; font-weight: 800; font-size: 20px;
+  box-shadow: 0 4px 14px rgba(255, 0, 80, .35);
+}
+.logo h1 { font-size: 17px; letter-spacing: 3px; font-weight: 800; }
+
+/* ── SIDEBAR: tarjeta del usuario ── */
+.profile-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+}
+.avatar {
+  position: relative; width: 48px; height: 48px; flex-shrink: 0;
+  border-radius: 50%; overflow: hidden;
+  background: var(--card2); border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .3s;
+}
+.avatar.found { border-color: var(--accent); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-fallback { font-weight: 700; font-size: 18px; color: var(--text3); }
+.avatar.loading .avatar-fallback { opacity: .35; }
+.avatar-spinner {
+  position: absolute; inset: 0; margin: auto; width: 22px; height: 22px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.profile-info { min-width: 0; }
+.profile-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-handle { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-handle.error { color: var(--accent2); }
+
+/* ── SIDEBAR: perfil activo, botones y versión ── */
+.profile-box {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+}
+.profile-box .modifier-select, .profile-box .btn { width: 100%; }
+.input-row input:disabled { opacity: .6; cursor: not-allowed; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn:disabled:hover { transform: none; }
+
+/* Estos dos reemplazan a .btn-connect.disconnect (gris) del CSS original */
+.btn-connect.disconnect { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.btn-connect.disconnect:hover { background: rgba(255, 0, 80, .12); transform: none; }
+.btn-connect.busy { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
+
+.app-version { text-align: center; font-size: 11px; color: var(--text3); }

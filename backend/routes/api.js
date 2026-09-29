@@ -2,6 +2,8 @@
 const express = require('express');
 const store = require('../data/store');
 const actionQueue = require('../services/actionQueue');
+const secUidResolver = require('../services/secUidResolver');
+const { version: appVersion } = require('../../package.json');
 
 module.exports = function apiRoutes(settings, io, tiktokService) {
   const router = express.Router();
@@ -20,7 +22,17 @@ module.exports = function apiRoutes(settings, io, tiktokService) {
     const updated = { ...current, ...req.body };
     store.saveSettings(updated);
     Object.assign(settings, updated); // mantiene sincronizado el objeto compartido en memoria
-    res.json({ ok: true });
+    res.json({
+      ...store.loadSettings(),
+      catalog: store.loadCatalog(),
+      profiles: store.loadProfiles(),
+      robotAvailable: actionQueue.isRobotAvailable(),
+      appVersion,
+    });
+  });
+
+  router.get('/profile-preview', async (req, res) => {
+    res.json(await secUidResolver.getProfilePreview(req.query.username));
   });
 
   router.post('/connect', (req, res) => {
