@@ -30,6 +30,8 @@ function App() {
   const soundQueueRef = useRef([]);
   const isPlayingBatchRef = useRef(false);
 
+  const configLoaded = config !== null;
+
   function playAlertSound(filename, volume = 1) {
     if (!filename) return;
     const audio = new Audio(`/sounds/${encodeURIComponent(filename)}`);
@@ -80,6 +82,15 @@ function App() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!configLoaded) return;
+    try {
+      if (typeof window.require === 'function') {
+        window.require('electron').ipcRenderer.send('renderer-ready');
+      }
+    } catch { /* corriendo en un navegador normal */ }
+  }, [configLoaded]);
 
   useEffect(() => {
     if (!socket) return;

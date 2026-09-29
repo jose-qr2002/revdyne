@@ -1,117 +1,224 @@
-const { ipcMain, app, BrowserWindow, globalShortcut, session } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, session, dialog } = require('electron');
 const fs = require('fs');
+const path = require('path');
 
-require('./server.js');
+// Si usas app.setPath('userData', ...), va AQUÍ, antes del candado.
 
-const paths = require('./backend/paths');
-const store = require('./backend/data/store');
+const isDev = !app.isPackaged;
+const APP_URL = isDev ? 'http://localhost:5173' : 'http://localhost:3000';
+const REVEAL_FALLBACK_MS = 25000; // si la interfaz no avisa en este tiempo, se muestra igual
+const MAX_LOAD_RETRIES = 15;
 
+let splash = null;
+let mainWindow = null;
+let revealed = false;
+let revealTimer = null;
+let bootStartedAt = 0;
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ==========================================
+// INSTANCIA ÚNICA
+// Debe evaluarse ANTES de cargar server.js: la segunda copia no debe abrir
+// otro servidor ni tocar los JSON. Tampoco toca disco: store y paths se cargan bajo demanda.
+// ==========================================
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Si el usuario vuelve a abrir la app, se enfoca la que ya existe
+    const win = revealed ? mainWindow : splash;
+    if (!win || win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+
+  app.whenReady().then(boot);
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+  });
+}
+
+// ==========================================
+// ARRANQUE: splash -> servidor -> ventana principal (oculta) -> revelar
+// ==========================================
+async function boot() {
+  bootStartedAt = Date.now();
+  try {
+    splash = createSplash();
+    await new Promise(resolve => {
+      splash.once('ready-to-show', () => { splash.show(); resolve(); });
+      setTimeout(resolve, 1500); // por si acaso
+    });
+    await sleep(60); // deja que el splash pinte antes de bloquear el hilo principal
+
+    registerTikTokLoginIpc();
+
+    setSplashStatus('Iniciando el motor…');
+    await sleep(60);
+    require('./server.js'); // síncrono y pesado: por eso el splash ya está en pantalla
+    console.log(`⏱️ [ARRANQUE] Servidor cargado en ${Date.now() - bootStartedAt} ms`);
+
+    setSplashStatus('Cargando la interfaz…');
+    createMainWindow();
+  } catch (err) {
+    console.error('🔥 [ARRANQUE] Error fatal:', err);
+    dialog.showErrorBox('No se pudo iniciar', String(err?.stack || err));
+    app.exit(1);
+  }
+}
+
+function createSplash() {
+  const win = new BrowserWindow({
+    width: 420, height: 260,
+    frame: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    alwaysOnTop: true, center: true, show: false,
+    backgroundColor: '#0f0f13',
+    webPreferences: { nodeIntegration: false, contextIsolation: true }
+  });
+  win.loadFile(path.join(__dirname, 'splash.html'), { query: { n: app.name, v: app.getVersion() } })
+    .catch(() => {});
+  win.on('closed', () => { splash = null; });
+  return win;
+}
+
+function setSplashStatus(text) {
+  if (!splash || splash.isDestroyed()) return;
+  splash.webContents.executeJavaScript(`window.__setStatus(${JSON.stringify(text)})`).catch(() => {});
+}
+
+function createMainWindow() {
+  const paths = require('./backend/paths');
+
+  mainWindow = new BrowserWindow({
+    width: 1100, height: 750,
+    show: false, // se muestra cuando la interfaz avisa que ya cargó sus datos
+    backgroundColor: '#0f0f13',
+    title: app.name,
+    autoHideMenuBar: true,
+    webPreferences: { nodeIntegration: true, contextIsolation: false }
+  });
+
+  if (isDev) mainWindow.webContents.openDevTools();
+
+  // La interfaz avisa por IPC cuando ya cargó su configuración (ver App.jsx)
+  ipcMain.once('renderer-ready', revealMainWindow);
+  revealTimer = setTimeout(revealMainWindow, REVEAL_FALLBACK_MS);
+
+  let retries = 0;
+  mainWindow.webContents.on('did-fail-load', (_e, code, _desc, _url, isMainFrame) => {
+    if (!isMainFrame || code === -3) return; // -3 = navegación cancelada, es normal
+    if (retries++ < MAX_LOAD_RETRIES) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL(APP_URL).catch(() => {});
+      }, 700);
+    } else {
+      setSplashStatus('No se pudo cargar la interfaz');
+    }
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => registerShortcuts(mainWindow));
+  mainWindow.on('closed', () => { mainWindow = null; });
+
+  mainWindow.loadURL(APP_URL).catch(() => {});
+
+  // bootstrap.js (cargado con server.js) ya garantiza que config.json existe
+  fs.watchFile(paths.CONFIG_FILE, { interval: 1000 }, () => registerShortcuts(mainWindow));
+}
+
+function revealMainWindow() {
+  if (revealed) return;
+  revealed = true;
+  clearTimeout(revealTimer);
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+  // Primero se muestra la principal y luego se cierra el splash: nunca hay un instante sin ventana
+  if (splash && !splash.isDestroyed()) splash.close();
+
+  console.log(`⏱️ [ARRANQUE] Interfaz lista en ${Date.now() - bootStartedAt} ms`);
+}
+
+// ==========================================
+// ATAJOS GLOBALES
+// ==========================================
 function registerShortcuts(win) {
   globalShortcut.unregisterAll();
 
-  const settings = store.loadSettings();
-  const ttsSettings = settings.tts || {};
-  const keySkipCurrent = ttsSettings.keySkipCurrent || null;
-  const keySkipAll = ttsSettings.keySkipAll || null;
-  const keyToggleBot = ttsSettings.keyToggleBot || null;
+  const store = require('./backend/data/store');
+  const tts = store.loadSettings().tts || {};
 
-  const safeRegister = (key, actionName, callback) => {
+  const fire = (eventName) => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.executeJavaScript(`window.dispatchEvent(new Event('${eventName}'))`).catch(() => {});
+    }
+  };
+
+  const safeRegister = (key, label, eventName) => {
     if (!key) return;
     try {
-      globalShortcut.register(key, callback);
-      console.log(`✅ [HOTKEY] Tecla vinculada: ${key} -> ${actionName}`);
+      globalShortcut.register(key, () => fire(eventName));
+      console.log(`✅ [HOTKEY] Tecla vinculada: ${key} -> ${label}`);
     } catch (e) {
       console.log(`❌ [HOTKEY ERROR] No se pudo vincular la tecla "${key}". Asegúrate de que es válida.`);
     }
   };
 
-  safeRegister(keySkipCurrent, 'Omitir Actual', () => {
-    if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-skip-current'))");
-  });
-
-  safeRegister(keySkipAll, 'Limpiar Cola', () => {
-    if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-skip-all'))");
-  });
-
-  safeRegister(keyToggleBot, 'Toggle Bot', () => {
-    if (win) win.webContents.executeJavaScript("window.dispatchEvent(new Event('tts-action-toggle-bot'))");
-  });
-}
-
-function createWindow () {
-  const win = new BrowserWindow({
-    width: 1100,
-    height: 750,
-    title: "REVDYNE",
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  });
-
-  win.webContents.openDevTools();
-
-  const isDev = !app.isPackaged;
-  win.loadURL(isDev ? 'http://localhost:5173' : 'http://localhost:3000');
-
-  win.webContents.on('did-finish-load', () => registerShortcuts(win));
-
-  fs.watchFile(paths.CONFIG_FILE, { interval: 1000 }, () => {
-    registerShortcuts(win);
-  });
+  safeRegister(tts.keySkipCurrent, 'Omitir Actual', 'tts-action-skip-current');
+  safeRegister(tts.keySkipAll, 'Limpiar Cola', 'tts-action-skip-all');
+  safeRegister(tts.keyToggleBot, 'Toggle Bot', 'tts-action-toggle-bot');
 }
 
 // ==========================================
-// AUTENTICACIÓN DE TIKTOK (para el catálogo de stickers)
+// AUTENTICACIÓN DE TIKTOK (catálogo de stickers)
 // ==========================================
-ipcMain.on('open-tiktok-login', (event) => {
-  const authSession = session.fromPartition('persist:tiktok-auth');
+function registerTikTokLoginIpc() {
+  ipcMain.on('open-tiktok-login', (event) => {
+    const store = require('./backend/data/store');
+    const authSession = session.fromPartition('persist:tiktok-auth');
 
-  const loginWin = new BrowserWindow({
-    width: 480,
-    height: 720,
-    title: 'Inicia sesión en TikTok (con cualquier cuenta)',
-    autoHideMenuBar: true,
-    webPreferences: { session: authSession, nodeIntegration: false, contextIsolation: true }
+    const loginWin = new BrowserWindow({
+      width: 480, height: 720,
+      title: 'Inicia sesión en TikTok (con cualquier cuenta)',
+      autoHideMenuBar: true,
+      webPreferences: { session: authSession, nodeIntegration: false, contextIsolation: true }
+    });
+    loginWin.loadURL('https://www.tiktok.com/login');
+
+    let done = false;
+    const checkForSession = async () => {
+      if (done || loginWin.isDestroyed()) return;
+      try {
+        const sessionCookies = await authSession.cookies.get({ domain: '.tiktok.com', name: 'sessionid' });
+        if (sessionCookies.length === 0) return;
+
+        const idcCookies = await authSession.cookies.get({ domain: '.tiktok.com', name: 'tt-target-idc' });
+
+        done = true;
+        const settings = store.loadSettings();
+        settings.tiktokAuth = {
+          sessionId: sessionCookies[0].value,
+          ttTargetIdc: idcCookies[0]?.value || null
+        };
+        store.saveSettings(settings);
+
+        event.reply('tiktok-login-success');
+        loginWin.close();
+      } catch (e) {
+        console.error('Error verificando sesión de TikTok:', e.message);
+      }
+    };
+
+    loginWin.webContents.on('did-navigate', checkForSession);
+    const poller = setInterval(checkForSession, 1500);
+    loginWin.on('closed', () => clearInterval(poller));
   });
-
-  loginWin.loadURL('https://www.tiktok.com/login');
-
-  const checkForSession = async () => {
-    try {
-      const sessionCookies = await authSession.cookies.get({ domain: '.tiktok.com', name: 'sessionid' });
-      if (sessionCookies.length === 0) return;
-
-      const idcCookies = await authSession.cookies.get({ domain: '.tiktok.com', name: 'tt-target-idc' });
-
-      const settings = store.loadSettings();
-      settings.tiktokAuth = {
-        sessionId: sessionCookies[0].value,
-        ttTargetIdc: idcCookies[0]?.value || null
-      };
-      store.saveSettings(settings);
-
-      event.reply('tiktok-login-success');
-      loginWin.close();
-    } catch (e) {
-      console.error('Error verificando sesión de TikTok:', e.message);
-    }
-  };
-
-  loginWin.webContents.on('did-navigate', checkForSession);
-  const poller = setInterval(checkForSession, 1500);
-  loginWin.on('closed', () => clearInterval(poller));
-});
-
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-});
+}
