@@ -20,7 +20,8 @@ let settingsRef = null; // antes "configRef" — ahora solo trae username/keyDel
 const streakTracker = {};
 const followedUsers = new Set();
 const stickerCooldowns = new Map();
-const sharedUsers = new Set();
+const onceSeen = new Set();          // "reglaId_usuario" ya ejecutados (modo "una vez")
+const eventCooldowns = new Map();    // "reglaId_usuario" -> último disparo (modo "enfriamiento")
 const likeAccumulators = {};
 
 function init(io, settings) {
@@ -51,6 +52,29 @@ function executeEventActions(triggerType, conditionValue, times = 1) {
   });
 
   return { actionExecuted, keyExecuted };
+}
+
+function passesFrequency(evt, userKey) {
+  const mode = evt.frequency || 'once';
+  if (mode === 'always') return true;
+
+  const key = `${evt.id}_${userKey}`;
+
+  if (mode === 'once') {
+    if (onceSeen.has(key)) return false;
+    onceSeen.add(key);
+    return true;
+  }
+
+  if (mode === 'cooldown') {
+    const last = eventCooldowns.get(key);
+    if (last && Date.now() - last < (evt.cooldownSeconds || 0) * 1000) return false;
+    eventCooldowns.set(key, Date.now());
+    if (eventCooldowns.size > 10000) eventCooldowns.delete(eventCooldowns.keys().next().value);
+    return true;
+  }
+
+  return true;
 }
 
 const getUsername = (data) => (data.user?.displayId) || data.uniqueId || (data.user?.nickname) || 'alguien';
@@ -150,15 +174,24 @@ function handleGift(data) {
 
 function handleShare(data) {
   const username = getUsername(data);
-  if (sharedUsers.has(username)) return;
-  sharedUsers.add(username);
-
   console.log(`📢 ${username} ha compartido el directo`);
-  const result = executeEventActions('share', 'any', 1);
+
+  let executed = false;
+  let label = null;
+
+  // La frecuencia se decide por regla, no globalmente
+  eventEngine.findMatchingEvents('share', 'any').forEach(({ evt, actions }) => {
+    if (!passesFrequency(evt, username)) return;
+    const result = actionDispatcher.dispatch(actions[evt.actionId], {
+      times: 1,
+      defaultDelayMs: settingsRef?.keyDelayMs || 80,
+    });
+    if (result.executed) { executed = true; label = result.label; }
+  });
 
   ioInstance.emit('giftReceived', {
     giftId: 'action_share', giftName: '📢 Compartió el Directo', coins: 0, sender: username, newCount: 1,
-    key: result.keyExecuted || 'Ninguna', pressed: result.actionExecuted, timestamp: Date.now()
+    key: label || 'Ninguna', pressed: executed, timestamp: Date.now()
   });
 }
 
@@ -379,7 +412,10 @@ function getCurrentSecUid() {
 
 function connect(username) {
   if (tiktokConnection) disconnect();
-
+  
+  onceSeen.clear();
+  eventCooldowns.clear();
+  
   if (!username) {
     ioInstance.emit('status', { connected: false, message: 'Sin usuario configurado' });
     return;

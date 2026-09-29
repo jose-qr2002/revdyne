@@ -2,8 +2,8 @@ import React from 'react';
 
 // Reutilizamos tu función de emojis
 const getGiftEmoji = (coins, giftId) => {
-  if (giftId === 'action_follow') return '👤';
-  if (giftId === 'action_share') return '📢'; // NUEVO: Icono para compartir
+  if (giftId === 'action_follow') return '';
+  if (giftId === 'action_share') return ''; // NUEVO: Icono para compartir
   if (!coins || coins < 5) return '🌹';
   if (coins < 20) return '🍪';
   if (coins < 50) return '🎁';

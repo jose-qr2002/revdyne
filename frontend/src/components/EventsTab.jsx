@@ -9,6 +9,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [trigger, setTrigger] = useState('gift');
   const [condition, setCondition] = useState('');
   const [selectedActionId, setSelectedActionId] = useState('');
+  const [frequency, setFrequency] = useState('once');
+  const [cooldownSeconds, setCooldownSeconds] = useState(30);
 
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [giftSearch, setGiftSearch] = useState('');
@@ -64,12 +66,15 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     setCondition(evt.condition === 'any' ? '' : evt.condition);
     setSelectedActionId(evt.actionId);
     setShowForm(true);
+    setFrequency(evt.frequency || 'once');
+    setCooldownSeconds(evt.cooldownSeconds ?? 30);
   };
 
   const handleSaveEvent = () => {
     if (!selectedActionId) return alert('Debes seleccionar una acción de tu arsenal.');
     if (trigger === 'gift' && !condition) return alert('Debes seleccionar un regalo del catálogo.');
     if (trigger === 'like' && (!condition || isNaN(condition) || condition <= 0)) return alert('Debes ingresar una cantidad válida de likes.');
+    if (trigger === 'share' && frequency === 'cooldown' && !(parseInt(cooldownSeconds, 10) > 0)) return alert('Ingresa un enfriamiento mayor a 0 segundos.');
 
     const isCurrentlyEnabled = editingEventId ? allScopeEvents.find(e => e.id === editingEventId)?.enabled : true;
 
@@ -78,7 +83,11 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
       trigger,
       condition: (trigger === 'gift' || trigger === 'like') ? condition : 'any',
       actionId: selectedActionId,
-      enabled: isCurrentlyEnabled !== undefined ? isCurrentlyEnabled : true
+      enabled: isCurrentlyEnabled !== undefined ? isCurrentlyEnabled : true,
+      ...(trigger === 'share' && {
+        frequency,
+        cooldownSeconds: Math.max(0, parseInt(cooldownSeconds, 10) || 0)
+      })
     };
 
     const updatedEvents = editingEventId
@@ -96,6 +105,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     setShowForm(false);
     setIsGiftModalOpen(false);
     setGiftSearch('');
+    setFrequency('once');
+    setCooldownSeconds(30);
   };
 
   const requestDeleteEvent = (evt) => {
@@ -116,7 +127,16 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
   const renderTriggerName = (evt) => {
     if (evt.trigger === 'follow') return <span>👤 Alguien te sigue</span>;
-    if (evt.trigger === 'share') return <span>📢 Alguien comparte el directo</span>;
+    if (evt.trigger === 'share') {
+      const freq = evt.frequency || 'once';
+      const freqLabel = freq === 'always' ? 'siempre' : freq === 'cooldown' ? `cada ${evt.cooldownSeconds}s por usuario` : '1 vez por usuario';
+      return (
+        <span>
+          📢 Alguien comparte el directo{' '}
+          <span style={{ fontSize: '11px', color: 'var(--text2)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>{freqLabel}</span>
+        </span>
+      );
+    }
     if (evt.trigger === 'like') return <span>❤️ Al llegar a {evt.condition} Likes</span>;
 
     if (evt.trigger === 'gift') {
@@ -201,6 +221,31 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
             {trigger === 'like' && (
               <input type="number" className="key-input" placeholder="Ej: 500" value={condition} onChange={e => setCondition(e.target.value)} style={{ width: '100%' }} />
+            )}
+            {trigger === 'share' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text2)' }}>¿Cuándo se ejecuta?</label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input type="radio" checked={frequency === 'once'} onChange={() => setFrequency('once')} />
+                  <span>Una sola vez por usuario (en este directo)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input type="radio" checked={frequency === 'always'} onChange={() => setFrequency('always')} />
+                  <span>Todas las veces que comparta</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input type="radio" checked={frequency === 'cooldown'} onChange={() => setFrequency('cooldown')} />
+                  <span>Con enfriamiento por usuario:</span>
+                  <input
+                    type="number" min="1" className="key-input"
+                    value={cooldownSeconds} disabled={frequency !== 'cooldown'}
+                    onChange={e => setCooldownSeconds(e.target.value)}
+                    style={{ width: '70px' }}
+                  />
+                  <span>seg</span>
+                </label>
+              </div>
             )}
           </div>
 
