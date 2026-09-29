@@ -1,6 +1,8 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, session, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const ICON_PATH = path.join(__dirname, 'build', 'icon.ico');
+const APP_ICON = fs.existsSync(ICON_PATH) ? ICON_PATH : undefined;
 
 // Si usas app.setPath('userData', ...), va AQUÍ, antes del candado.
 
@@ -49,6 +51,11 @@ if (!app.requestSingleInstanceLock()) {
 // ARRANQUE: splash -> servidor -> ventana principal (oculta) -> revelar
 // ==========================================
 async function boot() {
+  if (process.platform === 'win32') {
+    let appId = 'com.jkrevil.revdyne';
+    try { appId = require('./package.json').build?.appId || appId; } catch { /* usa el valor por defecto */ }
+    app.setAppUserModelId(appId); // agrupa bien la ventana y conserva el icono al fijarla en la barra
+  }
   bootStartedAt = Date.now();
   try {
     splash = createSplash();
@@ -78,7 +85,7 @@ function createSplash() {
   const win = new BrowserWindow({
     width: 420, height: 260,
     frame: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
-    alwaysOnTop: true, center: true, show: false,
+    alwaysOnTop: true, center: true, show: false, icon: APP_ICON,
     backgroundColor: '#0f0f13',
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   });
@@ -101,6 +108,7 @@ function createMainWindow() {
     show: false, // se muestra cuando la interfaz avisa que ya cargó sus datos
     backgroundColor: '#0f0f13',
     title: app.name,
+    icon: APP_ICON,
     autoHideMenuBar: true,
     webPreferences: { nodeIntegration: true, contextIsolation: false }
   });
@@ -188,6 +196,7 @@ function registerTikTokLoginIpc() {
     const loginWin = new BrowserWindow({
       width: 480, height: 720,
       title: 'Inicia sesión en TikTok (con cualquier cuenta)',
+      icon: APP_ICON,
       autoHideMenuBar: true,
       webPreferences: { session: authSession, nodeIntegration: false, contextIsolation: true }
     });

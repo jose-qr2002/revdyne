@@ -22,7 +22,7 @@ async function processQueue() {
 
     // El sonido se emite igual sin importar el tipo de tarea que lo trae
     if (task.sound && ioInstance) {
-      ioInstance.emit('play-macro-sound', task.sound);
+      ioInstance.emit('play-macro-sound', task.sound, task.volume ?? 1);
     }
 
     if (task.type === 'keyboard') {
@@ -66,14 +66,14 @@ function parseMacro(macroStr) {
   return sequence;
 }
 
-function enqueueKeyboardMacro(macroStr, delay = 80, sound = null, soundEveryKey = false) {
+function enqueueKeyboardMacro(macroStr, delay = 80, sound = null, soundEveryKey = false, volume = 1) {
   if (!macroStr) return;
   const safeDelay = Math.max(delay, MIN_DELAY_MS);
   const sequence = parseMacro(macroStr);
 
   sequence.forEach((step, index) => {
     const stepSound = (soundEveryKey || index === 0) ? sound : null;
-    queue.push({ type: 'keyboard', key: step.key, modifier: step.modifier, delay: safeDelay, sound: stepSound });
+    queue.push({ type: 'keyboard', key: step.key, modifier: step.modifier, delay: safeDelay, sound: stepSound, volume });
   });
 
   processQueue();

@@ -7,8 +7,9 @@ function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'seq
   switch (action.type) {
     case 'keyboard': {
       if (!action.key) return { executed: false };
+      const volume = (action.volume ?? 100) / 100;
       for (let i = 0; i < times; i++) {
-        actionQueue.enqueueKeyboardMacro(action.key, delay, action.sound, action.soundEveryKey || false);
+        actionQueue.enqueueKeyboardMacro(action.key, delay, action.sound, action.soundEveryKey || false, volume);
       }
       return { executed: true, label: action.key };
     }

@@ -46,7 +46,7 @@ export default function Sidebar({
     <aside className="sidebar">
 
       <div className="logo">
-        <div className="logo-mark">R</div>
+        <img className="logo-mark" src="/icon.png" alt="" />
         <div>
           <h1>REVDYNE</h1>
           <p>Interacción para TikTok LIVE</p>

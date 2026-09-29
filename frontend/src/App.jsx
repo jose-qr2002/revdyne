@@ -12,6 +12,13 @@ import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import './index.css';
 
+// audio.volume lanza un error si el valor sale de 0-1, así que se sanea siempre
+const clampVolume = (v) => {
+  if (v === undefined || v === null) return 1;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
+};
+
 function App() {
   const { socket, status, events: liveEvents, ttsEvents, clearEvents } = useSocket();
 
@@ -35,7 +42,7 @@ function App() {
   function playAlertSound(filename, volume = 1) {
     if (!filename) return;
     const audio = new Audio(`/sounds/${encodeURIComponent(filename)}`);
-    audio.volume = volume;
+    audio.volume = clampVolume(volume);  
     if (config?.tts?.audioDeviceId && audio.setSinkId) {
       audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
     }
@@ -49,7 +56,7 @@ function App() {
 
     isPlayingBatchRef.current = true;
     const audio = new Audio(`/sounds/${encodeURIComponent(next.filename)}`);
-    audio.volume = next.volume;
+    audio.volume = clampVolume(next.volume);
     if (config?.tts?.audioDeviceId && audio.setSinkId) {
       audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
     }
@@ -100,8 +107,8 @@ function App() {
       setTimeout(() => setSystemError(null), 10000);
     });
 
-    socket.on('play-macro-sound', (soundFilename) => {
-      playAlertSound(soundFilename);
+    socket.on('play-macro-sound', (soundFilename, volume) => {
+      playAlertSound(soundFilename, volume);
     });
 
     socket.on('play-macro-sound-batch', ({ file, times, playbackStyle, volume }) => { // 🌟 nuevo

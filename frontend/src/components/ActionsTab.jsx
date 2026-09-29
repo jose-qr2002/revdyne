@@ -11,6 +11,13 @@ const TYPE_META = {
 
 const SUPPORTED_TYPES = ['keyboard', 'sound'];
 
+const TEST_DELAY_MS = 5000;
+
+const toVolume = (v) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 100; // 0 es un valor válido (silencio)
+};
+
 export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'], onUpdateConfig }) {
   const [showForm, setShowForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState(null);
@@ -22,6 +29,9 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const [delay, setDelay] = useState(80);
   const [soundEveryKey, setSoundEveryKey] = useState(false);
   const [volume, setVolume] = useState(100);
+
+  const [countdowns, setCountdowns] = useState({}); // actionId -> { testId, left }
+  const countdownIntervals = useRef({});
 
   const [localSounds, setLocalSounds] = useState([]);
 
@@ -48,6 +58,55 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       setType(availableTypes.find(t => SUPPORTED_TYPES.includes(t)) || 'keyboard');
     }
   }, [allowedActionTypes]);
+
+  useEffect(() => () => Object.values(countdownIntervals.current).forEach(clearInterval), []);
+
+  const stopCountdown = (actionId) => {
+    clearInterval(countdownIntervals.current[actionId]);
+    delete countdownIntervals.current[actionId];
+    setCountdowns(prev => { const next = { ...prev }; delete next[actionId]; return next; });
+  };
+
+  const testAction = async (id, delayMs = 0) => {
+    try {
+      const res = await fetch('/api/actions/test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionId: id, delayMs })
+      });
+      const data = await res.json();
+      if (!res.ok) return showToast('error', data.error || 'No se pudo probar la acción');
+
+      if (delayMs === 0) {
+        if (!data.ok) return showToast('error', 'La acción no se ejecutó');
+        return showToast('success', data.simulated ? 'Ejecutada en modo simulación (sin motor de teclado)' : '▶ Acción ejecutada');
+      }
+
+      const seconds = Math.round(delayMs / 1000);
+      showToast('success', `Se ejecutará en ${seconds} s: cambia a tu juego`);
+      setCountdowns(prev => ({ ...prev, [id]: { testId: data.testId, left: seconds } }));
+
+      let left = seconds;
+      countdownIntervals.current[id] = setInterval(() => {
+        left -= 1;
+        if (left <= 0) stopCountdown(id);
+        else setCountdowns(prev => prev[id] ? { ...prev, [id]: { ...prev[id], left } } : prev);
+      }, 1000);
+    } catch {
+      showToast('error', 'Error de red al probar la acción');
+    }
+  };
+
+  const cancelTest = async (id) => {
+    const cd = countdowns[id];
+    if (!cd) return;
+    stopCountdown(id);
+    try {
+      await fetch(`/api/actions/test/${cd.testId}`, { method: 'DELETE' });
+      showToast('success', 'Prueba cancelada');
+    } catch {
+      showToast('error', 'No se pudo cancelar, la acción puede ejecutarse igual');
+    }
+  };
 
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -151,6 +210,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
         name, type, enabled: isCurrentlyEnabled,
         key: key.toLowerCase(),
         sound: sound || null,
+        volume: toVolume(volume),
         delay: parseInt(delay) || 80,
         soundEveryKey: isMultiKey ? soundEveryKey : false
       };
@@ -159,7 +219,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
         name, type, enabled: isCurrentlyEnabled,
         sound,
         delay: parseInt(delay) || 0,
-        volume: parseInt(volume, 10) || 100
+        volume: toVolume(volume)
       };
     }
 
@@ -223,7 +283,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
       {notification && (
         <div style={{
-          position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
           background: notification.type === 'error' ? '#f44336' : '#4caf50',
           color: 'white', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold',
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', alignItems: 'center', gap: '10px',
@@ -314,7 +374,18 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                   {renderSoundPicker()}
                 </div>
               </div>
-
+              {sound && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>
+                    🔊 Volumen del sonido: {volume}%
+                  </label>
+                  <input
+                    type="range" min="0" max="100" value={volume}
+                    onChange={e => setVolume(parseInt(e.target.value, 10))}
+                    style={{ width: '100%', accentColor: '#00bcd4' }}
+                  />
+                </div>
+              )}
               {sound && isMultiKey && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px', padding: '8px', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '6px', borderLeft: '3px solid #ff9800' }}>
                   <label style={{ fontSize: '12px', color: '#ffeb3b', margin: 0, cursor: 'pointer' }}>
@@ -373,8 +444,8 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                   <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>{act.key}</span>
                     <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>⏳ {act.delay || 80}ms</span>
-                    {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}>🔊 {act.sound} (1 vez)</span>}
-                    {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}>🔊 {act.sound} (En cada tecla)</span>}
+                    {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}>🔊 {act.sound} · {act.volume ?? 100}% (1 vez)</span>}
+                    {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}>🔊 {act.sound} · {act.volume ?? 100}% (En cada tecla)</span>}
                   </div>
                 )}
 
@@ -388,6 +459,21 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {countdowns[id] ? (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => cancelTest(id)}
+                    title="Cancelar la prueba programada"
+                    style={{ minWidth: '84px', borderColor: '#ff9800', color: '#ff9800' }}
+                  >
+                    ✖ {countdowns[id].left}s
+                  </button>
+                ) : (
+                  <>
+                    <button className="btn btn-secondary btn-sm" onClick={() => testAction(id, 0)} title="Probar ahora">▶</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => testAction(id, TEST_DELAY_MS)} title="Probar en 5 segundos, para darte tiempo de pasar al juego">⏱ 5s</button>
+                  </>
+                )}
                 <label className="switch" style={{ marginRight: '8px' }}>
                   <input type="checkbox" checked={act.enabled} onChange={() => handleToggleAction(id, act.enabled)} />
                   <span className="slider"></span>

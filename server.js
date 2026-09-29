@@ -25,6 +25,8 @@ const stickersRoutes = require('./backend/routes/stickers');
 const systemRoutes = require('./backend/routes/system');
 const gamesRoutes = require('./backend/routes/games')
 const profilesRoutes = require('./backend/routes/profiles')
+const ttsEnginesRoutes = require('./backend/routes/ttsEngines');
+const actionsRoutes = require('./backend/routes/actions');
 
 const app = express();
 const server = http.createServer(app);
@@ -35,7 +37,7 @@ const settings = store.loadSettings();
 
 app.use(express.json({ limit: '10mb' }));
 
-app.use('/api/tts/engines', require('./backend/routes/ttsEngines')());
+app.use('/api/tts/engines', ttsEnginesRoutes());
 app.use('/api/sounds', soundsRoutes());
 app.use('/api/catalog', catalogRoutes());
 app.use('/api/stickers', stickersRoutes());
@@ -44,6 +46,7 @@ app.use('/api/games', gamesRoutes());
 app.use('/api/system', systemRoutes());
 app.use('/api/alerts', alertsRoutes());
 app.use('/api/tts', ttsRoutes(settings));
+app.use('/api/actions', actionsRoutes());
 app.use('/api', apiRoutes(settings, io, tiktokService));
 
 app.use('/sounds', express.static(paths.SOUNDS_DIR));

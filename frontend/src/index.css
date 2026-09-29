@@ -1196,3 +1196,6 @@ body {
 .btn-connect.busy { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
 
 .app-version { text-align: center; font-size: 11px; color: var(--text3); }
+
+img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
+.mark-img { width: 72px; height: 72px; object-fit: contain; }
