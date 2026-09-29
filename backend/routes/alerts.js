@@ -7,7 +7,7 @@ module.exports = function() {
   const router = express.Router();
 
   // 🎵 1. ÚNICA RUTA: Apuntamos directamente a Documentos
-  const soundsPath = path.join(os.homedir(), 'Documents', 'REVINITY', 'sounds');
+  const soundsPath = path.join(os.homedir(), 'Documents', 'REVDYNE', 'sounds');
 
   // Si no existe, la creamos (por seguridad)
   if (!fs.existsSync(soundsPath)) {

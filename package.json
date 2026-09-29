@@ -1,5 +1,5 @@
 {
-  "name": "revinity",
+  "name": "revdyne",
   "version": "1.0.0-beta.1",
   "description": "TikTok Live Gift to Keypress - Similar a TikFinity",
   "author": "JK REVIL",
@@ -29,8 +29,8 @@
     "javascript-obfuscator": "^5.4.1"
   },
   "build": {
-    "appId": "com.jkrevil.revinity",
-    "productName": "REVINITY",
+    "appId": "com.jkrevil.revdyne",
+    "productName": "REVDYNE",
     "copyright": "Copyright © 2026 JK REVIL",
     "asar": false,
     "afterPack": "./proteger.js",

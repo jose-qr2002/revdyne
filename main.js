@@ -42,7 +42,7 @@ function createWindow () {
   const win = new BrowserWindow({
     width: 1100,
     height: 750,
-    title: "REVINITY",
+    title: "REVDYNE",
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,

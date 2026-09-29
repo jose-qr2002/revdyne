@@ -7,7 +7,7 @@ const isElectron = !!(process.versions && process.versions.electron);
 
 // Carpeta oculta de la app: donde viven los .json de configuración.
 // En Electron empaquetado, Windows la resuelve como algo tipo
-// C:\Users\tuUsuario\AppData\Roaming\REVINITY
+// C:\Users\tuUsuario\AppData\Roaming\REVDYNE
 const ROOT_DIR = isElectron
   ? require('electron').app.getPath('userData')
   : process.cwd();
@@ -16,7 +16,7 @@ const ROOT_DIR = isElectron
 // A propósito NO va dentro de ROOT_DIR, porque el usuario sí debe poder
 // verla y tocarla sin bucear en AppData.
 const TTS_ENGINES_DIR = path.join(ROOT_DIR, 'tts-engines');
-const SOUNDS_DIR = path.join(os.homedir(), 'Documents', 'REVINITY', 'sounds');
+const SOUNDS_DIR = path.join(os.homedir(), 'Documents', 'REVDYNE', 'sounds');
 // PIPER TTS
 const PIPER_DIR = path.join(__dirname, 'bin', 'piper');
 const PIPER_EXECUTABLE = path.join(PIPER_DIR, process.platform === 'win32' ? 'piper.exe' : 'piper');
@@ -46,8 +46,4 @@ module.exports = {
   CATALOG_FILE: path.join(ROOT_DIR, 'catalog.json'),
   PROFILES_FILE: path.join(ROOT_DIR, 'profiles.json'),
   STICKERS_FILE: path.join(ROOT_DIR, 'stickers.json'),
-
-  // Solo se usan una vez, dentro de la migración. Nadie más debería leerlos.
-  LEGACY_ACTIONS_FILE: path.join(ROOT_DIR, 'actions.json'),
-  LEGACY_EVENTS_FILE: path.join(ROOT_DIR, 'events.json'),
 };

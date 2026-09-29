@@ -76,7 +76,7 @@ tiktokService.init(io, settings);
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log('\n╔══════════════════════════════════════════╗');
-  console.log('║  🎁 REVINITY Activo                      ║');
+  console.log('║  🎁 REVDYNE Activo                      ║');
   console.log('╠══════════════════════════════════════════╣');
   console.log(`║  Abre: http://localhost:${PORT}             ║`);
   console.log(`║  RobotJS: ${isRobotAvailable() ? '✅ Activo' : '❌ No disponible'}                 ║`);

@@ -64,7 +64,7 @@ async function tryWindow(username, { visible, timeoutMs }) {
     title: 'Verificación de TikTok',
     webPreferences: { session: authSession, nodeIntegration: false, contextIsolation: true, backgroundThrottling: false }
   });
-  win.webContents.setUserAgent(authSession.getUserAgent().replace(/\s(Electron|revinity)\/\S+/gi, ''));
+  win.webContents.setUserAgent(authSession.getUserAgent().replace(/\s(Electron|revdyne)\/\S+/gi, ''));
 
   try {
     win.loadURL(`https://www.tiktok.com/@${encodeURIComponent(username)}`).catch(() => {});

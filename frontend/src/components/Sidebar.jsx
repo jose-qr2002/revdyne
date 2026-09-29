@@ -48,7 +48,7 @@ export default function Sidebar({
       <div className="logo">
         <div className="logo-mark">R</div>
         <div>
-          <h1>REVINITY</h1>
+          <h1>REVDYNE</h1>
           <p>Interacción para TikTok LIVE</p>
         </div>
       </div>
@@ -117,7 +117,7 @@ export default function Sidebar({
         <span>{config.robotAvailable ? 'Motor de teclado activo' : 'Modo simulación'}</span>
       </div>
 
-      {config.appVersion && <div className="app-version">REVINITY v{config.appVersion}</div>}
+      {config.appVersion && <div className="app-version">REVDYNE v{config.appVersion}</div>}
     </aside>
   );
 }
