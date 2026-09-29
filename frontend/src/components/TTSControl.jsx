@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
-import { enqueueTTS, setPlaybackRate } from '../services/ttsPlayer';
+import { enqueueTTS, setPlaybackRate, setVolume } from '../services/ttsPlayer';
 
 export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
   const tts = config.tts || {};
@@ -13,6 +13,27 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
 
   // Estado local para la velocidad visual
   const [speed, setSpeed] = useState(tts.speed || 1.0);
+
+  const [volume, setVolumeUI] = useState(tts.volume ?? 100);
+  const [blockedTermsText, setBlockedTermsText] = useState((tts.blockedTerms || []).join('\n'));
+  const [filterTestText, setFilterTestText] = useState('');
+  const [filterTestResult, setFilterTestResult] = useState(null);
+
+  const SUGGESTED_TERMS = ['puta', 'puto', 'mierda', 'maricon', 'pendejo', 'cabron', 'pinga', 'verga', 'conchatumadre', 'malparido'];
+
+  const parseTerms = (text) => [...new Set(text.split(/[\n,]/).map(t => t.trim()).filter(Boolean))];
+  const saveBlockedTerms = (text = blockedTermsText) => updateTTS({ blockedTerms: parseTerms(text) });
+
+  const addSuggestedTerms = () => {
+    const merged = [...new Set([...parseTerms(blockedTermsText), ...SUGGESTED_TERMS])].join('\n');
+    setBlockedTermsText(merged);
+    saveBlockedTerms(merged);
+  };
+
+  const runFilterTest = async () => {
+    const res = await apiFetch('/api/tts/filter-test', 'POST', { text: filterTestText, terms: parseTerms(blockedTermsText) });
+    setFilterTestResult(res);
+  };
 
   const updateTTS = (updates) => {
     onUpdateConfig({ tts: { ...tts, ...updates } });
@@ -246,6 +267,21 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           />
         </div>
 
+        {/* 🌟 NUEVO: FILTRO DE VOLUMEN */}
+        <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+            <label>🔊 Volumen del Bot</label>
+            <span style={{ color: '#00bcd4', fontWeight: 'bold' }}>{volume}%</span>
+          </div>
+          <input
+            type="range" min="0" max="100" step="5" value={volume}
+            onChange={e => { const v = parseInt(e.target.value, 10); setVolumeUI(v); setVolume(v); }}
+            onMouseUp={() => updateTTS({ volume })}
+            onKeyUp={() => updateTTS({ volume })}
+            style={{ width: '100%', accentColor: '#00bcd4', cursor: 'pointer' }}
+          />
+        </div>
+
         {/* 🌟 NUEVO: FILTRO DE PREFIJO EXCLUSIVO */}
         <div className="tts-row" style={{ marginTop: '8px' }}>
           <label>🔒 Requerir Prefijo obligatorio</label>
@@ -264,6 +300,95 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
               onChange={e => updateTTS({ prefixText: e.target.value.toLowerCase() })}
               style={{ width: '100%' }}
             />
+          </div>
+        )}
+
+        {/* 🌟 NUEVO: FILTRO ANTI SPAM */}
+        <div className="tts-section-title" style={{ marginTop: '16px' }}>🛡️ Antispam y Filtros</div>
+        <div className="tts-row">
+          <label style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>♻️ Ignorar mensajes repetidos</span>
+            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Si un usuario repite lo mismo, solo se lee la primera vez</span>
+          </label>
+          <label className="switch">
+            <input type="checkbox" checked={tts.blockDuplicates || false} onChange={e => updateTTS({ blockDuplicates: e.target.checked })} />
+            <span className="slider"></span>
+          </label>
+        </div>
+        {tts.blockDuplicates && (
+          <div className="tts-row" style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
+            <label style={{ fontSize: '12px' }}>Ignorar el mismo texto durante</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input type="number" min="1" className="key-input" style={{ width: '80px' }}
+                defaultValue={tts.duplicateWindowSec ?? 30}
+                onBlur={e => updateTTS({ duplicateWindowSec: Math.max(1, parseInt(e.target.value, 10) || 30) })} />
+              <span style={{ fontSize: '12px', color: 'var(--text2)' }}>segundos</span>
+            </div>
+          </div>
+        )}
+
+        <div className="tts-row" style={{ marginTop: '8px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>🐢 Modo lento por usuario</span>
+            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Tiempo mínimo entre dos mensajes leídos del mismo usuario</span>
+          </label>
+          <label className="switch">
+            <input type="checkbox" checked={tts.slowModeEnabled || false} onChange={e => updateTTS({ slowModeEnabled: e.target.checked })} />
+            <span className="slider"></span>
+          </label>
+        </div>
+        {tts.slowModeEnabled && (
+          <div className="tts-row" style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
+            <label style={{ fontSize: '12px' }}>Esperar</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input type="number" min="0" step="100" className="key-input" style={{ width: '90px' }}
+                defaultValue={tts.slowModeMs ?? 3000}
+                onBlur={e => updateTTS({ slowModeMs: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
+              <span style={{ fontSize: '12px', color: 'var(--text2)' }}>ms</span>
+            </div>
+          </div>
+        )}
+
+        <div className="tts-row" style={{ marginTop: '8px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>🤬 Bloquear palabras soeces</span>
+            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>El mensaje completo se omite, no se lee</span>
+          </label>
+          <label className="switch">
+            <input type="checkbox" checked={tts.profanityFilter || false} onChange={e => updateTTS({ profanityFilter: e.target.checked })} />
+            <span className="slider"></span>
+          </label>
+        </div>
+        {tts.profanityFilter && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
+            <label style={{ fontSize: '12px', color: 'var(--text2)' }}>Palabras a bloquear (una por línea)</label>
+            <textarea
+              className="key-input" rows={6}
+              value={blockedTermsText}
+              onChange={e => setBlockedTermsText(e.target.value)}
+              onBlur={() => saveBlockedTerms()}
+              placeholder={'puta\npinga\nmariquicon'}
+              style={{ width: '100%', fontFamily: 'monospace', resize: 'vertical' }}
+            />
+            <div style={{ fontSize: '11px', color: 'var(--text2)' }}>
+              💡 Escribe la palabra normal. El filtro ya detecta mayúsculas, acentos, letras repetidas,
+              espacios entre letras ("p u t a"), números por letras ("pu7a") y la h muda ("putha").
+              Si usan sílabas partidas (ej. "mari qui con"), agrega esa variante: <code>mariquicon</code>.
+            </div>
+            <button className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addSuggestedTerms}>
+              ➕ Agregar lista sugerida
+            </button>
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <input type="text" className="key-input" placeholder="🧪 Prueba una frase..." value={filterTestText}
+                onChange={e => { setFilterTestText(e.target.value); setFilterTestResult(null); }} style={{ flex: 1 }} />
+              <button className="btn btn-secondary btn-sm" onClick={runFilterTest}>Probar</button>
+            </div>
+            {filterTestResult && (
+              <div style={{ fontSize: '12px', color: filterTestResult.blocked ? '#ff4d4d' : '#4caf50' }}>
+                {filterTestResult.blocked ? `🚫 Se bloquearía (coincide con "${filterTestResult.term}")` : '✅ Se leería normal'}
+              </div>
+            )}
           </div>
         )}
 

@@ -7,6 +7,7 @@ const stickerCatalogService = require('./stickerCatalogService');
 const store = require('../data/store');
 const { findSecUidDeep } = require('./secUidUtils');
 const secUidResolver = require('./secUidResolver'); // agregar arriba
+const chatFilter = require('./chatFilter');
 
 // ==========================================
 // 1. ESTADO GLOBAL DEL SERVICIO
@@ -307,7 +308,8 @@ function handleChat(data) {
   const isMod = identity.isModeratorOfAnchor;
   const isAnchor = identity.isAnchor;
   const username = getUsername(data);
-  const speakableName = getSpeakableName(data); // 🌟 nuevo: para lo que se lee en voz alta
+  const speakableName = getSpeakableName(data);
+  const nameIsBlocked = tts.profanityFilter && chatFilter.findBlockedTerm(speakableName, tts.blockedTerms);
 
   const fanBadge = badges.find(b => b.type === 'fans');
   const donatorBadge = badges.find(b => b.type === 'level');
@@ -342,12 +344,24 @@ function handleChat(data) {
     }
   }
 
+  const userKey = String(data.user?.userId || data.user?.uniqueId || data.uniqueId || username);
+  const verdict = chatFilter.evaluateMessage({
+    userKey,
+    text: commentText,
+    tts,
+    exempt: isMod || isAnchor
+  });
+  if (!verdict.allowed) {
+    console.log(`🚫 [TTS] @${username} omitido (${verdict.reason}): ${commentText}`);
+    return;
+  }
+
   const maxChars = tts.maxChars || 150;
   if (commentText.length > maxChars) commentText = commentText.slice(0, maxChars) + '...';
 
-  const clearedName = speakableName.replace(/[_.-]/g, ' ').trim();
+  const clearedName = (nameIsBlocked ? '' : speakableName).replace(/[_.-]/g, ' ').trim();
   const clearedComment = commentText.replace(/[_.-]/g, ' ').trim();
-  const textToSay = tts.sayUsername ? `${clearedName} dice: ${clearedComment}` : clearedComment;
+  const textToSay = (tts.sayUsername && clearedName) ? `${clearedName} dice: ${clearedComment}` : clearedComment;
 
   ioInstance.emit('ttsComment', {
     username, comment: commentText, text: textToSay,

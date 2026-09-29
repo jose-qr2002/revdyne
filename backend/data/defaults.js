@@ -18,7 +18,14 @@ const DEFAULT_SETTINGS = {
     edgeVoice: null,
     usePrefix: false,
     prefixText: '!tts',
-    minFanLevel: 0
+    minFanLevel: 0,
+    volume: 100,
+    blockDuplicates: false,
+    duplicateWindowSec: 30,
+    slowModeEnabled: false,
+    slowModeMs: 3000,
+    profanityFilter: false,
+    blockedTerms: []
   }
 };
 

@@ -4,6 +4,7 @@ const store = require('../data/store');
 const piperService = require('../services/piperService');
 const ttsEngineManager = require('../services/ttsEngineManager');
 const edgeTtsService = require('../services/edgeTtsService');
+const chatFilter = require('../services/chatFilter');
 
 module.exports = function ttsRoutes(settings) {
   const router = express.Router();
@@ -113,6 +114,13 @@ module.exports = function ttsRoutes(settings) {
       console.error('🔥 Error generando voz con Edge TTS:', e.message);
       res.status(500).json({ error: e.message });
     }
+  });
+
+  router.post('/filter-test', (req, res) => {
+    const { text, terms } = req.body;
+    const list = Array.isArray(terms) ? terms : (settings.tts?.blockedTerms || []);
+    const hit = chatFilter.findBlockedTerm(text || '', list);
+    res.json({ blocked: !!hit, term: hit });
   });
 
   return router;

@@ -2,6 +2,12 @@ let ttsQueue = [];
 let isSpeaking = false;
 let currentConfig = {};
 let globalPlaybackRate = 1.0;
+let globalVolume = 1.0;
+
+export function setVolume(percent) {
+  globalVolume = Math.min(1, Math.max(0, percent / 100));
+  if (currentHTMLAudio) currentHTMLAudio.volume = globalVolume;
+}
 
 // Referencias para controlar el audio en vivo
 let cancelCurrentAudio = null;
@@ -15,6 +21,7 @@ export function setPlaybackRate(rate) {
 // 1. Actualiza la configuración y ajusta la velocidad en vivo
 export function updateTTSConfig(cfg) {
   currentConfig = cfg;
+  if (typeof cfg.volume === 'number') setVolume(cfg.volume);
   if (cfg.speed) {
     globalPlaybackRate = cfg.speed;
     if (currentHTMLAudio) currentHTMLAudio.playbackRate = cfg.speed;
@@ -124,7 +131,8 @@ function playBrowser(text) {
     }
 
     utter.rate = globalPlaybackRate; // Aplicar velocidad
-
+    utter.volume = globalVolume;
+    
     cancelCurrentAudio = () => {
       window.speechSynthesis.cancel();
       resolve(); 
@@ -147,6 +155,7 @@ function playAudioFile(url, isBlob) {
     }
 
     audio.playbackRate = globalPlaybackRate; // Aplicar velocidad
+    audio.volume = globalVolume;
 
     cancelCurrentAudio = () => {
       audio.pause();
