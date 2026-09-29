@@ -1,5 +1,5 @@
 // backend/services/actionDispatcher.js (corrección del nombre de módulo)
-function dispatch(action, { times = 1, defaultDelayMs = 80 } = {}) {
+function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'sequential' } = {}) {
   if (!action || !action.enabled) return { executed: false };
   const actionQueue = require('./actionQueue');
   const delay = action.delay !== undefined ? action.delay : defaultDelayMs;
@@ -14,7 +14,8 @@ function dispatch(action, { times = 1, defaultDelayMs = 80 } = {}) {
     }
     case 'sound': {
       if (!action.sound) return { executed: false };
-      actionQueue.enqueueSound(action.sound, delay);
+      const volume = (action.volume ?? 100) / 100; // action.volume guardado como 0-100
+      actionQueue.emitSoundBatch(action.sound, { times, playbackStyle, volume });
       return { executed: true, label: action.sound };
     }
     default:

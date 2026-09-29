@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // 🌟 agregar useRef aquí
 import TTSControl from './components/TTSControl';
 import EngineManagerTab from './components/EngineManagerTab';
 import { updateTTSConfig, enqueueTTS } from './services/ttsPlayer';
@@ -27,14 +27,35 @@ function App() {
   const [systemError, setSystemError] = useState(null);
   const [availableSounds, setAvailableSounds] = useState([]);
 
-  function playAlertSound(filename) {
+  const soundQueueRef = useRef([]);
+  const isPlayingBatchRef = useRef(false);
+
+  function playAlertSound(filename, volume = 1) {
     if (!filename) return;
-    const safeFilename = encodeURIComponent(filename);
-    const audio = new Audio(`/sounds/${safeFilename}`);
+    const audio = new Audio(`/sounds/${encodeURIComponent(filename)}`);
+    audio.volume = volume;
     if (config?.tts?.audioDeviceId && audio.setSinkId) {
       audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
     }
     audio.play().catch(e => console.error("❌ Error reproduciendo alerta:", e));
+  }
+
+  function processSoundQueue() {
+    if (isPlayingBatchRef.current) return;
+    const next = soundQueueRef.current.shift();
+    if (!next) return;
+
+    isPlayingBatchRef.current = true;
+    const audio = new Audio(`/sounds/${encodeURIComponent(next.filename)}`);
+    audio.volume = next.volume;
+    if (config?.tts?.audioDeviceId && audio.setSinkId) {
+      audio.setSinkId(config.tts.audioDeviceId).catch(console.warn);
+    }
+
+    const finish = () => { isPlayingBatchRef.current = false; processSoundQueue(); };
+    audio.onended = finish;
+    audio.onerror = finish;
+    audio.play().catch(finish);
   }
 
   useEffect(() => {
@@ -72,9 +93,19 @@ function App() {
       playAlertSound(soundFilename);
     });
 
+    socket.on('play-macro-sound-batch', ({ file, times, playbackStyle, volume }) => { // 🌟 nuevo
+      if (playbackStyle === 'simultaneous') {
+        for (let i = 0; i < times; i++) playAlertSound(file, volume);
+      } else {
+        for (let i = 0; i < times; i++) soundQueueRef.current.push({ filename: file, volume });
+        processSoundQueue();
+      }
+    });
+
     return () => {
       socket.off('systemError');
       socket.off('play-macro-sound');
+      socket.off('play-macro-sound-batch');
     };
   }, [socket, config]);
 
@@ -249,8 +280,9 @@ function App() {
 
           {activeTab === 'stickers' && (
             <StickersTab
+              profiles={profilesData}
+              onUpdateProfiles={handleUpdateProfiles}
               activeProfileId={activeProfileId}
-              profilesList={profilesData.list}
               availableSounds={availableSounds}
               ioSocket={socket}
             />

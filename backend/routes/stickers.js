@@ -17,14 +17,14 @@ module.exports = function stickersRoutes() {
   });
 
   router.post('/assign', (req, res) => {
-    const { profileId, stickerId, actionId, enabled } = req.body;
-    if (!profileId || !stickerId || !actionId) {
-      return res.status(400).json({ error: 'profileId, stickerId y actionId son obligatorios' });
+    const { profileId, stickerId, actionId, enabled, cooldownSeconds, repeatMode, repeatLimit, playbackStyle } = req.body; // 🌟 agregado playbackStyle
+    if (!profileId || !stickerId) {
+      return res.status(400).json({ error: 'profileId y stickerId son obligatorios' });
     }
-    const events = stickersManager.assign(profileId, stickerId, actionId, enabled !== false);
+    const events = stickersManager.assign(profileId, stickerId, { actionId, enabled, cooldownSeconds, repeatMode, repeatLimit, playbackStyle }); // 🌟 agregado playbackStyle
     res.json({ success: true, events });
   });
-
+  
   router.delete('/:stickerId', (req, res) => {
     const removed = stickersManager.removeFromCatalog(req.params.stickerId);
     if (!removed) return res.status(404).json({ success: false, message: 'Sticker no encontrado' });

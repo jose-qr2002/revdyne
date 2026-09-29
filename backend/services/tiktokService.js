@@ -18,6 +18,7 @@ let settingsRef = null; // antes "configRef" — ahora solo trae username/keyDel
 
 const streakTracker = {};
 const followedUsers = new Set();
+const stickerCooldowns = new Map();
 const sharedUsers = new Set();
 const likeAccumulators = {};
 
@@ -80,6 +81,13 @@ function getSpeakableName(data) {
   }
   return fallbackUsername;
 }
+
+  function recordCooldown(key) {
+    stickerCooldowns.set(key, Date.now());
+    if (stickerCooldowns.size > 10000) {
+      stickerCooldowns.delete(stickerCooldowns.keys().next().value);
+    }
+  }
 
 async function ensureRoomInfoWithRetry(connection, maxAttempts = 3) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -220,34 +228,67 @@ function handleChat(data) {
     const catalog = stickersManager.getCatalog();
     let catalogUpdated = false;
 
+    // 1. Registrar nuevos en catálogo y CONTAR cuántas veces se repite cada sticker en este mismo comentario
+    const occurrenceCount = {};
+    const emoteMeta = {};
+
     data.emotes.forEach(emoteWrapper => {
       const emote = emoteWrapper.emote;
       if (!emote) return;
-
       const emoteId = emote.id || emote.emoteId;
-      const emoteName = emote.name || emote.emoteId || 'Sticker';
-      const iconUrl =
-        emote.image?.urlList?.[0] ||
-        emote.image?.imageList?.[0]?.url ||
-        emote.imageUrl || '';
+      if (!emoteId || emoteId === '?') return;
 
-      if (emoteId && emoteId !== '?' && !catalog[emoteId]) {
-        stickersManager.upsertCatalogEntry(emoteId, { name: emoteName, icon: iconUrl });
-        catalogUpdated = true;
-        console.log(`✅ [CATÁLOGO] Sticker nuevo detectado: ${emoteName}`);
+      occurrenceCount[emoteId] = (occurrenceCount[emoteId] || 0) + 1;
+
+      if (!emoteMeta[emoteId]) {
+        const emoteName = emote.name || emote.emoteId || 'Sticker';
+        const iconUrl = emote.image?.urlList?.[0] || emote.image?.imageList?.[0]?.url || emote.imageUrl || '';
+        emoteMeta[emoteId] = { name: emoteName, icon: iconUrl };
+
+        if (!catalog[emoteId]) {
+          stickersManager.upsertCatalogEntry(emoteId, emoteMeta[emoteId]);
+          catalogUpdated = true;
+          console.log(`✅ [CATÁLOGO] Sticker nuevo detectado: ${emoteMeta[emoteId].name}`);
+        }
       }
+    });
 
-      // Ya no hay hack "action:"/"sound:" — el sticker es un trigger más
+    const senderId = data.user?.uniqueId || data.uniqueId || 'desconocido';
+
+    // 2. Disparar UNA vez por sticker único del comentario, respetando repeatMode y el enfriamiento por usuario
+    Object.entries(occurrenceCount).forEach(([emoteId, countInMessage]) => {
       const matches = eventEngine.findMatchingEvents('sticker', emoteId);
+
       matches.forEach(({ evt, actions }) => {
         const action = actions[evt.actionId];
+        const repeatMode = evt.repeatMode || 'once';
+
+        let timesToTrigger = 1;
+        let playbackStyle = 'sequential';
+
+        if (repeatMode === 'all') {
+          timesToTrigger = countInMessage;
+          playbackStyle = 'sequential'; // sin tope: nunca simultáneo, sería impredecible
+        } else if (repeatMode === 'limited') {
+          timesToTrigger = Math.min(countInMessage, evt.repeatLimit || 1);
+          playbackStyle = evt.playbackStyle === 'simultaneous' ? 'simultaneous' : 'sequential';
+        }
+        // repeatMode === 'once' → timesToTrigger se queda en 1
+
+        const cooldownSeconds = evt.cooldownSeconds || 0;
+        if (cooldownSeconds > 0 && action?.type !== 'sound') {
+          const cooldownKey = `${evt.id}_${senderId}`;
+          const last = stickerCooldowns.get(cooldownKey);
+          if (last && (Date.now() - last) < cooldownSeconds * 1000) return;
+          recordCooldown(cooldownKey);
+        }
         const result = actionDispatcher.dispatch(action, {
-          times: 1,
-          io: ioInstance,
+          times: timesToTrigger,
           defaultDelayMs: settingsRef?.keyDelayMs || 80,
+          playbackStyle,
         });
         if (result.executed) {
-          console.log(`🎯 [STICKER] Ejecutando "${action.name}" por sticker ${emoteName}`);
+          console.log(`🎯 [STICKER] "${action.name}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);
         }
       });
     });

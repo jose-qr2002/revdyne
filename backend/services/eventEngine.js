@@ -4,11 +4,16 @@ const store = require('../data/store');
 function getActiveEventSources() {
   const profiles = store.loadProfiles();
   const global = profiles.list.prof_global || { actions: {}, events: [] };
-  const active = profiles.list[profiles.activeProfileId] || { actions: {}, events: [] };
+  const activeId = profiles.activeProfileId;
+
+  // Si el perfil global YA es el activo, no lo devolvemos dos veces
+  const active = (activeId && activeId !== 'prof_global')
+    ? (profiles.list[activeId] || { actions: {}, events: [] })
+    : null;
+
   return { global, active };
 }
 
-// Para gift/follow/share/sticker: busca coincidencia exacta de condition
 function findMatchingEvents(triggerType, conditionValue) {
   const { global, active } = getActiveEventSources();
   const condStr = String(conditionValue);
@@ -18,10 +23,11 @@ function findMatchingEvents(triggerType, conditionValue) {
       (evt.condition === 'any' || String(evt.condition) === condStr))
     .map(evt => ({ evt, actions: profile.actions || {} }));
 
-  return [...matchesIn(global), ...matchesIn(active)];
+  const result = matchesIn(global);
+  if (active) result.push(...matchesIn(active)); // solo se agrega si es un perfil distinto
+  return result;
 }
 
-// Para like: necesita TODOS los eventos del trigger (la comparación de umbral la hace el caller)
 function getEventsByTrigger(triggerType) {
   const { global, active } = getActiveEventSources();
 
@@ -29,7 +35,9 @@ function getEventsByTrigger(triggerType) {
     .filter(evt => evt.enabled && evt.trigger === triggerType)
     .map(evt => ({ evt, actions: profile.actions || {} }));
 
-  return [...collect(global), ...collect(active)];
+  const result = collect(global);
+  if (active) result.push(...collect(active));
+  return result;
 }
 
 module.exports = { findMatchingEvents, getEventsByTrigger };

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ConfirmModal from './ConfirmModal';
+import ModalShell from './ModalShell';
 
 export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [showForm, setShowForm] = useState(false);
@@ -24,8 +25,6 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const scopeActionsArray = Object.entries(scopeProfile.actions || {});
   const allScopeEvents = scopeProfile.events || [];
 
-  // Los eventos de sticker se editan solo desde la pestaña Stickers,
-  // pero conviven en el mismo events[] del perfil.
   const displayEvents = allScopeEvents.filter(e => e.trigger !== 'sticker');
 
   const catalogArray = useMemo(() => {
@@ -50,8 +49,6 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     setGiftCurrentPage(1);
   }, [giftSearch]);
 
-  // Reescribe SOLO el events[] del perfil que corresponde al scope actual,
-  // preservando todo lo demás del perfil (incluidos los eventos de sticker).
   const updateScopeEvents = (updatedEvents) => {
     const newProfiles = JSON.parse(JSON.stringify(profiles));
     newProfiles.list[scopeProfileId] = {
@@ -67,7 +64,6 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     setCondition(evt.condition === 'any' ? '' : evt.condition);
     setSelectedActionId(evt.actionId);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSaveEvent = () => {
@@ -151,8 +147,87 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
         onCancel={() => { setIsDeleteModalOpen(false); setEventToDelete(null); }}
       />
 
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Vínculos: Eventos de TikTok → Acciones</h3>
+        <button className="btn" onClick={() => setShowForm(true)}>+ Crear Nuevo Vínculo</button>
+      </div>
+
+      <ModalShell
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingEventId ? '✏️ Editando Regla' : '✨ Diseñar Regla'}
+        width="700px"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
+            <button className="btn" style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }} onClick={handleSaveEvent}>
+              {editingEventId ? 'Actualizar Regla' : 'Guardar Regla'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+
+          <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
+            <label style={{ display: 'block', fontSize: '13px', color: '#ffeb3b', marginBottom: '8px', fontWeight: 'bold' }}>1. CUANDO OCURRA ESTO...</label>
+            <select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
+              <option value="gift">🎁 Recibir un Regalo específico</option>
+              <option value="like">❤️ Alcanzar meta de Likes</option>
+              <option value="follow">👤 Nuevo Seguidor</option>
+              <option value="share">📢 Compartir Directo</option>
+            </select>
+
+            {trigger === 'gift' && (
+              <div
+                onClick={() => setIsGiftModalOpen(true)}
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'border 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = '#00bcd4'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+              >
+                {condition && catalog[condition] ? (
+                  <>
+                    {catalog[condition].icon ? (
+                      <img src={catalog[condition].icon} alt="Icon" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                    ) : <span style={{ fontSize: '20px' }}>🎁</span>}
+                    <span style={{ fontWeight: 'bold' }}>{catalog[condition].name} <span style={{ color: '#ffd700', marginLeft: '4px' }}>({catalog[condition].coins} 💎)</span></span>
+                  </>
+                ) : (
+                  <span style={{ color: '#00bcd4', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🔍 Clic aquí para elegir un regalo...
+                  </span>
+                )}
+              </div>
+            )}
+
+            {trigger === 'like' && (
+              <input type="number" className="key-input" placeholder="Ej: 500" value={condition} onChange={e => setCondition(e.target.value)} style={{ width: '100%' }} />
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
+            <span style={{ fontSize: '24px' }}>➡️</span>
+          </div>
+
+          <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
+            <label style={{ display: 'block', fontSize: '13px', color: '#4caf50', marginBottom: '8px', fontWeight: 'bold' }}>2. EJECUTAR ESTA ACCIÓN...</label>
+            {scopeActionsArray.length === 0 ? (
+              <div style={{ fontSize: '12px', color: '#ff4d4d' }}>
+                No tienes acciones creadas en este perfil. Ve a la pestaña "Mis Acciones" primero.
+              </div>
+            ) : (
+              <select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
+                <option value="">-- Selecciona una acción --</option>
+                {scopeActionsArray.map(([id, act]) => (
+                  <option key={id} value={id}>{act.name} (Tipo: {act.type})</option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </ModalShell>
+
       {isGiftModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: '#00bcd4' }}>Seleccionar Regalo</h3>
@@ -198,86 +273,6 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                 <button className="btn btn-secondary btn-sm" disabled={giftCurrentPage === totalGiftPages} onClick={() => setGiftCurrentPage(prev => prev + 1)}>Sig ▶</button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Vínculos: Eventos de TikTok → Acciones</h3>
-        <button className="btn" onClick={() => showForm ? resetForm() : setShowForm(true)}>
-          {showForm ? 'Cancelar' : '+ Crear Nuevo Vínculo'}
-        </button>
-      </div>
-
-      {showForm && (
-        <div style={{ background: 'var(--card)', border: editingEventId ? '1px solid #ffeb3b' : '1px solid var(--border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h4 style={{ color: editingEventId ? '#ffeb3b' : 'white' }}>
-            {editingEventId ? '✏️ Editando Regla' : '✨ Diseñar Regla'}
-          </h4>
-
-          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-
-            <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#ffeb3b', marginBottom: '8px', fontWeight: 'bold' }}>1. CUANDO OCURRA ESTO...</label>
-              <select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
-                <option value="gift">🎁 Recibir un Regalo específico</option>
-                <option value="like">❤️ Alcanzar meta de Likes</option>
-                <option value="follow">👤 Nuevo Seguidor</option>
-                <option value="share">📢 Compartir Directo</option>
-              </select>
-
-              {trigger === 'gift' && (
-                <div
-                  onClick={() => setIsGiftModalOpen(true)}
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'border 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = '#00bcd4'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                >
-                  {condition && catalog[condition] ? (
-                    <>
-                      {catalog[condition].icon ? (
-                        <img src={catalog[condition].icon} alt="Icon" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
-                      ) : <span style={{ fontSize: '20px' }}>🎁</span>}
-                      <span style={{ fontWeight: 'bold' }}>{catalog[condition].name} <span style={{ color: '#ffd700', marginLeft: '4px' }}>({catalog[condition].coins} 💎)</span></span>
-                    </>
-                  ) : (
-                    <span style={{ color: '#00bcd4', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      🔍 Clic aquí para elegir un regalo...
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {trigger === 'like' && (
-                <input type="number" className="key-input" placeholder="Ej: 500" value={condition} onChange={e => setCondition(e.target.value)} style={{ width: '100%' }} />
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-              <span style={{ fontSize: '24px' }}>➡️</span>
-            </div>
-
-            <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#4caf50', marginBottom: '8px', fontWeight: 'bold' }}>2. EJECUTAR ESTA ACCIÓN...</label>
-              {scopeActionsArray.length === 0 ? (
-                <div style={{ fontSize: '12px', color: '#ff4d4d' }}>
-                  No tienes acciones creadas en este perfil. Ve a la pestaña "Mis Acciones" primero.
-                </div>
-              ) : (
-                <select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
-                  <option value="">-- Selecciona una acción --</option>
-                  {scopeActionsArray.map(([id, act]) => (
-                    <option key={id} value={id}>{act.name} (Tipo: {act.type})</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn btn-sm" style={{ background: editingEventId ? '#ffb300' : '' }} onClick={handleSaveEvent}>
-              {editingEventId ? 'Actualizar Regla' : 'Guardar Regla'}
-            </button>
           </div>
         </div>
       )}

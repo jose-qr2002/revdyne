@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ConfirmModal from './ConfirmModal';
+import ModalShell from './ModalShell';
 
 const TYPE_META = {
   keyboard: { icon: '⌨️', label: 'Macro de Teclado' },
@@ -8,9 +9,6 @@ const TYPE_META = {
   minecraft_command: { icon: '⛏️', label: 'Comando Minecraft' },
 };
 
-// Tipos que el backend YA sabe ejecutar (actionDispatcher.js).
-// Los demás aparecen en el selector como referencia, pero deshabilitados,
-// para no dejar crear una acción que se guarda pero nunca se dispara.
 const SUPPORTED_TYPES = ['keyboard', 'sound'];
 
 export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'], onUpdateConfig }) {
@@ -23,13 +21,13 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const [sound, setSound] = useState('');
   const [delay, setDelay] = useState(80);
   const [soundEveryKey, setSoundEveryKey] = useState(false);
+  const [volume, setVolume] = useState(100);
 
   const [localSounds, setLocalSounds] = useState([]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [actionToDelete, setActionToDelete] = useState(null);
 
-  // 'sound' siempre está disponible sin importar el juego del perfil
   const availableTypes = Array.from(new Set([...(allowedActionTypes || ['keyboard']), 'sound']));
 
   useEffect(() => {
@@ -45,8 +43,6 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     refreshSounds();
   }, []);
 
-  // Si cambias de perfil (juego distinto) mientras el form está cerrado,
-  // evita quedarte con un tipo que ya no aplica a este perfil.
   useEffect(() => {
     if (!editingActionId && !showForm && !availableTypes.includes(type)) {
       setType(availableTypes.find(t => SUPPORTED_TYPES.includes(t)) || 'keyboard');
@@ -135,9 +131,9 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     setKey(act.key || '');
     setSound(act.sound || '');
     setDelay(act.delay || 80);
+    setVolume(act.volume ?? 100);
     setSoundEveryKey(act.soundEveryKey || false);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSaveAction = () => {
@@ -159,11 +155,11 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
         soundEveryKey: isMultiKey ? soundEveryKey : false
       };
     } else {
-      // type === 'sound': el archivo ES la acción, no un extra
       newAction = {
         name, type, enabled: isCurrentlyEnabled,
         sound,
-        delay: parseInt(delay) || 0
+        delay: parseInt(delay) || 0,
+        volume: parseInt(volume, 10) || 100
       };
     }
 
@@ -173,7 +169,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
   const resetForm = () => {
     setEditingActionId(null);
-    setName(''); setKey(''); setSound(''); setDelay(80); setSoundEveryKey(false);
+    setName(''); setKey(''); setSound(''); setDelay(80); setSoundEveryKey(false); setVolume(100);
     setType(availableTypes.find(t => SUPPORTED_TYPES.includes(t)) || 'keyboard');
     setShowForm(false);
   };
@@ -239,7 +235,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       )}
 
       {confirmDialog && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--card)', border: '2px solid #ff9800', borderRadius: '12px', width: '100%', maxWidth: '450px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
             <div style={{ fontSize: '40px' }}>⚠️</div>
             <h3 style={{ margin: 0, color: '#ff9800' }}>ADVERTENCIA DE DURACIÓN</h3>
@@ -258,17 +254,28 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Arsenal de Acciones Disponibles</h3>
-        <button className="btn" onClick={() => showForm ? resetForm() : setShowForm(true)}>
-          {showForm ? 'Cancelar' : '+ Crear Nueva Acción'}
-        </button>
+        <button className="btn" onClick={() => setShowForm(true)}>+ Crear Nueva Acción</button>
       </div>
 
-      {showForm && (
-        <div style={{ background: 'var(--card)', border: editingActionId ? '1px solid #00bcd4' : '1px solid var(--border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h4 style={{ color: editingActionId ? '#00bcd4' : 'white', margin: 0 }}>
-            {editingActionId ? '✏️ Editando Acción' : '✨ Nueva Acción'}
-          </h4>
-
+      <ModalShell
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingActionId ? '✏️ Editando Acción' : '✨ Nueva Acción'}
+        width="600px"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
+            <button
+              className="btn"
+              style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }}
+              onClick={handleSaveAction}
+            >
+              {editingActionId ? 'Actualizar Acción' : 'Guardar Acción'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '200px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Nombre de la Acción</label>
@@ -337,16 +344,20 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               <p style={{ fontSize: '12px', color: 'var(--text2)', margin: 0 }}>
                 Este tipo dispara solo el sonido, sin presionar ninguna tecla.
               </p>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>
+                  🔊 Volumen: {volume}%
+                </label>
+                <input
+                  type="range" min="0" max="100" value={volume}
+                  onChange={e => setVolume(parseInt(e.target.value, 10))}
+                  style={{ width: '100%', accentColor: '#00bcd4' }}
+                />
+              </div>
             </div>
           )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button className="btn btn-sm" style={{ background: editingActionId ? '#00bcd4' : '', color: editingActionId ? 'white' : 'black' }} onClick={handleSaveAction}>
-              {editingActionId ? 'Actualizar Acción' : 'Guardar Acción'}
-            </button>
-          </div>
         </div>
-      )}
+      </ModalShell>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {Object.entries(actions || {}).length === 0 ? (
@@ -371,6 +382,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                   <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ background: 'rgba(76,175,80,0.15)', color: '#4caf50', padding: '4px 8px', borderRadius: '4px' }}>🎵 {act.sound}</span>
                     <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>⏳ {act.delay || 0}ms</span>
+                    <span style={{ background: 'rgba(0,188,212,0.15)', color: '#00bcd4', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>🔊 {act.volume ?? 100}%</span>
                   </div>
                 )}
               </div>

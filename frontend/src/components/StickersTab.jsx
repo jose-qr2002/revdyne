@@ -1,31 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ConfirmModal from './ConfirmModal';
+import StickerSettingsModal from './StickerSettingsModal';
 
-export default function StickersTab({ activeProfileId, ioSocket }) {
+const CATEGORY_LABELS = {
+  tiktok: '🌐 Emotes de TikTok',
+  fanclub: '❤️ Club de Fans',
+  superfan: '⭐ Super Fan',
+  unknown: '❓ Sin clasificar'
+};
+const CATEGORY_ORDER = { tiktok: 0, fanclub: 1, superfan: 2, unknown: 3 };
+const ITEMS_PER_PAGE = 10;
+
+export default function StickersTab({ profiles, onUpdateProfiles, activeProfileId, ioSocket }) {
   const [catalog, setCatalog] = useState({});
-  const [profiles, setProfiles] = useState(null); // { activeProfileId, list } completo, desde /api/profiles
-  const [scope, setScope] = useState('global'); // 'global' | 'current'
   const [notification, setNotification] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [stickerToDelete, setStickerToDelete] = useState(null);
+
+  const [settingsSticker, setSettingsSticker] = useState(null);
+
   const isElectron = typeof window.require === 'function';
-
-  const CATEGORY_LABELS = {
-    tiktok: '🌐 Emotes de TikTok',
-    fanclub: '❤️ Club de Fans',
-    superfan: '⭐ Super Fan',
-    unknown: '❓ Sin clasificar (detectados en vivo)'
-  };
-
-  const groupedCatalog = Object.entries(catalog).reduce((groups, [id, data]) => {
-    const cat = data.category || 'unknown';
-    (groups[cat] = groups[cat] || []).push([id, data]);
-    return groups;
-  }, {});
-
-  const categoryOrder = ['tiktok', 'fanclub', 'superfan', 'unknown'];
-
   const showToast = (type, text) => setNotification({ type, text });
 
   useEffect(() => {
@@ -42,17 +42,7 @@ export default function StickersTab({ activeProfileId, ioSocket }) {
       .catch(e => console.error("Error cargando catálogo de stickers:", e));
   };
 
-  const fetchProfiles = () => {
-    fetch('/api/profiles')
-      .then(res => res.json())
-      .then(setProfiles)
-      .catch(e => console.error("Error cargando perfiles:", e));
-  };
-
-  useEffect(() => {
-    fetchCatalog();
-    fetchProfiles();
-  }, []);
+  useEffect(() => { fetchCatalog(); }, []);
 
   useEffect(() => {
     if (!ioSocket) return;
@@ -60,71 +50,100 @@ export default function StickersTab({ activeProfileId, ioSocket }) {
     return () => ioSocket.off('catalog:newSticker');
   }, [ioSocket]);
 
-  if (!profiles) {
-    return <div style={{ padding: '20px' }}>⏳ Cargando perfiles...</div>;
-  }
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, categoryFilter]);
 
-  const scopeProfileId = scope === 'global' ? 'prof_global' : activeProfileId;
+  const flatFiltered = useMemo(() => {
+    return Object.entries(catalog)
+      .map(([id, data]) => ({ id, ...data, category: data.category || 'unknown' }))
+      .filter(item => categoryFilter === 'all' || item.category === categoryFilter)
+      .filter(item => !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase()) || item.id.includes(searchTerm))
+      .sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category] || a.name.localeCompare(b.name));
+  }, [catalog, categoryFilter, searchTerm]);
+
+  // 🌟 Ya no hay estado local de "profiles" ni fetchProfiles(): todo viene de la prop,
+  // que App.jsx mantiene sincronizada como única fuente de verdad.
+  const scopeProfileId = activeProfileId;
   const scopeProfile = profiles.list[scopeProfileId] || { actions: {}, events: [] };
   const scopeActions = scopeProfile.actions || {};
   const scopeEvents = scopeProfile.events || [];
-  const canUseCurrentScope = activeProfileId && activeProfileId !== 'prof_global';
+  const activeProfileName = profiles.list[activeProfileId]?.name || 'ninguno';
 
-  const findAssignment = (stickerId) =>
-    scopeEvents.find(e => e.trigger === 'sticker' && e.condition === stickerId);
+  const findAssignment = (stickerId) => scopeEvents.find(e => e.trigger === 'sticker' && e.condition === stickerId);
+
+  const totalPages = Math.max(1, Math.ceil(flatFiltered.length / ITEMS_PER_PAGE));
+  const paginated = flatFiltered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // 🌟 Reescribe SOLO events[] del perfil actual, dentro de una copia completa de `profiles`,
+  // y la manda por el mismo canal único que usa EventsTab. Nunca hace fetch directo al backend.
+  const updateScopeEvents = (updatedEvents) => {
+    const newProfiles = JSON.parse(JSON.stringify(profiles));
+    newProfiles.list[scopeProfileId] = {
+      ...newProfiles.list[scopeProfileId],
+      events: updatedEvents
+    };
+    onUpdateProfiles(newProfiles);
+  };
 
   const syncStickers = async () => {
-    const res = await fetch('/api/stickers/sync', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) { setCatalog(data.catalog); showToast('success', `${data.added} stickers nuevos`); }
-    else showToast('error', data.error);
-  }
-
-  const handleAssignAction = async (stickerId, actionId) => {
+    setIsSyncing(true);
     try {
-      if (!actionId) {
-        await fetch(`/api/stickers/${stickerId}/assign/${scopeProfileId}`, { method: 'DELETE' });
-      } else {
-        await fetch('/api/stickers/assign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profileId: scopeProfileId, stickerId, actionId, enabled: true })
-        });
-      }
-      fetchProfiles();
+      const res = await fetch('/api/stickers/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) { setCatalog(data.catalog); showToast('success', `${data.added} stickers nuevos`); }
+      else showToast('error', data.error);
     } catch {
-      showToast('error', 'Error al guardar la vinculación');
+      showToast('error', 'Error de red al sincronizar');
     }
+    setIsSyncing(false);
   };
 
   const handleTikTokLogin = () => {
-    if (!isElectron) return showToast('error', 'Esta función solo está disponible en la app de escritorio');
+    if (!isElectron) return showToast('error', 'Solo disponible en la app de escritorio');
     const { ipcRenderer } = window.require('electron');
     ipcRenderer.send('open-tiktok-login');
-    ipcRenderer.once('tiktok-login-success', () => {
-      showToast('success', '✅ Sesión de TikTok vinculada. Ya puedes sincronizar stickers.');
-    });
+    ipcRenderer.once('tiktok-login-success', () => showToast('success', '✅ Sesión de TikTok vinculada'));
   };
 
-  const handleToggleSticker = async (stickerId) => {
+  const handleAssignAction = (stickerId, actionId) => {
+    if (!actionId) {
+      updateScopeEvents(scopeEvents.filter(e => !(e.trigger === 'sticker' && e.condition === stickerId)));
+      return;
+    }
+    const existing = findAssignment(stickerId);
+    const updatedEvents = existing
+      ? scopeEvents.map(e => (e.trigger === 'sticker' && e.condition === stickerId) ? { ...e, actionId, enabled: true } : e)
+      : [...scopeEvents, {
+          id: `evt_${Date.now()}`,
+          trigger: 'sticker',
+          condition: stickerId,
+          actionId,
+          enabled: true,
+          cooldownSeconds: 0,
+          repeatMode: 'once',
+          repeatLimit: 1,
+          playbackStyle: 'sequential'
+        }];
+    updateScopeEvents(updatedEvents);
+  };
+
+  const handleToggleSticker = (stickerId) => {
     const current = findAssignment(stickerId);
     if (!current) return;
-    try {
-      await fetch('/api/stickers/assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: scopeProfileId, stickerId, actionId: current.actionId, enabled: !current.enabled })
-      });
-      fetchProfiles();
-    } catch {
-      showToast('error', 'Error al cambiar el estado');
-    }
+    updateScopeEvents(scopeEvents.map(e =>
+      (e.trigger === 'sticker' && e.condition === stickerId) ? { ...e, enabled: !e.enabled } : e
+    ));
   };
 
-  const requestDelete = (stickerId, data) => {
-    setStickerToDelete({ id: stickerId, name: data.name });
-    setModalOpen(true);
+  const handleSaveSettings = (updates) => {
+    const stickerId = settingsSticker.id;
+    updateScopeEvents(scopeEvents.map(e =>
+      (e.trigger === 'sticker' && e.condition === stickerId) ? { ...e, ...updates } : e
+    ));
+    showToast('success', 'Ajustes guardados');
+    setSettingsSticker(null);
   };
+
+  const requestDelete = (stickerId, data) => { setStickerToDelete({ id: stickerId, name: data.name }); setModalOpen(true); };
 
   const confirmDelete = async () => {
     if (!stickerToDelete) return;
@@ -135,153 +154,150 @@ export default function StickersTab({ activeProfileId, ioSocket }) {
         const newCatalog = { ...catalog };
         delete newCatalog[stickerToDelete.id];
         setCatalog(newCatalog);
-        fetchProfiles(); // el borrado elimina en cascada los eventos en todos los perfiles
+
+        // El backend ya borró en cascada los eventos de este sticker en TODOS los perfiles.
+        // Reflejamos lo mismo en nuestra copia local para no quedar desincronizados.
+        const newProfiles = JSON.parse(JSON.stringify(profiles));
+        Object.keys(newProfiles.list).forEach(pid => {
+          newProfiles.list[pid].events = (newProfiles.list[pid].events || [])
+            .filter(e => !(e.trigger === 'sticker' && e.condition === stickerToDelete.id));
+        });
+        onUpdateProfiles(newProfiles);
       }
-    } catch (e) {
-      console.error('Error al eliminar sticker', e);
-    }
+    } catch (e) { console.error('Error al eliminar sticker', e); }
     setModalOpen(false);
     setStickerToDelete(null);
   };
 
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
+    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px', position: 'relative' }}>
 
       <ConfirmModal
         isOpen={modalOpen}
         title="⚠️ Eliminar Sticker"
-        message={`¿Estás seguro que deseas eliminar el sticker "${stickerToDelete?.name}"? Se quitará de TODOS los perfiles donde esté asignado.`}
+        message={`¿Eliminar "${stickerToDelete?.name}"? Se quitará de TODOS los perfiles donde esté asignado.`}
         onConfirm={confirmDelete}
         onCancel={() => setModalOpen(false)}
       />
 
+      <StickerSettingsModal
+        isOpen={!!settingsSticker}
+        sticker={settingsSticker}
+        assignment={settingsSticker ? findAssignment(settingsSticker.id) : null}
+        actionType={settingsSticker ? scopeActions[findAssignment(settingsSticker.id)?.actionId]?.type : null}
+        onClose={() => setSettingsSticker(null)}
+        onSave={handleSaveSettings}
+      />
+
       {notification && (
-        <div style={{
-          position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
-          background: notification.type === 'error' ? '#f44336' : '#4caf50',
-          color: 'white', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', zIndex: 1000
-        }}>
+        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', background: notification.type === 'error' ? '#f44336' : '#4caf50', color: 'white', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', zIndex: 1000 }}>
           {notification.text}
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div>
         <h3 style={{ margin: 0 }}>🎴 Radar de Stickers de Suscriptores</h3>
-        <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
-          Se agregan solos al detectarse en tu chat en vivo.
-        </span>
+        <p style={{ fontSize: '12px', color: 'var(--text2)', margin: '4px 0 0' }}>
+          Editando para el perfil activo: <strong>{activeProfileName}</strong> (cámbialo desde el panel izquierdo)
+        </p>
       </div>
-      <button className="btn btn-sm" onClick={syncStickers}>🔄 Sincronizar Stickers</button>
-      <button className="btn btn-secondary btn-sm" onClick={handleTikTokLogin}>
-        🔐 Vincular sesión de TikTok
-      </button>
-      <p style={{ fontSize: '11px', color: 'var(--text2)', margin: '4px 0 0' }}>
-        Se abrirá la página oficial de TikTok en una ventana aparte. Puedes iniciar sesión con
-        cualquier cuenta (no tiene que ser la tuya) — solo se usa para consultar el catálogo
-        público de stickers.
-      </p>
-      {/* Selector de alcance: dónde vive la asignación que estás editando */}
-      <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px', width: 'fit-content' }}>
-        <button
-          className={`btn btn-sm ${scope === 'global' ? '' : 'btn-secondary'}`}
-          onClick={() => setScope('global')}
-        >
-          🌐 Global (siempre activo)
-        </button>
-        <button
-          className={`btn btn-sm ${scope === 'current' ? '' : 'btn-secondary'}`}
-          onClick={() => setScope('current')}
-          disabled={!canUseCurrentScope}
-          title={!canUseCurrentScope ? 'El perfil global ya está activo' : ''}
-        >
-          🎮 {canUseCurrentScope ? profiles.list[activeProfileId]?.name : 'Perfil actual'}
-        </button>
-      </div>
-      <p style={{ fontSize: '12px', color: 'var(--text2)', margin: '-12px 0 0' }}>
-        {scope === 'global'
-          ? 'Estas asignaciones suenan sin importar qué perfil de juego esté activo.'
-          : `Estas asignaciones solo funcionan mientras "${profiles.list[activeProfileId]?.name}" esté activo.`}
-      </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {Object.keys(catalog).length === 0 ? (
-          <div className="log-empty">Ningún sticker detectado aún. Envía un sticker en tu chat de TikTok para probarlo.</div>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+        <input
+          type="text" className="key-input" placeholder="🔍 Buscar por nombre o ID..."
+          value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          style={{ flex: 1, minWidth: '180px' }}
+        />
+        <select className="modifier-select" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ minWidth: '160px' }}>
+          <option value="all">Todas las categorías</option>
+          <option value="tiktok">🌐 Emotes de TikTok</option>
+          <option value="fanclub">❤️ Club de Fans</option>
+          <option value="superfan">⭐ Super Fan</option>
+          <option value="unknown">❓ Sin clasificar</option>
+        </select>
+        <button className="btn btn-sm" onClick={syncStickers} disabled={isSyncing}>
+          {isSyncing ? '⏳ Sincronizando...' : '🔄 Sincronizar Stickers'}
+        </button>
+        <button className="btn btn-secondary btn-sm" onClick={handleTikTokLogin}>
+          🔐 Vincular sesión
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {flatFiltered.length === 0 ? (
+          <div className="log-empty">
+            {Object.keys(catalog).length === 0
+              ? 'Ningún sticker detectado aún. Envía uno en tu chat de TikTok o sincroniza.'
+              : 'Ningún sticker coincide con tu búsqueda.'}
+          </div>
         ) : (
-          categoryOrder.map(cat => {
-            const items = groupedCatalog[cat];
-            if (!items || items.length === 0) return null;
+          paginated.map((item, idx) => {
+            const showHeader = idx === 0 || paginated[idx - 1].category !== item.category;
+            const assignment = findAssignment(item.id);
 
             return (
-              <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                <h4 style={{ margin: 0, color: 'var(--text2)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {CATEGORY_LABELS[cat]} ({items.length})
-                </h4>
+              <React.Fragment key={item.id}>
+                {showHeader && (
+                  <h4 style={{ margin: idx === 0 ? 0 : '10px 0 0', color: 'var(--text2)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {CATEGORY_LABELS[item.category]}
+                  </h4>
+                )}
 
-                {items.map(([stickerId, data]) => {
-                  const assignment = findAssignment(stickerId);
-                  return (
-                    <div key={stickerId} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        {data.icon ? (
-                          <img src={data.icon} alt={data.name} style={{ width: '48px', height: '48px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
-                        ) : (
-                          <div style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>✨</div>
-                        )}
-                        <div>
-                          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{data.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>ID: {stickerId}</div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--text2)' }}>Disparar Acción:</label>
-                          <select
-                            className="modifier-select"
-                            value={assignment?.actionId || ''}
-                            onChange={(e) => handleAssignAction(stickerId, e.target.value)}
-                            style={{ minWidth: '180px', maxWidth: '220px' }}
-                          >
-                            <option value="">🚫 Ninguna (Ignorar)</option>
-                            {Object.entries(scopeActions).map(([actId, act]) => (
-                              <option key={actId} value={actId}>
-                                {act.type === 'sound' ? '🎵' : '⌨️'} {act.name}
-                              </option>
-                            ))}
-                          </select>
-                          {Object.keys(scopeActions).length === 0 && (
-                            <span style={{ fontSize: '11px', color: '#ff9800' }}>
-                              Este perfil no tiene acciones. Crea una en "Mis Acciones".
-                            </span>
-                          )}
-                        </div>
-
-                        <label className="switch" style={{ marginTop: '16px' }}>
-                          <input
-                            type="checkbox"
-                            disabled={!assignment}
-                            checked={!!assignment?.enabled}
-                            onChange={() => handleToggleSticker(stickerId)}
-                          />
-                          <span className="slider"></span>
-                        </label>
-
-                        <button
-                          onClick={() => requestDelete(stickerId, data)}
-                          style={{ marginTop: '16px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px 8px', borderRadius: '4px' }}
-                          title="Eliminar Sticker"
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
+                    {item.icon ? (
+                      <img src={item.icon} alt={item.name} style={{ width: '48px', height: '48px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: '48px', height: '48px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>✨</div>
+                    )}
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                      <div title={item.name} style={{ fontWeight: 'bold', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                      <div title={item.id} style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>ID: {item.id}</div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    <select
+                      className="modifier-select"
+                      value={assignment?.actionId || ''}
+                      onChange={(e) => handleAssignAction(item.id, e.target.value)}
+                      style={{ minWidth: '160px', maxWidth: '200px' }}
+                    >
+                      <option value="">🚫 Ninguna</option>
+                      {Object.entries(scopeActions).map(([actId, act]) => (
+                        <option key={actId} value={actId}>{act.type === 'sound' ? '🎵' : '⌨️'} {act.name}</option>
+                      ))}
+                    </select>
+
+                    {assignment && (
+                      <button onClick={() => setSettingsSticker(item)} title="Enfriamiento y repeticiones" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}>
+                        ⚙️
+                      </button>
+                    )}
+
+                    <label className="switch">
+                      <input type="checkbox" disabled={!assignment} checked={!!assignment?.enabled} onChange={() => handleToggleSticker(item.id)} />
+                      <span className="slider"></span>
+                    </label>
+
+                    <button onClick={() => requestDelete(item.id, item)} title="Eliminar Sticker" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}>
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              </React.Fragment>
             );
           })
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
+          <button className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>◀ Anterior</button>
+          <span style={{ fontSize: '13px', color: 'var(--text2)' }}>Página {currentPage} de {totalPages}</span>
+          <button className="btn btn-secondary btn-sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>Siguiente ▶</button>
+        </div>
+      )}
     </div>
   );
 }

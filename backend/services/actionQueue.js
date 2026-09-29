@@ -86,9 +86,15 @@ function enqueueSound(sound, delay = 0) {
   processQueue();
 }
 
+function emitSoundBatch(file, { times = 1, playbackStyle = 'sequential', volume = 1 } = {}) {
+  if (!file || !ioInstance) return;
+  ioInstance.emit('play-macro-sound-batch', { file, times, playbackStyle, volume });
+}
+
 module.exports = {
   enqueueKeyboardMacro,
   enqueueSound,
+  emitSoundBatch,
   isRobotAvailable: () => !!robot,
   setSocketIo: (io) => { ioInstance = io; },
 };
