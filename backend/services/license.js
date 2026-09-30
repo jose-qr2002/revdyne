@@ -5,7 +5,9 @@ const paths = require('../paths');
 const { version: APP_VERSION } = require('../../package.json');
 
 const LICENSE_SERVER = 'https://api.reveljk.com';
-const PUBLIC_KEY_PEM = `MCowBQYDK2VwAyEA+NE6Bx0HBH1j9ffs/ZtFNmeFZ2DV2yOzKbDXNf9jMic=`;
+const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA+NE6Bx0HBH1j9ffs/ZtFNmeFZ2DV2yOzKbDXNf9jMic=
+-----END PUBLIC KEY-----`;
 
 const GRACE_SEC = 7 * 24 * 3600;       // margen extra si no hay internet
 const REFRESH_EVERY_MS = 12 * 3600 * 1000;
