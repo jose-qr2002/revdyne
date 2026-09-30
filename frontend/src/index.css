@@ -1199,3 +1199,11 @@ body {
 
 img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 .mark-img { width: 72px; height: 72px; object-fit: contain; }
+
+.plan-badge {
+  width: 100%; padding: 9px 12px; cursor: pointer; text-align: center;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text2); font-size: 12px; font-weight: 600; transition: all .2s;
+}
+.plan-badge:hover { border-color: var(--accent); color: var(--text); }
+.plan-badge.pro { border-color: var(--accent); color: var(--accent); }

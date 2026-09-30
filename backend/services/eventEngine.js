@@ -1,5 +1,6 @@
 // backend/services/eventEngine.js
 const store = require('../data/store');
+const entitlements = require('./entitlements');
 
 function getActiveEventSources() {
   const profiles = store.loadProfiles();
@@ -11,32 +12,31 @@ function getActiveEventSources() {
     ? (profiles.list[activeId] || { actions: {}, events: [] })
     : null;
 
-  return { global, active };
+  return { global, active, allowed: entitlements.allowedIds(profiles) };
+}
+
+function collect(profile, allowed, predicate) {
+  return (profile.events || [])
+    .filter(evt => evt.enabled && allowed.events.has(evt.id) && allowed.actions.has(evt.actionId) && predicate(evt))
+    .map(evt => ({ evt, actions: profile.actions || {} }));
 }
 
 function findMatchingEvents(triggerType, conditionValue) {
-  const { global, active } = getActiveEventSources();
+  const { global, active, allowed } = getActiveEventSources();
   const condStr = String(conditionValue);
+  const predicate = evt => evt.trigger === triggerType && (evt.condition === 'any' || String(evt.condition) === condStr);
 
-  const matchesIn = (profile) => (profile.events || [])
-    .filter(evt => evt.enabled && evt.trigger === triggerType &&
-      (evt.condition === 'any' || String(evt.condition) === condStr))
-    .map(evt => ({ evt, actions: profile.actions || {} }));
-
-  const result = matchesIn(global);
-  if (active) result.push(...matchesIn(active)); // solo se agrega si es un perfil distinto
+  const result = collect(global, allowed, predicate);
+  if (active) result.push(...collect(active, allowed, predicate));
   return result;
 }
 
 function getEventsByTrigger(triggerType) {
-  const { global, active } = getActiveEventSources();
+  const { global, active, allowed } = getActiveEventSources();
+  const predicate = evt => evt.trigger === triggerType;
 
-  const collect = (profile) => (profile.events || [])
-    .filter(evt => evt.enabled && evt.trigger === triggerType)
-    .map(evt => ({ evt, actions: profile.actions || {} }));
-
-  const result = collect(global);
-  if (active) result.push(...collect(active));
+  const result = collect(global, allowed, predicate);
+  if (active) result.push(...collect(active, allowed, predicate));
   return result;
 }
 

@@ -10,6 +10,7 @@ import EventsTab from './components/EventsTab';
 import StickersTab from './components/StickersTab';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
+import LicenseModal from './components/LicenseModal';
 import './index.css';
 
 // audio.volume lanza un error si el valor sale de 0-1, así que se sanea siempre
@@ -26,6 +27,15 @@ function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileGame, setNewProfileGame] = useState('');
+
+  const [license, setLicense] = useState(null);
+  const [showLicense, setShowLicense] = useState(false);
+  const [limitNotice, setLimitNotice] = useState(null);
+
+  const fetchLicense = () =>
+    fetch('/api/license/status').then(r => r.json()).then(setLicense).catch(() => {});
+
+  useEffect(() => { fetchLicense(); }, []);
 
   const [activeTab, setActiveTab] = useState('events');
 
@@ -186,8 +196,23 @@ function App() {
 
   // Perfiles, acciones y eventos -> profiles.json
   const handleUpdateProfiles = async (newProfiles) => {
+    const previous = config?.profiles;
     setConfig(prev => ({ ...prev, profiles: newProfiles }));
-    await apiFetch('/api/profiles', 'POST', newProfiles);
+    try {
+      const res = await fetch('/api/profiles', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newProfiles)
+      });
+      if (!res.ok) {
+        setConfig(prev => ({ ...prev, profiles: previous }));
+        const data = await res.json().catch(() => ({}));
+        setLimitNotice(data.error || 'No se pudo guardar el cambio.');
+        return;
+      }
+      fetchLicense(); // actualiza los contadores
+    } catch {
+      setConfig(prev => ({ ...prev, profiles: previous }));
+      setLimitNotice('Error de red al guardar.');
+    }
   };
 
   if (!config || !config.catalog) {
@@ -258,6 +283,7 @@ function App() {
         profilesList={profilesData.list}
         onChangeProfile={changeProfile}
         onCreateProfile={openNewProfileModal}
+        license={license} onOpenLicense={() => setShowLicense(true)}
       />
 
       <main className="main">
@@ -269,6 +295,18 @@ function App() {
               <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }}
                 onClick={() => window.require('electron').ipcRenderer.send('install-update')}>
                 Reiniciar ahora
+              </button>
+            </div>
+          </div>
+        )}
+        {limitNotice && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(255,0,80,0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px' }}>
+            <span>🔒 {limitNotice}</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-sm btn-secondary" onClick={() => setLimitNotice(null)}>Cerrar</button>
+              <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }}
+                onClick={() => { setLimitNotice(null); setShowLicense(true); }}>
+                Activar código
               </button>
             </div>
           </div>
@@ -307,7 +345,7 @@ function App() {
             />
           )}
 
-          {activeTab === 'catalog' && (
+          {activeTab === 'catalog' && ( 
             <CatalogTab
               catalog={config.catalog}
               onCatalogSynced={(newCatalog) => setConfig(prev => ({ ...prev, catalog: newCatalog }))}
@@ -316,7 +354,7 @@ function App() {
 
           {activeTab === 'log' && <EventLog events={liveEvents} />}
 
-          {activeTab === 'tts' && <TTSControl config={config} onUpdateConfig={handleUpdateSettings} ttsEvents={ttsEvents} />}
+          {activeTab === 'tts' && <TTSControl config={config} onUpdateConfig={handleUpdateSettings} ttsEvents={ttsEvents} license={license}/>}
 
           {activeTab === 'stickers' && (
             <StickersTab
@@ -393,6 +431,12 @@ function App() {
           </div>
         </div>
       )}
+      <LicenseModal
+        isOpen={showLicense}
+        license={license}
+        onClose={() => setShowLicense(false)}
+        onChanged={fetchLicense}
+      />
     </>
   );
 }

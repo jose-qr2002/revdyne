@@ -10,7 +10,8 @@ const SUBLINES = {
 
 export default function Sidebar({
   status, config, onConnect, onUpdateConfig, isConnecting,
-  activeProfileId, profilesList, onChangeProfile, onCreateProfile
+  activeProfileId, profilesList, onChangeProfile, onCreateProfile,
+  license, onOpenLicense
 }) {
   // Borrador local: escribir ya no guarda en disco en cada tecla
   const [draft, setDraft] = useState(config.username || '');
@@ -111,6 +112,12 @@ export default function Sidebar({
           <button className="btn btn-secondary" onClick={onCreateProfile}>➕ Nuevo juego</button>
         </div>
       )}
+
+      <button className={`plan-badge ${license?.tier === 'pro' ? 'pro' : ''}`} onClick={onOpenLicense}>
+        {license?.tier === 'pro'
+          ? '⭐ Plan Pro'
+          : `🔓 Plan Gratis · ${license?.usage?.actions ?? 0}/${license?.limits?.maxActions ?? 5} acciones`}
+      </button>
 
       <div className={`robot-status ${config.robotAvailable ? 'ok' : 'warn'}`}>
         <span>{config.robotAvailable ? '✅' : '⚠️'}</span>

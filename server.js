@@ -27,6 +27,7 @@ const gamesRoutes = require('./backend/routes/games')
 const profilesRoutes = require('./backend/routes/profiles')
 const ttsEnginesRoutes = require('./backend/routes/ttsEngines');
 const actionsRoutes = require('./backend/routes/actions');
+const licenseRoutes = require('./backend/routes/license');
 
 const app = express();
 const server = http.createServer(app);
@@ -47,6 +48,7 @@ app.use('/api/system', systemRoutes());
 app.use('/api/alerts', alertsRoutes());
 app.use('/api/tts', ttsRoutes(settings));
 app.use('/api/actions', actionsRoutes());
+app.use('/api/license', licenseRoutes());
 app.use('/api', apiRoutes(settings, io, tiktokService));
 
 app.use('/sounds', express.static(paths.SOUNDS_DIR));
@@ -84,4 +86,6 @@ server.listen(PORT, () => {
   console.log(`║  Abre: http://localhost:${PORT}             ║`);
   console.log(`║  RobotJS: ${isRobotAvailable() ? '✅ Activo' : '❌ No disponible'}                 ║`);
   console.log('╚══════════════════════════════════════════╝\n');
+
+  require('./backend/services/license').startRefreshLoop();
 });

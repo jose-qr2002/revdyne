@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
 import { enqueueTTS, setPlaybackRate, setVolume } from '../services/ttsPlayer';
 
-export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
+export default function TTSControl({ config, onUpdateConfig, ttsEvents, license }) {
   const tts = config.tts || {};
+
+  const canUse = (id) => !license?.limits || license.limits.ttsEngines === null || license.limits.ttsEngines.includes(id);
+
   const [browserVoices, setBrowserVoices] = useState([]);
   const [elevenVoices, setElevenVoices] = useState([]);
   const [audioDevices, setAudioDevices] = useState([]);
@@ -437,10 +440,10 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents }) {
           <label>Motor</label>
           <select className="modifier-select" style={{ width: '100%' }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
             <option value="browser">Voces del sistema (offline)</option>
-            <option value="elevenlabs">ElevenLabs (IA Premium)</option>
-            <option value="tiktok">TikTok (Voces virales)</option>
-            <option value="piper">Piper (IA local, sin internet)</option>
-            <option value="edge">Edge TTS (Microsoft, gratis)</option>
+            <option value="elevenlabs" disabled={!canUse('elevenlabs')}>ElevenLabs (IA Premium){canUse('elevenlabs') ? '' : ' 🔒'}</option>
+            <option value="tiktok" disabled={!canUse('tiktok')}>TikTok (Voces virales){canUse('tiktok') ? '' : ' 🔒'}</option>
+            <option value="piper" disabled={!canUse('piper')}>Piper (IA local, sin internet){canUse('piper') ? '' : ' 🔒'}</option>
+            <option value="edge" disabled={!canUse('edge')}>Edge TTS (Microsoft, gratis){canUse('edge') ? '' : ' 🔒'}</option>
           </select>
         </div>
 

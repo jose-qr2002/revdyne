@@ -1,5 +1,6 @@
 const express = require('express');
 const store = require('../data/store');
+const entitlements = require('../services/entitlements');
 
 module.exports = function profilesRoutes() {
   const router = express.Router();
@@ -7,7 +8,9 @@ module.exports = function profilesRoutes() {
   router.get('/', (req, res) => res.json(store.loadProfiles()));
 
   router.post('/', (req, res) => {
-    store.saveProfiles(req.body); // el frontend manda el árbol completo {list, activeProfileId}
+    const check = entitlements.validateProfilesSave(store.loadProfiles(), req.body);
+    if (!check.ok) return res.status(403).json({ code: 'LIMIT_REACHED', error: check.error });
+    store.saveProfiles(req.body);
     res.json({ ok: true });
   });
 

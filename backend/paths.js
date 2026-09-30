@@ -21,7 +21,7 @@ const SOUNDS_DIR = path.join(os.homedir(), 'Documents', 'REVDYNE', 'sounds');
 const PIPER_DIR = path.join(__dirname, 'bin', 'piper');
 const PIPER_EXECUTABLE = path.join(PIPER_DIR, process.platform === 'win32' ? 'piper.exe' : 'piper');
 const PIPER_VOICES_DIR = path.join(PIPER_DIR, 'voices');
-
+const LICENSE_FILE = path.join(ROOT_DIR, 'license.json');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -40,6 +40,7 @@ module.exports = {
   PIPER_EXECUTABLE,
   PIPER_VOICES_DIR,
   TTS_ENGINES_DIR,
+  LICENSE_FILE,
   engineRootDir,
 
   CONFIG_FILE: path.join(ROOT_DIR, 'config.json'),

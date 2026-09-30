@@ -5,6 +5,7 @@ const piperService = require('../services/piperService');
 const ttsEngineManager = require('../services/ttsEngineManager');
 const edgeTtsService = require('../services/edgeTtsService');
 const chatFilter = require('../services/chatFilter');
+const entitlements = require('../services/entitlements');
 
 module.exports = function ttsRoutes(settings) {
   const router = express.Router();
@@ -32,7 +33,7 @@ module.exports = function ttsRoutes(settings) {
     }
   });
 
-  router.post('/synthesize', async (req, res) => {
+  router.post('/synthesize', entitlements.requireTtsEngine('elevenlabs'), async (req, res) => {
     const { text } = req.body;
     const tts = settings.tts || {};
     if (!tts.elevenLabsKey || !tts.elevenLabsVoiceId) return res.status(400).json({ error: 'Configura API key y voz' });
@@ -51,7 +52,7 @@ module.exports = function ttsRoutes(settings) {
     }
   });
 
-  router.post('/tiktok', async (req, res) => {
+  router.post('/tiktok', entitlements.requireTtsEngine('tiktok'), async (req, res) => {
     const { text, voice } = req.body;
     const voiceCode = voice || 'es_mx_002';
     if (!text) return res.status(400).json({ error: 'Falta texto' });
@@ -74,7 +75,7 @@ module.exports = function ttsRoutes(settings) {
     res.json(ttsEngineManager.listVoices('piper'));
   });
 
-  router.post('/piper', async (req, res) => {
+  router.post('/piper', entitlements.requireTtsEngine('piper'), async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Falta texto' });
 
@@ -99,7 +100,7 @@ module.exports = function ttsRoutes(settings) {
     }
   });
 
-  router.post('/edge', async (req, res) => {
+  router.post('/edge', entitlements.requireTtsEngine('edge'),  async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Falta texto' });
 
