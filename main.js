@@ -1,6 +1,7 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, session, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
 const ICON_PATH = path.join(__dirname, 'build', 'icon.ico');
 const APP_ICON = fs.existsSync(ICON_PATH) ? ICON_PATH : undefined;
 
@@ -18,6 +19,34 @@ let revealTimer = null;
 let bootStartedAt = 0;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // cada 4 horas
+
+function setupAutoUpdates() {
+  if (isDev) return; // en desarrollo no hay nada que actualizar
+
+  autoUpdater.autoDownload = true;          // descarga en segundo plano
+  autoUpdater.autoInstallOnAppQuit = true;  // si no reinicia, se instala al cerrar la app
+
+  autoUpdater.on('update-available', (info) => console.log(`⬇️ [UPDATE] Descargando v${info.version}...`));
+  autoUpdater.on('update-not-available', () => console.log('✅ [UPDATE] Ya tienes la última versión'));
+  autoUpdater.on('error', (err) => console.error('⚠️ [UPDATE]', err?.message || err));
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`📦 [UPDATE] v${info.version} lista para instalar`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-ready', info.version);
+    }
+  });
+
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  check();
+  setInterval(check, UPDATE_CHECK_INTERVAL_MS);
+}
+
+ipcMain.on('install-update', () => {
+  autoUpdater.quitAndInstall(false, true); // cierra, instala y vuelve a abrir la app
+});
+
 
 // ==========================================
 // INSTANCIA ÚNICA
@@ -153,6 +182,7 @@ function revealMainWindow() {
   if (splash && !splash.isDestroyed()) splash.close();
 
   console.log(`⏱️ [ARRANQUE] Interfaz lista en ${Date.now() - bootStartedAt} ms`);
+  setupAutoUpdates();
 }
 
 // ==========================================

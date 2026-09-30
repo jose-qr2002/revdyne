@@ -11,11 +11,12 @@
     "dev": "node server.js",
     "install-robot": "npm install robotjs --build-from-source",
     "build:frontend": "cd frontend && npm run build",
-    "pack": "npm run build:frontend && electron-builder --win"
+    "dist": "npm run build:frontend && electron-builder --win --publish never"
   },
   "dependencies": {
     "@jitsi/robotjs": "^0.6.22",
     "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.9",
     "express": "^4.18.2",
     "multer": "^2.2.0",
     "node-edge-tts": "^1.2.10",
@@ -30,7 +31,7 @@
   },
   "build": {
     "appId": "com.jkrevil.revdyne",
-    "productName": "REVDYNE",
+    "productName": "Revdyne",
     "copyright": "Copyright © 2026 JK REVIL",
     "asar": false,
     "afterPack": "./proteger.js",
@@ -41,14 +42,31 @@
       "**/*",
       "!frontend/src/**/*",
       "!frontend/node_modules/**/*",
+      "!release/**/*",
       "!proteger.js",
       "!ofuscar.js"
     ],
     "win": {
       "target": [
-        "dir"
+        "nsis"
       ],
       "icon": "build/icon.ico"
-    }
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Revdyne",
+      "artifactName": "Revdyne-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://updates.reveljk.com/win/"
+      }
+    ]
   }
 }

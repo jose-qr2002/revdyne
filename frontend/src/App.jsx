@@ -37,6 +37,8 @@ function App() {
   const soundQueueRef = useRef([]);
   const isPlayingBatchRef = useRef(false);
 
+  const [updateVersion, setUpdateVersion] = useState(null);
+
   const configLoaded = config !== null;
 
   function playAlertSound(filename, volume = 1) {
@@ -66,6 +68,14 @@ function App() {
     audio.onerror = finish;
     audio.play().catch(finish);
   }
+
+  useEffect(() => {
+    if (typeof window.require !== 'function') return;
+    const { ipcRenderer } = window.require('electron');
+    const onReady = (_e, version) => setUpdateVersion(version);
+    ipcRenderer.on('update-ready', onReady);
+    return () => ipcRenderer.removeListener('update-ready', onReady);
+  }, []);
 
   useEffect(() => {
     if (ttsEvents && ttsEvents.length > 0) {
@@ -251,6 +261,18 @@ function App() {
       />
 
       <main className="main">
+        {updateVersion && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(255,0,80,0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px' }}>
+            <span>🎉 La versión <strong>v{updateVersion}</strong> está lista. Se instalará al cerrar la app.</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-sm btn-secondary" onClick={() => setUpdateVersion(null)}>Más tarde</button>
+              <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }}
+                onClick={() => window.require('electron').ipcRenderer.send('install-update')}>
+                Reiniciar ahora
+              </button>
+            </div>
+          </div>
+        )}
         <div className="main-header">
           <h2>🎮 Panel de Control Avanzado</h2>
           <div className="header-actions">
