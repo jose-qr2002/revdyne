@@ -20,33 +20,74 @@ let bootStartedAt = 0;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // cada 4 horas
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+let updateState = { status: 'idle' }; // idle | available | downloading | ready | error
+let notifiedVersion = null;
+let lastPercent = -1;
+
+function sendUpdateState(next) {
+  updateState = next;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-state', next);
+  }
+}
 
 function setupAutoUpdates() {
   if (isDev) return; // en desarrollo no hay nada que actualizar
 
-  autoUpdater.autoDownload = true;          // descarga en segundo plano
-  autoUpdater.autoInstallOnAppQuit = true;  // si no reinicia, se instala al cerrar la app
+  autoUpdater.autoDownload = false;         // el usuario decide cuándo descargar
+  autoUpdater.autoInstallOnAppQuit = false; // cerrar la app nunca instala nada
 
-  autoUpdater.on('update-available', (info) => console.log(`⬇️ [UPDATE] Descargando v${info.version}...`));
+  autoUpdater.on('update-available', (info) => {
+    if (updateState.status === 'downloading' || updateState.status === 'ready') return;
+    if (info.version === notifiedVersion) return; // no repetir el aviso cada 4 horas
+    notifiedVersion = info.version;
+    sendUpdateState({ status: 'available', version: info.version });
+  });
   autoUpdater.on('update-not-available', () => console.log('✅ [UPDATE] Ya tienes la última versión'));
-  autoUpdater.on('error', (err) => console.error('⚠️ [UPDATE]', err?.message || err));
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log(`📦 [UPDATE] v${info.version} lista para instalar`);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-ready', info.version);
+
+  autoUpdater.on('download-progress', (p) => {
+    const percent = Math.round(p.percent);
+    if (percent === lastPercent) return;
+    lastPercent = percent;
+    sendUpdateState({ status: 'downloading', version: notifiedVersion, percent });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('⚠️ [UPDATE]', err?.message || err);
+    // Solo se avisa si el usuario estaba descargando; un fallo al buscar (sin internet) es silencioso
+    if (updateState.status === 'downloading') {
+      sendUpdateState({ status: 'error', version: notifiedVersion, message: 'La descarga falló. Inténtalo de nuevo.' });
     }
   });
 
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`📦 [UPDATE] v${info.version} descargada, esperando que el usuario reinicie`);
+    sendUpdateState({ status: 'ready', version: info.version });
+  });
+
+  const check = () => {
+    if (updateState.status === 'downloading' || updateState.status === 'ready') return;
+    autoUpdater.checkForUpdates().catch(() => {});
+  };
   check();
   setInterval(check, UPDATE_CHECK_INTERVAL_MS);
 }
 
-ipcMain.on('install-update', () => {
-  autoUpdater.quitAndInstall(false, true); // cierra, instala y vuelve a abrir la app
+ipcMain.on('download-update', () => {
+  if (updateState.status === 'downloading' || updateState.status === 'ready') return;
+  lastPercent = -1;
+  sendUpdateState({ status: 'downloading', version: notifiedVersion, percent: 0 });
+  autoUpdater.downloadUpdate().catch(() => {}); // el evento 'error' ya informa
 });
 
+ipcMain.on('install-update', () => {
+  if (updateState.status !== 'ready') return;
+  autoUpdater.quitAndInstall(true, true); // instalación silenciosa y reabre la app
+});
+
+ipcMain.handle('get-update-state', () => updateState);
 
 // ==========================================
 // INSTANCIA ÚNICA

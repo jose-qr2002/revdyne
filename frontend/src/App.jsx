@@ -47,7 +47,8 @@ function App() {
   const soundQueueRef = useRef([]);
   const isPlayingBatchRef = useRef(false);
 
-  const [updateVersion, setUpdateVersion] = useState(null);
+  const [update, setUpdate] = useState(null); // { status, version, percent, message }
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const configLoaded = config !== null;
 
@@ -80,18 +81,28 @@ function App() {
   }
 
   useEffect(() => {
-    if (typeof window.require !== 'function') return;
-    const { ipcRenderer } = window.require('electron');
-    const onReady = (_e, version) => setUpdateVersion(version);
-    ipcRenderer.on('update-ready', onReady);
-    return () => ipcRenderer.removeListener('update-ready', onReady);
-  }, []);
-
-  useEffect(() => {
     if (ttsEvents && ttsEvents.length > 0) {
       enqueueTTS(ttsEvents[0].text);
     }
   }, [ttsEvents]);
+
+  useEffect(() => {
+    if (typeof window.require !== 'function') return;
+    const { ipcRenderer } = window.require('electron');
+
+    const onState = (_e, s) => {
+      setUpdate(s);
+      if (s.status === 'available') setUpdateDismissed(false);
+    };
+    ipcRenderer.on('update-state', onState);
+    ipcRenderer.invoke('get-update-state')
+      .then(s => { if (s && s.status !== 'idle') setUpdate(s); })
+      .catch(() => {});
+
+    return () => ipcRenderer.removeListener('update-state', onState);
+  }, []);
+
+  const sendUpdateAction = (channel) => window.require('electron').ipcRenderer.send(channel);
 
   useEffect(() => {
     apiFetch('/api/sounds/list').then(data => {
@@ -287,16 +298,37 @@ function App() {
       />
 
       <main className="main">
-        {updateVersion && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(255,0,80,0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px' }}>
-            <span>🎉 La versión <strong>v{updateVersion}</strong> está lista. Se instalará al cerrar la app.</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-sm btn-secondary" onClick={() => setUpdateVersion(null)}>Más tarde</button>
-              <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }}
-                onClick={() => window.require('electron').ipcRenderer.send('install-update')}>
-                Reiniciar ahora
-              </button>
+        {update && update.status !== 'idle' && !(update.status === 'available' && updateDismissed) && (
+          <div style={{ margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(255,0,80,0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <span>
+                {update.status === 'available' && <>🎉 Hay una versión nueva: <strong>v{update.version}</strong></>}
+                {update.status === 'downloading' && <>⬇️ Descargando <strong>v{update.version}</strong>… {update.percent ?? 0}%</>}
+                {update.status === 'ready' && <>✅ <strong>v{update.version}</strong> descargada. Al reiniciar se instalará.</>}
+                {update.status === 'error' && <>⚠️ {update.message}</>}
+              </span>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {update.status === 'available' && (
+                  <>
+                    <button className="btn btn-sm btn-secondary" onClick={() => setUpdateDismissed(true)}>Más tarde</button>
+                    <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }} onClick={() => sendUpdateAction('download-update')}>Descargar ahora</button>
+                  </>
+                )}
+                {update.status === 'error' && (
+                  <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }} onClick={() => sendUpdateAction('download-update')}>Reintentar</button>
+                )}
+                {update.status === 'ready' && (
+                  <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }} onClick={() => sendUpdateAction('install-update')}>Reiniciar e instalar</button>
+                )}
+              </div>
             </div>
+
+            {update.status === 'downloading' && (
+              <div style={{ height: '4px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${update.percent ?? 0}%`, height: '100%', background: 'var(--accent)', transition: 'width .3s' }} />
+              </div>
+            )}
           </div>
         )}
         {limitNotice && (
