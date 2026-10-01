@@ -329,6 +329,7 @@ function App() {
                 <div style={{ width: `${update.percent ?? 0}%`, height: '100%', background: 'var(--accent)', transition: 'width .3s' }} />
               </div>
             )}
+            {update.status === 'installing' && <>⏳ Instalando <strong>v{update.version}</strong>… La app se cerrará y volverá a abrirse. Si Windows pide permiso, acéptalo.</>}
           </div>
         )}
         {limitNotice && (

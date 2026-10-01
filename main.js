@@ -84,7 +84,9 @@ ipcMain.on('download-update', () => {
 
 ipcMain.on('install-update', () => {
   if (updateState.status !== 'ready') return;
-  autoUpdater.quitAndInstall(true, true); // instalación silenciosa y reabre la app
+  sendUpdateState({ status: 'installing', version: updateState.version });
+  // Un respiro para que el aviso se pinte antes de cerrar la app
+  setTimeout(() => autoUpdater.quitAndInstall(false, true), 1200);
 });
 
 ipcMain.handle('get-update-state', () => updateState);
