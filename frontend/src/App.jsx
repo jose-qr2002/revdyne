@@ -357,7 +357,7 @@ function App() {
           <button className={`tab ${activeTab === 'log' ? 'active' : ''}`} onClick={() => setActiveTab('log')}>📋 Log en vivo</button>
           <button className={`tab ${activeTab === 'tts' ? 'active' : ''}`} onClick={() => setActiveTab('tts')}>🔊 Bot TTS</button>
           <button className={`tab ${activeTab === 'stickers' ? 'active' : ''}`} onClick={() => setActiveTab('stickers')}>🖼️ Stickers</button>
-          <button className={`tab ${activeTab === 'engines' ? 'active' : ''}`} onClick={() => setActiveTab('engines')}>🎙️ Voces y Motores</button>
+          <button className={`tab ${activeTab === 'engines' ? 'active' : ''}`} onClick={() => setActiveTab('engines')}>🎙️ Motores de voz</button>
         </div>
 
         <div className="tab-content">
