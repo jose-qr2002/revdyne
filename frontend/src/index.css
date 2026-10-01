@@ -1207,3 +1207,16 @@ img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 }
 .plan-badge:hover { border-color: var(--accent); color: var(--text); }
 .plan-badge.pro { border-color: var(--accent); color: var(--accent); }
+
+/* ── ANIMACIÓN DE MODALES ── */
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+.anim-backdrop { animation: backdropIn .18s ease-out; }
+.anim-panel    { animation: panelIn .22s cubic-bezier(.2, .8, .2, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-backdrop, .anim-panel { animation: none; }
+}

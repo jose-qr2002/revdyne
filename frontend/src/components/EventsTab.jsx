@@ -30,7 +30,10 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const displayEvents = allScopeEvents.filter(e => e.trigger !== 'sticker');
 
   const catalogArray = useMemo(() => {
-    return Object.entries(catalog || {}).sort((a, b) => (b[1].coins || 0) - (a[1].coins || 0));
+    return Object.entries(catalog || {}).sort((a, b) =>
+      (a[1].coins || 0) - (b[1].coins || 0) ||
+      String(a[1].name).localeCompare(String(b[1].name))
+    );
   }, [catalog]);
 
   const filteredGifts = useMemo(() => {
