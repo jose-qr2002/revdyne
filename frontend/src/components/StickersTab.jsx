@@ -11,7 +11,7 @@ const CATEGORY_LABELS = {
 const CATEGORY_ORDER = { tiktok: 0, fanclub: 1, superfan: 2, unknown: 3 };
 const ITEMS_PER_PAGE = 10;
 
-export default function StickersTab({ profiles, onUpdateProfiles, activeProfileId, ioSocket }) {
+export default function StickersTab({ profiles, onUpdateProfiles, activeProfileId, ioSocket, antispam, onUpdateSettings }) {
   const [catalog, setCatalog] = useState({});
   const [notification, setNotification] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -27,6 +27,19 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
 
   const isElectron = typeof window.require === 'function';
   const showToast = (type, text) => setNotification({ type, text });
+
+  const [onePerComment, setOnePerComment] = useState(antispam?.onePerComment !== false);
+  const [cooldownMs, setCooldownMs] = useState(antispam?.userCooldownMs ?? 6000);
+
+  const saveAntispam = (patch = {}) => {
+    onUpdateSettings({
+      stickerAntispam: {
+        onePerComment,
+        userCooldownMs: Math.max(0, parseInt(cooldownMs, 10) || 0),
+        ...patch
+      }
+    });
+  };
 
   useEffect(() => {
     if (notification) {
@@ -221,6 +234,25 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
         <button className="btn btn-secondary btn-sm" onClick={handleTikTokLogin}>
           🔐 Vincular sesión
         </button>
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+            <label className="switch">
+              <input type="checkbox" checked={onePerComment}
+                onChange={e => { setOnePerComment(e.target.checked); saveAntispam({ onePerComment: e.target.checked }); }} />
+              <span className="slider"></span>
+            </label>
+            <span>Solo el primer sticker de cada comentario</span>
+          </label>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+            <span>⏳ Enfriamiento por usuario</span>
+            <input type="number" min="0" step="500" className="key-input" style={{ width: '90px' }}
+              value={cooldownMs}
+              onChange={e => setCooldownMs(e.target.value)}
+              onBlur={() => saveAntispam({ userCooldownMs: Math.max(0, parseInt(cooldownMs, 10) || 0) })} />
+            <span style={{ color: 'var(--text2)' }}>ms (0 = sin enfriamiento)</span>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

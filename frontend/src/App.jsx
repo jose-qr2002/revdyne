@@ -396,6 +396,8 @@ function App() {
               activeProfileId={activeProfileId}
               availableSounds={availableSounds}
               ioSocket={socket}
+              antispam={config.stickerAntispam}
+              onUpdateSettings={handleUpdateSettings}
             />
           )}
 

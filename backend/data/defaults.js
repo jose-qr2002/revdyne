@@ -25,7 +25,8 @@ const DEFAULT_SETTINGS = {
     slowModeEnabled: false,
     slowModeMs: 3000,
     profanityFilter: false,
-    blockedTerms: []
+    blockedTerms: [],
+    stickerAntispam: { onePerComment: true, userCooldownMs: 6000 },
   }
 };
 

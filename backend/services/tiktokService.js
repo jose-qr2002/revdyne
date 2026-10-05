@@ -23,6 +23,7 @@ const stickerCooldowns = new Map();
 const onceSeen = new Set();          // "reglaId_usuario" ya ejecutados (modo "una vez")
 const eventCooldowns = new Map();    // "reglaId_usuario" -> último disparo (modo "enfriamiento")
 const likeAccumulators = {};
+const stickerUserLast = new Map(); // usuario -> último disparo de cualquier sticker
 
 function init(io, settings) {
   ioInstance = io;
@@ -52,6 +53,11 @@ function executeEventActions(triggerType, conditionValue, times = 1) {
   });
 
   return { actionExecuted, keyExecuted };
+}
+
+function recordStickerUser(userKey) {
+  stickerUserLast.set(userKey, Date.now());
+  if (stickerUserLast.size > 10000) stickerUserLast.delete(stickerUserLast.keys().next().value);
 }
 
 function passesFrequency(evt, userKey) {
@@ -262,8 +268,13 @@ function handleChat(data) {
     const catalog = stickersManager.getCatalog();
     let catalogUpdated = false;
 
-    // 1. Registrar nuevos en catálogo y CONTAR cuántas veces se repite cada sticker en este mismo comentario
+    const antispam = settingsRef?.stickerAntispam || {};
+    const onePerComment = antispam.onePerComment !== false;      // activo por defecto
+    const userCooldownMs = antispam.userCooldownMs ?? 6000;      // 0 = sin enfriamiento
+
+    // 1. Registrar en el catálogo, contar repeticiones y recordar el orden de aparición
     const occurrenceCount = {};
+    const order = [];
     const emoteMeta = {};
 
     data.emotes.forEach(emoteWrapper => {
@@ -272,6 +283,7 @@ function handleChat(data) {
       const emoteId = emote.id || emote.emoteId;
       if (!emoteId || emoteId === '?') return;
 
+      if (occurrenceCount[emoteId] === undefined) order.push(emoteId);
       occurrenceCount[emoteId] = (occurrenceCount[emoteId] || 0) + 1;
 
       if (!emoteMeta[emoteId]) {
@@ -282,50 +294,68 @@ function handleChat(data) {
         if (!catalog[emoteId]) {
           stickersManager.upsertCatalogEntry(emoteId, emoteMeta[emoteId]);
           catalogUpdated = true;
-          console.log(`✅ [CATÁLOGO] Sticker nuevo detectado: ${emoteMeta[emoteId].name}`);
+          console.log(`✅ [CATÁLOGO] Sticker nuevo detectado: ${emoteName}`);
         }
       }
     });
 
-    const senderId = data.user?.uniqueId || data.uniqueId || 'desconocido';
+    const senderId = String(data.user?.userId || data.user?.uniqueId || data.uniqueId || 'desconocido');
 
-    // 2. Disparar UNA vez por sticker único del comentario, respetando repeatMode y el enfriamiento por usuario
-    Object.entries(occurrenceCount).forEach(([emoteId, countInMessage]) => {
-      const matches = eventEngine.findMatchingEvents('sticker', emoteId);
+    // 2. Solo cuentan los stickers que tienen una regla activa, en el orden en que aparecen
+    let candidates = order
+      .map(emoteId => ({ emoteId, matches: eventEngine.findMatchingEvents('sticker', emoteId) }))
+      .filter(c => c.matches.length > 0);
 
-      matches.forEach(({ evt, actions }) => {
-        const action = actions[evt.actionId];
-        const repeatMode = evt.repeatMode || 'once';
+    if (onePerComment) candidates = candidates.slice(0, 1);
 
-        let timesToTrigger = 1;
-        let playbackStyle = 'sequential';
+    // 3. Enfriamiento global del usuario
+    let blockedByCooldown = false;
+    if (candidates.length > 0 && userCooldownMs > 0) {
+      const last = stickerUserLast.get(senderId);
+      if (last && Date.now() - last < userCooldownMs) blockedByCooldown = true;
+    }
 
-        if (repeatMode === 'all') {
-          timesToTrigger = countInMessage;
-          playbackStyle = 'sequential'; // sin tope: nunca simultáneo, sería impredecible
-        } else if (repeatMode === 'limited') {
-          timesToTrigger = Math.min(countInMessage, evt.repeatLimit || 1);
-          playbackStyle = evt.playbackStyle === 'simultaneous' ? 'simultaneous' : 'sequential';
-        }
-        // repeatMode === 'once' → timesToTrigger se queda en 1
+    if (candidates.length > 0 && !blockedByCooldown) {
+      if (userCooldownMs > 0) recordStickerUser(senderId);
 
-        const cooldownSeconds = evt.cooldownSeconds || 0;
-        if (cooldownSeconds > 0 && action?.type !== 'sound') {
-          const cooldownKey = `${evt.id}_${senderId}`;
-          const last = stickerCooldowns.get(cooldownKey);
-          if (last && (Date.now() - last) < cooldownSeconds * 1000) return;
-          recordCooldown(cooldownKey);
-        }
-        const result = actionDispatcher.dispatch(action, {
-          times: timesToTrigger,
-          defaultDelayMs: settingsRef?.keyDelayMs || 80,
-          playbackStyle,
+      candidates.forEach(({ emoteId, matches }) => {
+        const countInMessage = occurrenceCount[emoteId];
+
+        matches.forEach(({ evt, actions }) => {
+          const action = actions[evt.actionId];
+          const repeatMode = evt.repeatMode || 'once';
+
+          let timesToTrigger = 1;
+          let playbackStyle = 'sequential';
+
+          if (repeatMode === 'all') {
+            timesToTrigger = countInMessage;
+          } else if (repeatMode === 'limited') {
+            timesToTrigger = Math.min(countInMessage, evt.repeatLimit || 1);
+            playbackStyle = evt.playbackStyle === 'simultaneous' ? 'simultaneous' : 'sequential';
+          }
+
+          const cooldownSeconds = evt.cooldownSeconds || 0;
+          if (cooldownSeconds > 0 && action?.type !== 'sound') {
+            const cooldownKey = `${evt.id}_${senderId}`;
+            const last = stickerCooldowns.get(cooldownKey);
+            if (last && (Date.now() - last) < cooldownSeconds * 1000) return;
+            recordCooldown(cooldownKey);
+          }
+
+          const result = actionDispatcher.dispatch(action, {
+            times: timesToTrigger,
+            defaultDelayMs: settingsRef?.keyDelayMs || 80,
+            playbackStyle,
+          });
+          if (result.executed) {
+            console.log(`🎯 [STICKER] "${action.name}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);
+          }
         });
-        if (result.executed) {
-          console.log(`🎯 [STICKER] "${action.name}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);
-        }
       });
-    });
+    } else if (blockedByCooldown) {
+      console.log(`⏳ [STICKER] @${senderId} en enfriamiento (${userCooldownMs} ms)`);
+    }
 
     if (catalogUpdated) {
       ioInstance.emit('catalog:newSticker', stickersManager.getCatalog());
@@ -413,6 +443,7 @@ function getCurrentSecUid() {
 function connect(username) {
   if (tiktokConnection) disconnect();
   
+  stickerUserLast.clear();
   onceSeen.clear();
   eventCooldowns.clear();
   
