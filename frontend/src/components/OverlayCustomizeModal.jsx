@@ -32,7 +32,7 @@ function Toggle({ label, checked, onChange }) {
 }
 
 export default function OverlayCustomizeModal({
-  isOpen, onClose, activeStyle, styles, fonts, defaultStyles, onSelectStyle, onChangeStyle,
+  isOpen, title = 'Personalizar barra', onClose, activeStyle, styles, fonts, defaultStyles, onSelectStyle, onChangeStyle,
 }) {
   if (!isOpen) return null;
 
@@ -46,7 +46,7 @@ export default function OverlayCustomizeModal({
   return (
     <ModalShell
       isOpen={isOpen}
-      title="Personalizar barra de likes"
+      title={title}
       onClose={onClose}
       width="540px"
       footer={
@@ -111,7 +111,7 @@ export default function OverlayCustomizeModal({
           <Toggle label="Título" checked={s.showTitle} onChange={v => set({ showTitle: v })} />
           <Toggle label="Porcentaje" checked={s.showPercent} onChange={v => set({ showPercent: v })} />
           <Toggle label="Progreso (0/5000)" checked={s.showProgress} onChange={v => set({ showProgress: v })} />
-          <Toggle label="Corazón" checked={s.showIcon} onChange={v => set({ showIcon: v })} />
+          <Toggle label="Ícono" checked={s.showIcon} onChange={v => set({ showIcon: v })} />
         </div>
       </section>
     </ModalShell>

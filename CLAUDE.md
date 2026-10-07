@@ -22,11 +22,20 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
 - La UI guarda perfiles con `onUpdateProfiles` (App.jsx -> POST /api/profiles).
   Ninguna pestaña escribe perfiles por su cuenta: eso causó pérdida de datos.
 
-## Overlays (fuentes de navegador para OBS)
-- Página autónoma en `backend/overlays/*.html` (sin React), servida por server.js en `/overlays/...`
-  y alimentada por Socket.IO. La vista previa del panel es un iframe de esa misma página (`?preview=1`).
-- Lógica y estado en `backend/services/overlayService.js`; config en overlays.json (se guarda desde
-  `OverlaysTab` vía `/api/overlays`, no por profiles). Likes: tiktokService.handleLike -> `addLikes`.
+## Overlays (fuentes de navegador para OBS / TikTok LIVE Studio)
+- Metas de likes y seguidores. Página autónoma `backend/overlays/goal.html` (sin React), servida por server.js en
+  `/overlays/goal/likes|followers` y alimentada por Socket.IO. La vista previa del panel es un iframe de esa misma
+  página (`?preview=1`). Live Studio exige https + dominio real: el mismo HTML se aloja en overlays.reveljk.com y
+  se conecta a la app local (127.0.0.1) por Socket.IO.
+- Lógica y estado en `backend/services/overlayService.js` (una meta por tipo); config en overlays.json (se guarda
+  desde `GoalCard` vía `/api/overlays/:kind`, no por profiles). Modo de conteo por meta (`countMode`): 'total' (empieza
+  con lo que ya hay) o 'live' (solo lo nuevo del directo). Ambas siguen el TOTAL que informa TikTok, no la suma de eventos:
+  likes = campo `total` del evento like; seguidores = `roomInfo.data.owner.follow_info.follower_count` al conectar (sin
+  petición extra) + `followCount` de cada evento follow (verificado exacto en un directo real). Los seguidores pueden bajar
+  (unfollow); los likes solo suben.
+- Las metas solo trabajan con un overlay real enlazado (sala de Socket.IO `overlay:<tipo>`; la vista previa del panel no
+  cuenta): sin enlace no disparan acciones, no emiten y no consultan el perfil; al enlazar se sincronizan en silencio.
+- tiktok-live-proto v3 (el que usa la librería): like trae `count`/`total`; los nombres `likeCount`/`totalLikeCount` son de v1.
 
 ## Licencias
 Plan free (límites en backend/services/entitlements.js) y pro con código.

@@ -1,23 +1,45 @@
 // backend/services/overlayService.js
-// Estado y lógica de los overlays (por ahora: meta de likes).
-// La config persistente vive en overlays.json; el avance (likes actuales, meta
-// vigente) vive solo en memoria y se reinicia al conectar a un directo.
+// Estado y lógica de las metas de los overlays (likes y seguidores).
+// La config persistente vive en overlays.json; el avance (total actual, meta vigente) vive solo
+// en memoria y se reinicia al conectar a un directo.
+//
+// Las metas solo "trabajan" (disparan acciones, emiten al overlay, consultan el perfil) mientras
+// hay un overlay real enlazado (OBS / Live Studio). Sin enlace solo se llevan cuentas baratas y,
+// al enlazar, se sincroniza en silencio.
 const store = require('../data/store');
 const entitlements = require('./entitlements');
 const actionDispatcher = require('./actionDispatcher');
 const { DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS } = require('../data/defaults');
 
 const ON_REACH = ['keep', 'increase', 'double', 'hide'];
+const COUNT_MODES = ['total', 'live']; // total: empieza con lo que ya hay; live: solo lo nuevo del directo
 const STYLE_IDS = [1, 2, 3, 4, 5];
-const EMIT_INTERVAL_MS = 150;     // los likes llegan en ráfagas; el overlay no necesita cada uno
-const MAX_REACH_LOOPS = 50;       // tope de seguridad si la meta es mínima y llegan muchos likes de golpe
+const EMIT_INTERVAL_MS = 150;     // los eventos llegan en ráfagas; el overlay no necesita cada uno
+const MAX_REACH_LOOPS = 50;       // tope de seguridad si la meta es mínima y llegan muchos de golpe
+
+// Tipos de meta; 'label' se usa en los mensajes del log.
+const KINDS = {
+  likes: { label: 'likes' },
+  followers: { label: 'seguidores' },
+};
+const kindOf = (kind) => (Object.prototype.hasOwnProperty.call(KINDS, kind) ? kind : null);
 
 let io = null;
-let emitTimer = null;
+// Los registra tiktokService: followerTotalNow() = seguidores del streamer según la conexión (sin red);
+// fetchFollowerTotal() = lo mismo pero refrescado desde TikTok (una petición).
+const hooks = { followerTotalNow: null, fetchFollowerTotal: null };
 
-// live = likes de la sala (total de TikTok menos `offset`); manual = los del botón de probar.
-// `offset` es 0 salvo tras 'Reiniciar', que vuelve a contar desde el total del momento.
-const state = { current: 0, live: 0, manual: 0, lastTotal: 0, offset: 0, synced: false, goal: 0, reached: false, hidden: false };
+// current = lo que muestra la barra = manual + live.
+// live    = total que informa TikTok (lastTotal) menos `offset`; manual = lo del botón de probar.
+//   likes:      campo `total` del evento like.
+//   followers:  `roomInfo` al conectar y `followCount` del evento follow (ambos exactos).
+// `offset` es 0 salvo en el modo 'live' (solo lo nuevo) y tras 'Reiniciar', que cuentan desde un valor.
+const newState = () => ({
+  current: 0, live: 0, manual: 0, lastTotal: 0, offset: 0, offsetSet: false, synced: false,
+  fetching: false,
+  goal: 0, reached: false, hidden: false, emitTimer: null,
+});
+const states = { likes: newState(), followers: newState() };
 
 // ---------- Sanitizado ----------
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
@@ -51,16 +73,18 @@ function sanitizeStyle(input, base) {
   };
 }
 
-function sanitizeLikes(input, current) {
+function sanitizeGoal(kind, input, current) {
   const merged = { ...current, ...input };
+  const defaults = DEFAULT_OVERLAYS[kind];
   const styles = {};
   for (const id of STYLE_IDS) {
-    styles[id] = sanitizeStyle(input?.styles?.[id], current.styles?.[id] || DEFAULT_OVERLAYS.likes.styles[id]);
+    styles[id] = sanitizeStyle(input?.styles?.[id], current.styles?.[id] || defaults.styles[id]);
   }
   return {
-    goal: clampInt(merged.goal, 1, 100000000, DEFAULT_OVERLAYS.likes.goal),
+    goal: clampInt(merged.goal, 1, 100000000, defaults.goal),
     title: String(merged.title ?? '').slice(0, 60),
     onReach: ON_REACH.includes(merged.onReach) ? merged.onReach : 'increase',
+    countMode: COUNT_MODES.includes(merged.countMode) ? merged.countMode : 'total',
     actionId: typeof merged.actionId === 'string' ? merged.actionId.slice(0, 80) : '',
     activeStyle: STYLE_IDS.includes(Number(merged.activeStyle)) ? Number(merged.activeStyle) : 1,
     styles,
@@ -68,32 +92,43 @@ function sanitizeLikes(input, current) {
 }
 
 // ---------- Config ----------
-function getLikesConfig() {
-  const stored = store.loadOverlays().likes || {};
-  return sanitizeLikes(stored, DEFAULT_OVERLAYS.likes);
+// Se cachea en memoria: los eventos de likes llegan a decenas por segundo y no deben leer el disco.
+const configCache = {};
+function getConfig(kind) {
+  if (!configCache[kind]) {
+    configCache[kind] = sanitizeGoal(kind, store.loadOverlays()[kind] || {}, DEFAULT_OVERLAYS[kind]);
+  }
+  return configCache[kind];
 }
 
-function updateLikesConfig(patch) {
-  const before = getLikesConfig();
-  const next = sanitizeLikes(patch, before);
-  store.saveOverlays({ ...store.loadOverlays(), schemaVersion: 1, likes: next });
+function updateConfig(kind, patch) {
+  const state = states[kind];
+  const before = getConfig(kind);
+  const next = sanitizeGoal(kind, patch, before);
+  store.saveOverlays({ ...store.loadOverlays(), schemaVersion: 1, [kind]: next });
+  configCache[kind] = next;
 
-  // Cambiar la meta base reinicia la meta vigente; el resto de ajustes no tocan el avance.
-  if (next.goal !== before.goal) {
+  // Cambiar la forma de contar reinicia el conteo: se vuelve a sincronizar con el siguiente dato.
+  if (next.countMode !== before.countMode) {
+    reset(kind, false);
+  } else if (next.goal !== before.goal) {
+    // Cambiar la meta base reinicia la meta vigente; el resto de ajustes no tocan el avance.
     state.goal = next.goal;
     state.reached = false;
     state.hidden = false;
-    checkGoal(true); // si la nueva meta ya está superada, se salta sin disparar la acción
+    checkGoal(kind, true); // si la nueva meta ya está superada, se salta sin disparar la acción
   }
-  scheduleEmit(true);
+  scheduleEmit(kind, true);
   return next;
 }
 
 // ---------- Estado público ----------
-function snapshot() {
-  const cfg = getLikesConfig();
+function snapshot(kind) {
+  const state = states[kind];
+  const cfg = getConfig(kind);
   if (!state.goal) state.goal = cfg.goal;
   return {
+    kind,
     current: state.current,
     goal: state.goal,
     hidden: state.hidden,
@@ -103,21 +138,25 @@ function snapshot() {
   };
 }
 
-function clientCount() {
-  return io?.sockets.adapter.rooms.get('overlay:likes')?.size || 0;
+// Sala de Socket.IO de los overlays reales (OBS / Live Studio); la vista previa del panel no entra.
+const room = (kind) => `overlay:${kind}`;
+function clientCount(kind) {
+  return io?.sockets.adapter.rooms.get(room(kind))?.size || 0;
+}
+const isActive = (kind) => clientCount(kind) > 0;
+
+function emitNow(kind) {
+  states[kind].emitTimer = null;
+  io?.emit(`overlay:${kind}:state`, snapshot(kind));
 }
 
-function emitNow() {
-  emitTimer = null;
-  io?.emit('overlay:likes:state', snapshot());
-}
-
-function scheduleEmit(immediate = false) {
+function scheduleEmit(kind, immediate = false) {
+  const state = states[kind];
   if (immediate) {
-    if (emitTimer) clearTimeout(emitTimer);
-    return emitNow();
+    if (state.emitTimer) clearTimeout(state.emitTimer);
+    return emitNow(kind);
   }
-  if (!emitTimer) emitTimer = setTimeout(emitNow, EMIT_INTERVAL_MS);
+  if (!state.emitTimer) state.emitTimer = setTimeout(() => emitNow(kind), EMIT_INTERVAL_MS);
 }
 
 // ---------- Lógica de meta ----------
@@ -131,7 +170,7 @@ function findAction(actionId) {
     || null;
 }
 
-function runFinishAction(cfg) {
+function runFinishAction(kind, cfg) {
   const action = findAction(cfg.actionId);
   if (!action) return;
   const result = actionDispatcher.dispatch(action, {
@@ -139,16 +178,17 @@ function runFinishAction(cfg) {
     defaultDelayMs: store.loadSettings().keyDelayMs || 80,
   });
   io?.emit('giftReceived', {
-    giftId: 'overlay_likes_goal', giftName: `🎯 Meta de likes alcanzada (${state.goal})`, coins: 0,
+    giftId: `overlay_${kind}_goal`, giftName: `🎯 Meta de ${KINDS[kind].label} alcanzada (${states[kind].goal})`, coins: 0,
     sender: 'Overlay', newCount: 1,
     key: result.label || 'Ninguna', pressed: !!result.executed, timestamp: Date.now(),
   });
 }
 
-function checkGoal(silent = false) {
-  const cfg = getLikesConfig();
+function checkGoal(kind, silent = false) {
+  const state = states[kind];
+  const cfg = getConfig(kind);
 
-  // Meta ya superada al sincronizar (p. ej. el directo ya tenía 20.000 likes y la meta es 5.000):
+  // Meta ya superada al sincronizar (p. ej. el directo ya tenía 20.000 y la meta es 5.000):
   // se salta a la meta vigente sin disparar acciones de metas que no se alcanzaron en vivo.
   if (silent) {
     if (state.hidden || state.reached || state.current < state.goal) return;
@@ -162,7 +202,7 @@ function checkGoal(silent = false) {
   for (let i = 0; i < MAX_REACH_LOOPS; i++) {
     if (state.hidden || state.reached || state.current < state.goal) return;
 
-    runFinishAction(cfg);
+    runFinishAction(kind, cfg);
 
     if (cfg.onReach === 'increase') state.goal += cfg.goal;
     else if (cfg.onReach === 'double') state.goal *= 2;
@@ -171,77 +211,148 @@ function checkGoal(silent = false) {
   }
 }
 
-function recompute(silent = false) {
-  if (!state.goal) state.goal = getLikesConfig().goal;
+// silent: salta metas superadas sin disparar acciones.
+// force: actúa aunque no haya overlay enlazado (acciones del usuario en el panel); en ese caso
+//        nunca se disparan acciones, solo se mueve la barra.
+function recompute(kind, { silent = false, force = false } = {}) {
+  const state = states[kind];
+  if (!state.goal) state.goal = getConfig(kind).goal;
   state.current = state.manual + state.live;
-  checkGoal(silent);
-  scheduleEmit();
+
+  const active = isActive(kind);
+  if (!active && !force) return;       // sin enlace: solo cuentas, nada de acciones ni emisiones
+  checkGoal(kind, silent || !active);
+  scheduleEmit(kind);
 }
 
 // Suma manual (botón de probar)
-function addLikes(count) {
+function addManual(kind, count) {
   const n = Math.floor(Number(count));
   if (!Number.isFinite(n) || n <= 0) return;
-  state.manual += n;
-  recompute();
+  states[kind].manual += n;
+  recompute(kind, { force: true });
 }
 
-// Evento 'like' de TikTok. La barra muestra los likes totales de la sala (los que ya tenía el
-// directo al conectar más los nuevos), igual que el contador de TikTok. Se usa el total acumulado
-// y no la suma de ráfagas, porque TikTok agrupa y descarta mensajes en directos con muchos likes.
-// En tiktok-live-proto v3 (el que usa la librería) los campos son `count` (número) y `total`
-// (string); `likeCount`/`totalLikeCount` son de v1 y se aceptan por compatibilidad.
-function addLiveLikes(data = {}) {
-  const batch = Math.max(0, Math.floor(Number(data.count ?? data.likeCount)) || 0);
-  const total = Math.floor(Number(data.total ?? data.totalLikeCount));
+// --- Totales de la sala (likes y seguidores) ---
+// Las dos metas siguen el total acumulado que informa TikTok y no la suma de eventos: TikTok agrupa y
+// descarta mensajes en directos con mucha actividad. `batch` solo sirve para el modo "solo lo nuevo"
+// y como respaldo cuando el evento no trae un total fiable.
+function applyTotal(kind, rawTotal, batch) {
+  const state = states[kind];
+  const cfg = getConfig(kind);
+  const total = Math.floor(Number(rawTotal));
   if (Number.isFinite(total) && total > 0) {
-    if (total > state.lastTotal) state.lastTotal = total; // ignora totales atrasados (mensajes desordenados)
+    // Los likes solo suben: se ignoran totales atrasados (mensajes desordenados). Los seguidores pueden
+    // bajar de verdad (alguien deja de seguir), así que se toma siempre el último total.
+    if (kind === 'followers' || total > state.lastTotal) state.lastTotal = total;
+    // Modo "solo lo nuevo": el primer dato fija el punto de partida (incluyendo sus propios likes/seguidores)
+    if (cfg.countMode === 'live' && !state.offsetSet) { state.offset = Math.max(0, total - batch); state.offsetSet = true; }
+    state.live = Math.max(0, state.lastTotal - state.offset);
+  } else if (state.lastTotal > 0) {
+    state.lastTotal += batch;                              // hay base conocida: se sigue sobre ella
     state.live = Math.max(0, state.lastTotal - state.offset);
   } else {
-    state.live += batch || 1; // sin total fiable: se suma la ráfaga
+    state.live += batch;
   }
   const firstSync = !state.synced;
   state.synced = true;
-  recompute(firstSync);
+  recompute(kind, { silent: firstSync });
 }
 
-// fromNow=true (botón Reiniciar): la barra vuelve a 0 y cuenta desde el total actual de la sala.
-// fromNow=false (nueva conexión): se descarta todo y el primer evento fija el punto de partida.
-function reset(fromNow = false) {
+// Evento 'like'. En tiktok-live-proto v3 (el que usa la librería) los campos son `count` (número) y
+// `total` (string); `likeCount`/`totalLikeCount` son de v1 y se aceptan por compatibilidad.
+function addLiveLikes(data = {}) {
+  const batch = Math.max(0, Math.floor(Number(data.count ?? data.likeCount)) || 0) || 1;
+  applyTotal('likes', data.total ?? data.totalLikeCount, batch);
+}
+
+// Evento 'follow': `followCount` es el total exacto de seguidores del streamer (comprobado en un directo
+// real). Como es un total, repetir el mismo evento no suma dos veces.
+function addFollower(data = {}) {
+  applyTotal('followers', data.followCount, 1);
+}
+
+// Seguidores del streamer conocidos por otra vía (roomInfo): fija el punto de partida, no cuenta como nuevo.
+function setFollowerTotal(total) {
+  applyTotal('followers', total, 0);
+}
+
+// Toma el total que ya trae la conexión (gratis, sin red). Se llama al conectar.
+function seedFollowers() {
+  const n = hooks.followerTotalNow?.();
+  if (n) setFollowerTotal(n);
+}
+
+// Al enlazar un overlay se refresca el total desde TikTok (una petición), por si pasó mucho desde que se
+// conectó. Solo con overlay enlazado y directo conectado.
+function requestFollowerBaseline() {
+  const state = states.followers;
+  if (!hooks.fetchFollowerTotal || state.fetching || !isActive('followers')) return;
+
+  state.fetching = true;
+  Promise.resolve(hooks.fetchFollowerTotal())
+    .then(total => { if (total) setFollowerTotal(total); })
+    .catch(() => {})
+    .finally(() => { state.fetching = false; });
+}
+
+// fromNow=true (botón Reiniciar): la barra vuelve a 0 y cuenta desde el valor actual.
+// fromNow=false (nueva conexión / cambio de modo): se descarta todo y el primer dato fija el punto de partida.
+function reset(kind, fromNow = false) {
+  const state = states[kind];
   state.manual = 0;
   state.live = 0;
   state.current = 0;
   state.offset = fromNow ? state.lastTotal : 0;
+  state.offsetSet = fromNow;
   if (!fromNow) { state.lastTotal = 0; state.synced = false; }
-  state.goal = getLikesConfig().goal;
+  state.goal = getConfig(kind).goal;
   state.reached = false;
   state.hidden = false;
-  scheduleEmit(true);
+  scheduleEmit(kind, true);
+  if (!fromNow && kind === 'followers') seedFollowers(); // ya conectados: se vuelve a tomar el total conocido
+}
+
+const resetAll = () => Object.keys(KINDS).forEach(kind => reset(kind));
+
+// Un overlay real se acaba de enlazar: se sincroniza en silencio con lo contado hasta ahora.
+function onLinked(kind) {
+  recompute(kind, { silent: true, force: true });
+  if (kind === 'followers') requestFollowerBaseline();
 }
 
 // ---------- Sockets ----------
 function init(ioInstance) {
   io = ioInstance;
-  state.goal = getLikesConfig().goal;
+  for (const kind of Object.keys(KINDS)) states[kind].goal = getConfig(kind).goal;
 
-  const broadcastClients = () => io.emit('overlay:likes:clients', clientCount());
+  const broadcastClients = () => {
+    for (const kind of Object.keys(KINDS)) io.emit(`overlay:${kind}:clients`, clientCount(kind));
+  };
 
   io.on('connection', (socket) => {
-    // El overlay real entra a 'overlay:likes' (cuenta como conexión de OBS);
-    // la vista previa del panel entra a otra sala para no contarse.
     socket.on('overlay:join', ({ name, preview } = {}) => {
-      if (name !== 'likes') return;
-      if (!preview) { socket.join('overlay:likes'); broadcastClients(); }
-      socket.emit('overlay:likes:state', snapshot());
+      const kind = kindOf(name);
+      if (!kind) return;
+      if (!preview) {
+        const wasActive = isActive(kind);
+        socket.join(room(kind));
+        broadcastClients();
+        if (!wasActive) onLinked(kind);
+      }
+      socket.emit(`overlay:${kind}:state`, snapshot(kind));
     });
     socket.on('disconnect', broadcastClients);
-    socket.emit('overlay:likes:clients', clientCount());
+    for (const kind of Object.keys(KINDS)) socket.emit(`overlay:${kind}:clients`, clientCount(kind));
   });
 }
 
 module.exports = {
-  init, getLikesConfig, updateLikesConfig, snapshot, clientCount,
-  addLikes, addLiveLikes, reset,
+  init, kinds: Object.keys(KINDS), kindOf,
+  getConfig, updateConfig, snapshot, clientCount, isActive,
+  addManual, addLiveLikes, addFollower, setFollowerTotal, seedFollowers, requestFollowerBaseline,
+  reset, resetAll,
+  setHooks: (h) => Object.assign(hooks, h),
   fonts: OVERLAY_FONTS,
-  defaultStyles: () => DEFAULT_OVERLAYS.likes.styles,
+  defaultStyles: (kind) => DEFAULT_OVERLAYS[kind].styles,
 };

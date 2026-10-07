@@ -21,13 +21,25 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
       sin disparar la acción final. Tras cruzar la meta en vivo debe disparar una vez.
 
 ## TikTok LIVE Studio (overlay alojado en overlays.reveljk.com)
-- [ ] Subir `backend/overlays/goalLikes.html` al VPS y servirlo en `https://overlays.reveljk.com/goal/likes`
+- [ ] Subir `backend/overlays/goal.html` al VPS y servirlo en `https://overlays.reveljk.com/goal/likes`
       (el mismo archivo funciona en local y remoto). Subdominio nuevo: DNS + nginx en /var/www/revdyne-overlays + certbot.
 - [ ] En Live Studio añadir un Enlace con la URL del panel (modo "TikTok LIVE Studio", lleva `?port=3000`).
       Debe mostrar la barra y el chip del panel pasar a "OBS enlazado".
 - [ ] Si Live Studio no conecta con 127.0.0.1 desde una página https (el motor embebido puede bloquearlo como
       contenido mixto o por Private Network Access), la alternativa es un relé por el VPS o OBS + cámara virtual.
-- [ ] Cada vez que cambie goalLikes.html hay que volver a subirlo al VPS.
-- [ ] El alto del recuadro de la fuente fija el tamaño de la barra y el ancho fija su largo (a 900x120 es la medida
-      original). En Live Studio comprobar que ensanchar el recuadro alarga la barra sin subirle el alto, y los
-      ajustes Largo/Grosor de Personalizar.
+- [ ] Cada vez que cambie goal.html hay que volver a subirlo al VPS.
+- [ ] Live Studio: sin Resolución personalizada la barra debe verse ancha y baja (lienzo mínimo 900). Con Resolución
+      personalizada H 120 y W 900 es la medida base; con W mayor la barra se alarga sin subirle el alto. Revisar también
+      los ajustes Largo/Grosor de Personalizar.
+
+## Meta de seguidores
+- [ ] En el VPS: subir `goal.html` (antes se llamaba goalLikes.html) y cambiar el `location` de nginx a
+      `location ~ ^/goal/(likes|followers)$ { alias ... }` apuntando a goal.html (ver instrucciones en el chat).
+
+## Seguidores exactos y enlace
+- [x] Probado en un directo real (@teamgatitos_oficial): roomInfo.follower_count y followCount coinciden y son exactos.
+- [ ] Likes con un directo que sí tenga likes entrando: en la prueba no llegó ningún evento like, así que el total de
+      likes sigue sin verificarse con datos reales.
+- [ ] Modo "Solo nuevos del directo" en ambas metas: debe arrancar en 0 y contar desde que se conecta.
+- [ ] Sin ningún enlace en uso (ni OBS ni Live Studio): no debe dispararse ninguna acción. Al enlazar con el directo ya
+      iniciado, la barra se sincroniza sin disparar metas superadas.

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Revdyne · Meta de likes</title>
+<title>Revdyne · Meta</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
@@ -36,6 +36,9 @@
   #icon { flex: 0 0 auto; height: 86%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
   #icon.off { display: none; }
   #icon svg { height: 100%; width: 100%; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+  #ico-followers { display: none; }
+  [data-kind="followers"] #ico-likes { display: none; }
+  [data-kind="followers"] #ico-followers { display: block; }
 
   /* Barra */
   #bar {
@@ -91,11 +94,17 @@
 </style>
 </head>
 <body>
-<div id="root" data-style="1">
+<div id="root" data-style="1" data-kind="likes">
   <div id="icon">
-    <svg viewBox="0 0 64 64" aria-hidden="true">
+    <svg id="ico-likes" viewBox="0 0 64 64" aria-hidden="true">
       <path d="M32 57S6 40.5 6 22.5C6 14.5 12.3 9 19.5 9c5 0 9.2 2.7 12.5 7.3C35.3 11.7 39.5 9 44.5 9 51.7 9 58 14.5 58 22.5 58 40.5 32 57 32 57z" fill="#ff4d6a"/>
       <path d="M15 21c0-4 3-7 7-7" stroke="#fff" stroke-opacity=".85" stroke-width="4" stroke-linecap="round" fill="none"/>
+    </svg>
+    <svg id="ico-followers" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="26" cy="20" r="11" fill="#ff4d6a"/>
+      <path d="M4 56c0-12 9-21 22-21s22 9 22 21z" fill="#ff4d6a"/>
+      <circle cx="50" cy="19" r="10" fill="#fff"/>
+      <path d="M50 13v12M44 19h12" stroke="#ff4d6a" stroke-width="4" stroke-linecap="round"/>
     </svg>
   </div>
   <div id="bar">
@@ -113,6 +122,8 @@
   var label = document.getElementById('label');
   var icon = document.getElementById('icon');
   var isPreview = /[?&]preview=1/.test(location.search);
+  var kind = /\/followers\/?$/.test(location.pathname) ? 'followers' : 'likes';
+  root.setAttribute('data-kind', kind);
   var last = null;
 
   function esc(s) {
@@ -159,7 +170,10 @@
 
   var scale = 1;
   var barWidth = 1; // largo de la barra respecto al lienzo (0.3 a 1)
-  var MIN_CANVAS_W = 400; // en recuadros muy estrechos/altos el lienzo no baja de este ancho
+  // El lienzo mide como mínimo 900 de ancho: en un recuadro cuadrado o estrecho (el que da Live Studio por
+  // defecto) la barra se ve ancha y baja, escalada al ancho. Solo en recuadros más anchos que 7,5:1 el lienzo
+  // crece y la barra se alarga.
+  var MIN_CANVAS_W = 900;
   function applyScale() {
     var w = window.innerWidth, h = window.innerHeight;
     if (!(w > 0 && h > 0)) { w = 900; h = 120; } // Live Studio a veces carga con 0x0
@@ -197,8 +211,8 @@
 
   function start() {
     var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
-    socket.on('connect', function () { socket.emit('overlay:join', { name: 'likes', preview: isPreview }); });
-    socket.on('overlay:likes:state', render);
+    socket.on('connect', function () { socket.emit('overlay:join', { name: kind, preview: isPreview }); });
+    socket.on('overlay:' + kind + ':state', render);
   }
 
   var tag = document.createElement('script');

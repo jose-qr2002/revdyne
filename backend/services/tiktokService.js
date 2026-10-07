@@ -29,6 +29,16 @@ const stickerUserLast = new Map(); // usuario -> último disparo de cualquier st
 function init(io, settings) {
   ioInstance = io;
   settingsRef = settings;
+  // Seguidores del streamer: roomInfo.data.owner.follow_info.follower_count (exacto, igual que el
+  // followCount de los eventos follow). followerTotalNow no usa red; fetchFollowerTotal refresca.
+  const followerTotalFrom = (info) => Number(info?.data?.owner?.follow_info?.follower_count) || null;
+  overlayService.setHooks({
+    followerTotalNow: () => (isConnected ? followerTotalFrom(tiktokConnection?.roomInfo) : null),
+    fetchFollowerTotal: async () => {
+      if (!isConnected || !tiktokConnection) return null;
+      try { return followerTotalFrom(await tiktokConnection.fetchRoomInfo()); } catch { return null; }
+    },
+  });
 }
 
 // ==========================================
@@ -204,6 +214,8 @@ function handleShare(data) {
 
 function handleFollow(data) {
   const username = getUsername(data);
+  // La meta sigue el total (followCount), así que repetir el evento no la afecta; va antes de deduplicar.
+  overlayService.addFollower(data);
   if (followedUsers.has(username)) return;
   followedUsers.add(username);
 
@@ -449,7 +461,7 @@ function connect(username) {
   stickerUserLast.clear();
   onceSeen.clear();
   eventCooldowns.clear();
-  overlayService.reset();
+  overlayService.resetAll();
   
   if (!username) {
     ioInstance.emit('status', { connected: false, message: 'Sin usuario configurado' });
@@ -467,6 +479,9 @@ function connect(username) {
     ioInstance.emit('status', { connected: true, message: `✅ Conectado a @${username}`, roomId: state.roomId, username });
 
     
+
+    // La meta de seguidores arranca con los que ya tiene el streamer (viene en roomInfo, sin otra petición).
+    overlayService.seedFollowers();
 
     const secUid = await ensureRoomInfoWithRetry(tiktokConnection);
     if (secUid) secUidResolver.saveSecUid(username, secUid);

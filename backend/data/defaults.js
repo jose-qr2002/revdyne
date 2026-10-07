@@ -77,22 +77,30 @@ const DEFAULT_OVERLAY_STYLE = {
 // Ahí solo vive el HTML estático; los datos llegan desde la app local por Socket.IO.
 const OVERLAY_PUBLIC_BASE_URL = 'https://overlays.reveljk.com';
 
-const DEFAULT_OVERLAYS = {
-  schemaVersion: 1,
-  likes: {
-    goal: 5000,
-    title: 'Like Goal',
+// Valores iniciales de una meta (likes, seguidores...). Cada estilo parte de DEFAULT_OVERLAY_STYLE.
+const goalDefaults = ({ goal, title, finalText }) => {
+  const base = { ...DEFAULT_OVERLAY_STYLE, finalText };
+  return {
+    goal,
+    title,
     onReach: 'increase',    // keep | increase | double | hide
+    countMode: 'total',     // total: empieza con lo que ya hay | live: solo lo nuevo del directo
     actionId: '',           // acción al alcanzar la meta ('' = ninguna)
     activeStyle: 1,
     styles: {
-      1: { ...DEFAULT_OVERLAY_STYLE },
-      2: { ...DEFAULT_OVERLAY_STYLE, barColor: '#ff0050' },
-      3: { ...DEFAULT_OVERLAY_STYLE, barColor: '#ff4d4d' },
-      4: { ...DEFAULT_OVERLAY_STYLE, barColor: '#c4002f' },
-      5: { ...DEFAULT_OVERLAY_STYLE, bgColor: '#000000', barColor: '#ff0050' },
+      1: { ...base },
+      2: { ...base, barColor: '#ff0050' },
+      3: { ...base, barColor: '#ff4d4d' },
+      4: { ...base, barColor: '#c4002f' },
+      5: { ...base, bgColor: '#000000', barColor: '#ff0050' },
     },
-  },
+  };
+};
+
+const DEFAULT_OVERLAYS = {
+  schemaVersion: 1,
+  likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
+  followers: goalDefaults({ goal: 100, title: 'Follower Goal', finalText: 'Seguidores' }),
 };
 
 module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, OVERLAY_PUBLIC_BASE_URL };
