@@ -70,6 +70,14 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
   del directorio donde se lance (ignorado por git con `*.log`). `logger.file`/`logger.dir` son getters: NO exportar con `{ ...proxy }` (el spread los pierde).
 - "Abrir carpeta" usa `shell.showItemInFolder` (Electron) o `explorer.exe /select` (node) y devuelve cuál funcionó o por qué falló.
 
+## Interfaz (navegación e íconos)
+- Las secciones viven en el sidebar (navegación vertical con scroll propio), no en pestañas horizontales. Se definen en `frontend/src/components/navItems.js`
+  ({ id, label, icon } agrupados) y su contenido se renderiza en App.jsx con `activeTab === id`. La cabecera muestra el nombre de la sección activa.
+- Íconos: `components/Icon.jsx` (SVG de línea, hereda el color). Para uno nuevo, añadir su trazado a `PATHS`. No usar emojis en la interfaz nueva.
+  Pendiente de migrar: los emojis dentro del contenido de TTSControl, ActionsTab, EventsTab, StickersTab, CatalogTab, GiftCard, EngineManagerTab, EventLog,
+  GiftConfigModal, LicenseModal y StickerSettingsModal.
+- Ya no hay "motor de teclado activo" en el sidebar; solo aparece un aviso "Teclado en simulación" si RobotJS no cargó (config.robotAvailable === false).
+
 ## Licencias
 Plan free (límites en backend/services/entitlements.js) y pro con código.
 Cliente: backend/services/license.js. Servidor propio en un VPS (fuera de este repo).

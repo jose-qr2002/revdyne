@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProfilePreview } from '../hooks/useProfilePreview';
+import Icon from './Icon';
+import { NAV_GROUPS } from './navItems';
 
 const SUBLINES = {
   loading: 'Buscando perfil…',
@@ -8,10 +10,13 @@ const SUBLINES = {
   unavailable: 'Vista previa no disponible',
 };
 
+// El servidor antepone un emoji a algunos mensajes de estado ("✅ Conectado a @x", "🔌 Desconectado"): se muestra sin él
+const plainMessage = (msg) => String(msg || '').replace(/^[\p{Extended_Pictographic}️\s]+/u, '');
+
 export default function Sidebar({
   status, config, onConnect, onUpdateConfig, isConnecting,
   activeProfileId, profilesList, onChangeProfile, onCreateProfile,
-  license, onOpenLicense
+  license, onOpenLicense, activeTab, onSelectTab
 }) {
   // Borrador local: escribir ya no guarda en disco en cada tecla
   const [draft, setDraft] = useState(config.username || '');
@@ -54,15 +59,16 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className={`status-card ${status.connected ? 'connected' : ''}`}>
-        <div className={`status-dot ${status.connected ? 'on' : ''}`}></div>
-        <div>
-          <div className="status-label">{status.connected ? 'Conectado al Directo' : 'Desconectado'}</div>
-          <div className="status-sub">{status.message || 'Esperando conexión...'}</div>
+      {/* Conexión: siempre visible arriba */}
+      <div className="conn">
+        <div className={`status-card ${status.connected ? 'connected' : ''}`}>
+          <div className={`status-dot ${status.connected ? 'on' : ''}`}></div>
+          <div className="status-text">
+            <div className="status-label">{status.connected ? 'Conectado al directo' : 'Desconectado'}</div>
+            <div className="status-sub" title={plainMessage(status.message)}>{plainMessage(status.message) || 'Esperando conexión…'}</div>
+          </div>
         </div>
-      </div>
 
-      <div className="connect-section">
         <div className="profile-card">
           <div className={`avatar ${preview.status}`}>
             {showImg
@@ -71,23 +77,25 @@ export default function Sidebar({
             {preview.status === 'loading' && <span className="avatar-spinner" />}
           </div>
           <div className="profile-info">
-            <div className="profile-name" title={displayName}>{displayName}{found && profile.verified ? ' ✔' : ''}</div>
+            <div className="profile-name" title={displayName}>
+              {displayName}{found && profile.verified ? <Icon name="check" size={12} className="verified" /> : null}
+            </div>
             <div className={`profile-handle ${preview.status === 'notfound' || preview.status === 'invalid' ? 'error' : ''}`}>
-              {subline || '\u00A0'}
+              {subline || ' '}
             </div>
           </div>
         </div>
 
-        <label>Usuario de TikTok</label>
         <div className="input-row">
           <span className="at">@</span>
           <input
             type="text"
+            aria-label="Usuario de TikTok"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commitUsername}
             onKeyDown={(e) => { if (e.key === 'Enter' && !locked) handleConnectClick(); }}
-            placeholder="ej: tu_canal"
+            placeholder="usuario de TikTok"
             disabled={locked}
           />
         </div>
@@ -97,34 +105,64 @@ export default function Sidebar({
           onClick={handleConnectClick}
           disabled={isConnecting && !status.connected}
         >
-          {isConnecting ? '⏳ Conectando...' : (status.connected ? 'Desconectar' : 'Conectar')}
+          {isConnecting && !status.connected && <Icon name="clock" size={15} />}
+          {isConnecting ? 'Conectando…' : (status.connected ? 'Desconectar' : 'Conectar')}
         </button>
       </div>
 
-      {profilesList && (
-        <div className="profile-box">
-          <div className="section-title">🕹️ Perfil activo</div>
-          <select className="modifier-select" value={activeProfileId || ''} onChange={(e) => onChangeProfile(e.target.value)}>
-            {Object.entries(profilesList).map(([id, prof]) => (
-              <option key={id} value={id}>{prof.isGlobal ? '🌐 ' : '🎮 '} {prof.name}</option>
+      {/* Navegación: crece con las secciones y hace scroll por su cuenta */}
+      <nav className="nav" aria-label="Secciones">
+        {NAV_GROUPS.map((group, gi) => (
+          <div className="nav-group" key={group.label || gi}>
+            {group.label && <div className="nav-label">{group.label}</div>}
+            {group.items.map(item => (
+              <button
+                key={item.id}
+                className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => onSelectTab(item.id)}
+                aria-current={activeTab === item.id ? 'page' : undefined}
+              >
+                <Icon name={item.icon} size={18} />
+                <span>{item.label}</span>
+              </button>
             ))}
-          </select>
-          <button className="btn btn-secondary" onClick={onCreateProfile}>➕ Nuevo juego</button>
-        </div>
-      )}
+          </div>
+        ))}
+      </nav>
 
-      <button className={`plan-badge ${license?.tier === 'pro' ? 'pro' : ''}`} onClick={onOpenLicense}>
-        {license?.tier === 'pro'
-          ? '⭐ Plan Pro'
-          : `🔓 Plan Gratis · ${license?.usage?.actions ?? 0}/${license?.limits?.maxActions ?? 5} acciones`}
-      </button>
+      {/* Pie fijo: perfil activo, plan y versión */}
+      <div className="side-foot">
+        {config.robotAvailable === false && (
+          <div className="robot-warn" title="RobotJS no se pudo cargar: las teclas solo se simulan y no llegan al juego.">
+            <Icon name="alert" size={14} /> Teclado en simulación
+          </div>
+        )}
 
-      <div className={`robot-status ${config.robotAvailable ? 'ok' : 'warn'}`}>
-        <span>{config.robotAvailable ? '✅' : '⚠️'}</span>
-        <span>{config.robotAvailable ? 'Motor de teclado activo' : 'Modo simulación'}</span>
+        {profilesList && (
+          <div className="profile-box">
+            <label className="section-title" htmlFor="active-profile">Perfil activo</label>
+            <div className="profile-row">
+              <select id="active-profile" className="modifier-select" value={activeProfileId || ''} onChange={(e) => onChangeProfile(e.target.value)}>
+                {Object.entries(profilesList).map(([id, prof]) => (
+                  <option key={id} value={id}>{prof.isGlobal ? 'Global · ' : ''}{prof.name}</option>
+                ))}
+              </select>
+              <button className="icon-btn" onClick={onCreateProfile} title="Nuevo juego" aria-label="Nuevo juego">
+                <Icon name="plus" size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <button className={`plan-badge ${license?.tier === 'pro' ? 'pro' : ''}`} onClick={onOpenLicense}>
+          <Icon name={license?.tier === 'pro' ? 'star' : 'lock'} size={14} />
+          {license?.tier === 'pro'
+            ? 'Plan Pro'
+            : `Plan Gratis · ${license?.usage?.actions ?? 0}/${license?.limits?.maxActions ?? 5} acciones`}
+        </button>
+
+        {config.appVersion && <div className="app-version">REVDYNE v{config.appVersion}</div>}
       </div>
-
-      {config.appVersion && <div className="app-version">REVDYNE v{config.appVersion}</div>}
     </aside>
   );
 }

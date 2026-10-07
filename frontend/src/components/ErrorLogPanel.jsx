@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../services/api';
+import Icon from './Icon';
 
 const REFRESH_MS = 10000;
 const LINES = 150;
@@ -60,14 +61,14 @@ export default function ErrorLogPanel() {
   return (
     <section className="elp">
       <button className="elp-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
-        <span>🛠️ Registro de errores y avisos</span>
+        <span className="elp-title"><Icon name="tool" size={16} /> Registro de errores y avisos</span>
         {data && (errors > 0 || warns > 0) && (
           <span className="elp-badges">
             {errors > 0 && <b className="elp-b error">{errors} {errors === 1 ? 'error' : 'errores'}</b>}
             {warns > 0 && <b className="elp-b warn">{warns} {warns === 1 ? 'aviso' : 'avisos'}</b>}
           </span>
         )}
-        <span className="elp-caret">{open ? '▲' : '▼'}</span>
+        <span className="elp-caret"><Icon name={open ? 'chevronUp' : 'chevronDown'} size={16} /></span>
       </button>
 
       {open && (
@@ -83,7 +84,7 @@ export default function ErrorLogPanel() {
             </label>
             <span className="elp-spacer" />
             <button className="btn btn-sm btn-secondary" onClick={load}>Actualizar</button>
-            <button className="btn btn-sm btn-secondary" onClick={copyLines} disabled={!lines.length}>{copied ? '✔ Copiado' : 'Copiar'}</button>
+            <button className="btn btn-sm btn-secondary" onClick={copyLines} disabled={!lines.length}>{copied ? <><Icon name="check" size={14} /> Copiado</> : 'Copiar'}</button>
             <button className="btn btn-sm btn-secondary" onClick={openFolder}>Abrir carpeta</button>
           </div>
 
@@ -92,7 +93,7 @@ export default function ErrorLogPanel() {
 
           <div className="elp-lines" role="log">
             {lines.length === 0
-              ? <div className="elp-empty">{onlyProblems ? 'Sin avisos ni errores. 👍' : 'El registro está vacío.'}</div>
+              ? <div className="elp-empty">{onlyProblems ? 'Sin avisos ni errores.' : 'El registro está vacío.'}</div>
               : [...lines].reverse().map((line, i) => <div key={i} className={`elp-line ${levelOf(line)}`}>{line}</div>)}
           </div>
           {data?.file && (

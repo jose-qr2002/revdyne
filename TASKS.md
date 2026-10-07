@@ -85,3 +85,8 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
 - [ ] Mejor regalo ya NO es acumulativo (gana el de más valor por unidad, p. ej. capibara ×30 no lo desplazan 100 rosas). Probado con el escenario del capibara y con 326 regalos reales.
       Confirmar en un directo con regalos caros que el líder cambia como se espera. Nuevos ajustes: valor a mostrar (cantidad/monedas/ambos) y fondos transparentes.
       Vuelve a subirse top.html al VPS (cambió).
+
+## Navegación en el sidebar
+- [ ] Revisar en la ventana real de Electron (1100x750 por defecto) que el sidebar no se corte y que la lista de secciones haga scroll si hay más.
+- [ ] Emojis que quedan dentro del contenido de las secciones (≈200): migrar a Icon.jsx por sección cuando se toque cada una.
+- [ ] "Limpiar log" ahora solo aparece en la sección Log en vivo (antes estaba siempre en la cabecera).

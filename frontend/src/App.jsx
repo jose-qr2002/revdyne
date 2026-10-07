@@ -12,6 +12,8 @@ import OverlaysTab from './components/OverlaysTab';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import LicenseModal from './components/LicenseModal';
+import Icon from './components/Icon';
+import { NAV_ITEMS } from './components/navItems';
 import './index.css';
 
 // audio.volume lanza un error si el valor sale de 0-1, así que se sanea siempre
@@ -230,11 +232,12 @@ function App() {
   if (!config || !config.catalog) {
     return (
       <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>
-        <h2>⏳ Conectando con el motor principal...</h2>
+        <h2><Icon name="clock" size={22} /> Conectando con el motor principal…</h2>
       </div>
     );
   }
 
+  const currentSection = NAV_ITEMS.find(i => i.id === activeTab) || NAV_ITEMS[0];
   const profilesData = config?.profiles || { list: {}, activeProfileId: null };
   const activeProfileId = profilesData.activeProfileId;
   const currentProfile = profilesData.list[activeProfileId] || { actions: {}, events: [] };
@@ -296,6 +299,7 @@ function App() {
         onChangeProfile={changeProfile}
         onCreateProfile={openNewProfileModal}
         license={license} onOpenLicense={() => setShowLicense(true)}
+        activeTab={activeTab} onSelectTab={setActiveTab}
       />
 
       <main className="main">
@@ -303,10 +307,10 @@ function App() {
           <div style={{ margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(255,0,80,0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <span>
-                {update.status === 'available' && <>🎉 Hay una versión nueva: <strong>v{update.version}</strong></>}
-                {update.status === 'downloading' && <>⬇️ Descargando <strong>v{update.version}</strong>… {update.percent ?? 0}%</>}
-                {update.status === 'ready' && <>✅ <strong>v{update.version}</strong> descargada. Al reiniciar se instalará.</>}
-                {update.status === 'error' && <>⚠️ {update.message}</>}
+                {update.status === 'available' && <><Icon name="star" size={15} /> Hay una versión nueva: <strong>v{update.version}</strong></>}
+                {update.status === 'downloading' && <><Icon name="download" size={15} /> Descargando <strong>v{update.version}</strong>… {update.percent ?? 0}%</>}
+                {update.status === 'ready' && <><Icon name="check" size={15} /> <strong>v{update.version}</strong> descargada. Al reiniciar se instalará.</>}
+                {update.status === 'error' && <><Icon name="alert" size={15} /> {update.message}</>}
               </span>
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -330,12 +334,12 @@ function App() {
                 <div style={{ width: `${update.percent ?? 0}%`, height: '100%', background: 'var(--accent)', transition: 'width .3s' }} />
               </div>
             )}
-            {update.status === 'installing' && <>⏳ Instalando <strong>v{update.version}</strong>… La app se cerrará y volverá a abrirse. Si Windows pide permiso, acéptalo.</>}
+            {update.status === 'installing' && <><Icon name="clock" size={15} /> Instalando <strong>v{update.version}</strong>… La app se cerrará y volverá a abrirse. Si Windows pide permiso, acéptalo.</>}
           </div>
         )}
         {limitNotice && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(255,0,80,0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px' }}>
-            <span>🔒 {limitNotice}</span>
+            <span><Icon name="lock" size={15} /> {limitNotice}</span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="btn btn-sm btn-secondary" onClick={() => setLimitNotice(null)}>Cerrar</button>
               <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }}
@@ -346,21 +350,13 @@ function App() {
           </div>
         )}
         <div className="main-header">
-          <h2>🎮 Panel de Control Avanzado</h2>
+          <h2>
+            <Icon name={currentSection.icon} size={20} />
+            {currentSection.label}
+          </h2>
           <div className="header-actions">
-            <button className="btn btn-sm" onClick={clearEvents}>Limpiar log</button>
+            {activeTab === 'log' && <button className="btn btn-sm" onClick={clearEvents}>Limpiar log</button>}
           </div>
-        </div>
-
-        <div className="tabs">
-          <button className={`tab ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>🔗 Eventos</button>
-          <button className={`tab ${activeTab === 'actions' ? 'active' : ''}`} onClick={() => setActiveTab('actions')}>⚙️ Acciones</button>
-          <button className={`tab ${activeTab === 'catalog' ? 'active' : ''}`} onClick={() => setActiveTab('catalog')}>🎁 Regalos TikTok</button>
-          <button className={`tab ${activeTab === 'log' ? 'active' : ''}`} onClick={() => setActiveTab('log')}>📋 Log en vivo</button>
-          <button className={`tab ${activeTab === 'tts' ? 'active' : ''}`} onClick={() => setActiveTab('tts')}>🔊 Bot TTS</button>
-          <button className={`tab ${activeTab === 'stickers' ? 'active' : ''}`} onClick={() => setActiveTab('stickers')}>🖼️ Stickers</button>
-          <button className={`tab ${activeTab === 'engines' ? 'active' : ''}`} onClick={() => setActiveTab('engines')}>🎙️ Motores de voz</button>
-          <button className={`tab ${activeTab === 'overlays' ? 'active' : ''}`} onClick={() => setActiveTab('overlays')}>🎯 Overlays</button>
         </div>
 
         <div className="tab-content">
@@ -410,7 +406,7 @@ function App() {
 
         {systemError && (
           <div style={{ position: 'fixed', bottom: '20px', right: '20px', background: '#ff4d4d', color: 'white', padding: '16px', borderRadius: '8px', zIndex: 9999 }}>
-            <h4 style={{ margin: '0 0 8px 0' }}>⚠️ Error: {systemError.type}</h4>
+            <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="alert" size={16} /> Error: {systemError.type}</h4>
             <div style={{ fontSize: '13px' }}>{systemError.message}</div>
           </div>
         )}
@@ -426,7 +422,7 @@ function App() {
             background: 'var(--bg2)', padding: '24px', borderRadius: '12px',
             width: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
           }}>
-            <h3 style={{ margin: '0 0 16px 0', color: 'white' }}>➕ Agregar Nuevo Juego</h3>
+            <h3 style={{ margin: '0 0 16px 0', color: 'white' }}>Agregar nuevo juego</h3>
 
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text2)' }}>
               Nombre del Juego / Perfil
