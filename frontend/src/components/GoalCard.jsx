@@ -44,6 +44,10 @@ const COPY = {
     modes: { total: 'Seguidores que ya tengo', live: 'Solo seguidores nuevos del directo' },
   },
   shares: { head: 'Meta de compartidas', unit: 'compartidas', modes: null },
+  coins: {
+    head: 'Meta de monedas', unit: 'monedas', modes: null,
+    note: 'Suma las monedas de los regalos que llegan desde que te conectas.',
+  },
   viewers: {
     head: 'Meta de espectadores', unit: 'espectadores', modes: null,
     note: 'Sigue a los espectadores actuales: si la gente sale del directo, la barra baja con ellos.',

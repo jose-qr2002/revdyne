@@ -53,3 +53,12 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
 - [ ] VPS: añadir viewers al regex de nginx: `location ~ ^/goal/(likes|followers|shares|viewers)$ { ... }` y volver a subir goal.html.
 - [x] Probado en un directo real (@watef4k): la barra sigue a roomUser.total (10-16 espectadores) subiendo y bajando.
 - [ ] Revisar en Live Studio el ícono de ojo y que con "Mantener meta" la acción se vuelva a disparar al volver a superar la meta.
+
+## Meta de monedas y contador de regalos
+- [ ] VPS: añadir coins al regex de nginx: `location ~ ^/goal/(likes|followers|shares|viewers|coins)$ { ... }` y volver a subir goal.html.
+- [ ] Contador de regalos (giftStreaks.js): reemplaza el seguimiento por usuario+regalo. Con datos reales (37 eventos) coincide
+      con la verdad por groupId, pero los casos que fallaban antes (cierre perdido, cierre tardío, mismo nombre) solo se
+      reprodujeron con escenarios simulados. Revisar en un directo con ráfagas grandes (p. ej. 100 rosas) que no se pierda ni
+      se sume de más ninguna, y que las reglas de regalo → acción disparen el número correcto de veces.
+- [ ] Los regalos sin combo (Confetti, etc.) se cuentan como 1 por evento: confirmar con envíos de varias unidades a la vez.
+- [ ] Meta de monedas: comprobar que las monedas coinciden con lo que muestra TikTok para los regalos recibidos.

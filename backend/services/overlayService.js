@@ -23,6 +23,7 @@ const KINDS = {
   followers: { label: 'seguidores' },
   shares: { label: 'compartidas' },
   viewers: { label: 'espectadores' },
+  coins: { label: 'monedas' },
 };
 const kindOf = (kind) => (Object.prototype.hasOwnProperty.call(KINDS, kind) ? kind : null);
 
@@ -41,7 +42,7 @@ const newState = () => ({
   fetching: false,
   goal: 0, reached: false, hidden: false, emitTimer: null,
 });
-const states = { likes: newState(), followers: newState(), shares: newState(), viewers: newState() };
+const states = { likes: newState(), followers: newState(), shares: newState(), viewers: newState(), coins: newState() };
 
 // Usuarios que ya compartieron en este directo (siempre se llena, para poder activar "una por usuario" sobre la marcha).
 const sharedUsers = new Set();
@@ -312,9 +313,8 @@ function addShare(data = {}) {
   }
   state.lastTotal += 1;
   state.live = Math.max(0, state.lastTotal - state.offset);
-  const firstSync = !state.synced;
   state.synced = true;
-  recompute('shares', { silent: firstSync });
+  recompute('shares'); // se cuenta desde 0: no hay nada que sincronizar en silencio
 }
 
 // Espectadores ACTUALES (no acumulados): sube y baja con la gente que hay en el directo. Viene en el evento
@@ -327,6 +327,18 @@ function setViewers(rawTotal) {
   const firstSync = !state.synced;
   state.synced = true;
   recompute('viewers', { silent: firstSync });
+}
+
+// Monedas recibidas en regalos desde que se conecta (suma de monedas por unidad × unidades nuevas).
+// No hay un total de monedas fiable del directo, así que se acumula lo que llega por eventos de regalo.
+function addCoins(amount) {
+  const n = Math.floor(Number(amount));
+  if (!Number.isFinite(n) || n <= 0) return;
+  const state = states.coins;
+  state.lastTotal += n;
+  state.live = Math.max(0, state.lastTotal - state.offset);
+  state.synced = true;
+  recompute('coins'); // se cuenta desde 0: el primer regalo ya puede cruzar la meta y debe disparar
 }
 
 // Valor inicial de espectadores desde la conexión (roomInfo.user_count), sin red. Se llama al conectar.
@@ -416,7 +428,7 @@ function init(ioInstance) {
 module.exports = {
   init, kinds: Object.keys(KINDS), kindOf,
   getConfig, updateConfig, snapshot, clientCount, isActive,
-  addManual, addLiveLikes, addFollower, addShare, setViewers, seedViewers, setFollowerTotal, seedFollowers, requestFollowerBaseline,
+  addManual, addLiveLikes, addFollower, addShare, addCoins, setViewers, seedViewers, setFollowerTotal, seedFollowers, requestFollowerBaseline,
   reset, resetAll,
   setHooks: (h) => Object.assign(hooks, h),
   fonts: OVERLAY_FONTS,

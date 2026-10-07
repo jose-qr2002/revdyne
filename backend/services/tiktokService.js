@@ -9,6 +9,7 @@ const { findSecUidDeep } = require('./secUidUtils');
 const secUidResolver = require('./secUidResolver'); // agregar arriba
 const chatFilter = require('./chatFilter');
 const overlayService = require('./overlayService');
+const { createGiftStreakCounter } = require('./giftStreaks');
 
 // ==========================================
 // 1. ESTADO GLOBAL DEL SERVICIO
@@ -18,7 +19,7 @@ let isConnected = false;
 let ioInstance = null;
 let settingsRef = null; // antes "configRef" — ahora solo trae username/keyDelayMs/tts
 
-const streakTracker = {};
+const giftStreaks = createGiftStreakCounter(); // unidades nuevas por evento de regalo (ráfagas por groupId)
 const followedUsers = new Set();
 const stickerCooldowns = new Map();
 const onceSeen = new Set();          // "reglaId_usuario" ya ejecutados (modo "una vez")
@@ -165,22 +166,13 @@ function handleGift(data) {
 
   catalogService.ensureGiftRegistered(giftId, { name: giftName, coins, icon: giftIcon });
 
-  let newCount = 1;
-  const giftType = giftObj.type || data.giftType || 0;
+  // Unidades nuevas de este evento. El usuario se identifica por su id estable (el displayId puede faltar o repetirse).
+  const userKey = String(data.user?.id || data.user?.userId || data.user?.secUid || sender);
+  const newCount = giftStreaks.unitsFor(data, userKey);
+  if (newCount <= 0) return;
 
-  if (giftType === 1) {
-    const streakKey = `${sender}_${giftId}`;
-    const isEnd = data.repeatEnd === 1 || data.repeatEnd === true;
-    const currentRepeat = data.repeatCount || 1;
-    const prev = streakTracker[streakKey] || 0;
-
-    newCount = currentRepeat - prev;
-
-    if (!isEnd) streakTracker[streakKey] = currentRepeat;
-    else delete streakTracker[streakKey];
-
-    if (newCount <= 0) return;
-  }
+  // La meta de monedas cuenta todos los regalos, también los que no llegan al mínimo de monedas de las reglas.
+  overlayService.addCoins(newCount * coins);
 
   if (coins < (settingsRef?.minCoins || 0)) return;
 
@@ -468,6 +460,7 @@ function connect(username) {
   onceSeen.clear();
   eventCooldowns.clear();
   overlayService.resetAll();
+  giftStreaks.reset();
   
   if (!username) {
     ioInstance.emit('status', { connected: false, message: 'Sin usuario configurado' });

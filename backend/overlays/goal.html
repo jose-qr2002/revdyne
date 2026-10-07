@@ -36,9 +36,9 @@
   #icon { flex: 0 0 auto; height: 86%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
   #icon.off { display: none; }
   #icon svg { height: 100%; width: 100%; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
-  #ico-followers, #ico-shares, #ico-viewers { display: none; }
+  #ico-followers, #ico-shares, #ico-viewers, #ico-coins { display: none; }
   [data-kind]:not([data-kind="likes"]) #ico-likes { display: none; }
-  [data-kind="followers"] #ico-followers, [data-kind="shares"] #ico-shares, [data-kind="viewers"] #ico-viewers { display: block; }
+  [data-kind="followers"] #ico-followers, [data-kind="shares"] #ico-shares, [data-kind="viewers"] #ico-viewers, [data-kind="coins"] #ico-coins { display: block; }
 
   /* Barra */
   #bar {
@@ -114,6 +114,11 @@
       <circle cx="32" cy="32" r="11" fill="#fff"/>
       <circle cx="32" cy="32" r="5.5" fill="#ff4d6a"/>
     </svg>
+    <svg id="ico-coins" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="26" fill="#ffc400"/>
+      <circle cx="32" cy="32" r="19" fill="none" stroke="#ff9d00" stroke-width="4"/>
+      <path d="M32 19v26M38 25c0-3-3-5-6-5s-6 2-6 5 3 4 6 5 6 2 6 5-3 5-6 5-6-2-6-5" fill="none" stroke="#ff9d00" stroke-width="4" stroke-linecap="round"/>
+    </svg>
   </div>
   <div id="bar">
     <div id="track"><div id="fill"></div></div>
@@ -130,7 +135,7 @@
   var label = document.getElementById('label');
   var icon = document.getElementById('icon');
   var isPreview = /[?&]preview=1/.test(location.search);
-  var kind = /\/followers\/?$/.test(location.pathname) ? 'followers' : /\/shares\/?$/.test(location.pathname) ? 'shares' : /\/viewers\/?$/.test(location.pathname) ? 'viewers' : 'likes';
+  var kind = /\/followers\/?$/.test(location.pathname) ? 'followers' : /\/shares\/?$/.test(location.pathname) ? 'shares' : /\/viewers\/?$/.test(location.pathname) ? 'viewers' : /\/coins\/?$/.test(location.pathname) ? 'coins' : 'likes';
   root.setAttribute('data-kind', kind);
   var last = null;
 
