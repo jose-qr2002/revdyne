@@ -47,4 +47,5 @@ module.exports = {
   CATALOG_FILE: path.join(ROOT_DIR, 'catalog.json'),
   PROFILES_FILE: path.join(ROOT_DIR, 'profiles.json'),
   STICKERS_FILE: path.join(ROOT_DIR, 'stickers.json'),
+  OVERLAYS_FILE: path.join(ROOT_DIR, 'overlays.json'),
 };

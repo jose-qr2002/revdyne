@@ -12,7 +12,7 @@ Idioma de la interfaz y de los mensajes al usuario: español.
 - `proteger.js`: ofuscación al empaquetar (afterPack). electron-builder con asar: false.
 
 ## Datos (en AppData\Roaming\Revdyne, no en el repo)
-config.json, profiles.json, catalog.json, stickers.json, license.json. Todo se lee/escribe
+config.json, profiles.json, catalog.json, stickers.json, overlays.json, license.json. Todo se lee/escribe
 con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
 
 ## Modelo
@@ -21,6 +21,12 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
 - Acciones: keyboard y sound (actionDispatcher.js). Las teclas pasan por actionQueue.js.
 - La UI guarda perfiles con `onUpdateProfiles` (App.jsx -> POST /api/profiles).
   Ninguna pestaña escribe perfiles por su cuenta: eso causó pérdida de datos.
+
+## Overlays (fuentes de navegador para OBS)
+- Página autónoma en `backend/overlays/*.html` (sin React), servida por server.js en `/overlays/...`
+  y alimentada por Socket.IO. La vista previa del panel es un iframe de esa misma página (`?preview=1`).
+- Lógica y estado en `backend/services/overlayService.js`; config en overlays.json (se guarda desde
+  `OverlaysTab` vía `/api/overlays`, no por profiles). Likes: tiktokService.handleLike -> `addLikes`.
 
 ## Licencias
 Plan free (límites en backend/services/entitlements.js) y pro con código.

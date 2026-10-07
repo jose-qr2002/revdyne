@@ -28,12 +28,21 @@ const profilesRoutes = require('./backend/routes/profiles')
 const ttsEnginesRoutes = require('./backend/routes/ttsEngines');
 const actionsRoutes = require('./backend/routes/actions');
 const licenseRoutes = require('./backend/routes/license');
+const overlaysRoutes = require('./backend/routes/overlays');
+const overlayService = require('./backend/services/overlayService');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+// El overlay alojado en un dominio https (TikTok LIVE Studio) se conecta a esta app en 127.0.0.1.
+// Chromium exige este encabezado en esa "petición a red privada" (también en el preflight).
+server.prependListener('request', (req, res) => {
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
+});
+
 actionQueue.setSocketIo(io);
+overlayService.init(io);
 const settings = store.loadSettings();
 
 app.use(express.json({ limit: '10mb' }));
@@ -49,9 +58,14 @@ app.use('/api/alerts', alertsRoutes());
 app.use('/api/tts', ttsRoutes(settings));
 app.use('/api/actions', actionsRoutes());
 app.use('/api/license', licenseRoutes());
+app.use('/api/overlays', overlaysRoutes());
 app.use('/api', apiRoutes(settings, io, tiktokService));
 
 app.use('/sounds', express.static(paths.SOUNDS_DIR));
+// Página que OBS carga como Browser Source (HTML autónomo, sin React)
+app.get('/overlays/goal/likes', (req, res) => {
+  res.sendFile(path.join(__dirname, 'backend/overlays/goalLikes.html'));
+});
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
 app.get('*', (req, res) => {

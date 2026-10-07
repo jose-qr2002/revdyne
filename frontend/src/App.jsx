@@ -8,6 +8,7 @@ import CatalogTab from './components/CatalogTab';
 import ActionsTab from './components/ActionsTab';
 import EventsTab from './components/EventsTab';
 import StickersTab from './components/StickersTab';
+import OverlaysTab from './components/OverlaysTab';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import LicenseModal from './components/LicenseModal';
@@ -359,6 +360,7 @@ function App() {
           <button className={`tab ${activeTab === 'tts' ? 'active' : ''}`} onClick={() => setActiveTab('tts')}>🔊 Bot TTS</button>
           <button className={`tab ${activeTab === 'stickers' ? 'active' : ''}`} onClick={() => setActiveTab('stickers')}>🖼️ Stickers</button>
           <button className={`tab ${activeTab === 'engines' ? 'active' : ''}`} onClick={() => setActiveTab('engines')}>🎙️ Motores de voz</button>
+          <button className={`tab ${activeTab === 'overlays' ? 'active' : ''}`} onClick={() => setActiveTab('overlays')}>🎯 Overlays</button>
         </div>
 
         <div className="tab-content">
@@ -402,6 +404,8 @@ function App() {
           )}
 
           {activeTab === 'engines' && <EngineManagerTab />}
+
+          {activeTab === 'overlays' && <OverlaysTab socket={socket} profiles={profilesData} />}
         </div>
 
         {systemError && (

@@ -8,6 +8,7 @@ const store = require('../data/store');
 const { findSecUidDeep } = require('./secUidUtils');
 const secUidResolver = require('./secUidResolver'); // agregar arriba
 const chatFilter = require('./chatFilter');
+const overlayService = require('./overlayService');
 
 // ==========================================
 // 1. ESTADO GLOBAL DEL SERVICIO
@@ -216,6 +217,8 @@ function handleFollow(data) {
 }
 
 function handleLike(data) {
+  overlayService.addLiveLikes(data);
+
   const count = data.count || 1;
   const username = getUsername(data) === 'alguien' ? 'Comunidad' : getUsername(data);
 
@@ -446,6 +449,7 @@ function connect(username) {
   stickerUserLast.clear();
   onceSeen.clear();
   eventCooldowns.clear();
+  overlayService.reset();
   
   if (!username) {
     ioInstance.emit('status', { connected: false, message: 'Sin usuario configurado' });

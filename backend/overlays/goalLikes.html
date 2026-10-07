@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Revdyne · Meta de likes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --font: Arial;
+    --font-size: 50px;
+    --gap: .5em;
+    --title-color: #fff;
+    --progress-color: #fff;
+    --outline: #000;
+    --bar: #ee1d52;
+    --track: #010101;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+  /* Lienzo de 120 px de alto cuyo ancho sigue al del recuadro (OBS, Live Studio...): ensanchar el
+     recuadro alarga la barra sin hacerla más alta; el alto del recuadro fija el tamaño. El script
+     calcula el ancho (--w) y la escala (--s). A 900x120 el lienzo es 900x120 con escala 1. */
+  #root {
+    position: absolute; left: 50%; top: 50%;
+    width: 900px; height: 120px;
+    transform: translate(-50%, -50%) scale(var(--s, 1));
+    display: flex; align-items: center; gap: 16px;
+    padding: 6px 10px; /* el script ajusta el relleno lateral según el largo de la barra */
+    opacity: 0; transition: opacity .5s;
+  }
+  #root.ready { opacity: 1; }
+  #root.hidden { opacity: 0; }
+
+  /* Icono */
+  #icon { flex: 0 0 auto; height: 86%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+  #icon.off { display: none; }
+  #icon svg { height: 100%; width: 100%; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+
+  /* Barra */
+  #bar {
+    position: relative; flex: 1 1 auto; height: calc(92% * var(--bh, 1));
+    background: var(--track); border-radius: 22px; overflow: hidden;
+  }
+  #fill {
+    position: absolute; inset: 0 auto 0 0; width: 0%;
+    background: var(--bar);
+    transition: width .6s cubic-bezier(.22,.8,.3,1);
+  }
+  #frame { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
+
+  #label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center; gap: var(--gap);
+    font-family: var(--font), sans-serif; font-size: var(--font-size); font-weight: 700;
+    color: var(--title-color); white-space: nowrap; line-height: 1;
+    transform-origin: center; /* el script lo reduce si no cabe */
+  }
+  #label .progress { color: var(--progress-color); }
+  #label.outlined {
+    text-shadow:
+      -2px -2px 0 var(--outline), 2px -2px 0 var(--outline), -2px 2px 0 var(--outline), 2px 2px 0 var(--outline),
+      0 -2px 0 var(--outline), 0 2px 0 var(--outline), -2px 0 0 var(--outline), 2px 0 0 var(--outline);
+  }
+
+  /* 2: píldora delgada */
+  [data-style="2"] #bar { border-radius: 999px; height: calc(70% * var(--bh, 1)); }
+
+  /* 3: título sobre una barra fina */
+  [data-style="3"] #bar { overflow: visible; background: transparent; height: calc(100% * var(--bh, 1)); }
+  [data-style="3"] #track { position: absolute; left: 0; right: 0; bottom: 8%; height: 26%; border-radius: 999px; background: var(--track); overflow: hidden; }
+  [data-style="3"] #label { inset: 0 0 38% 0; }
+
+  /* 4: barra segmentada */
+  [data-style="4"] #bar { border-radius: 10px; }
+  [data-style="4"] #bar::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(5% - 3px), rgba(0,0,0,.65) calc(5% - 3px) 5%);
+  }
+
+  /* 5: contorno minimalista */
+  [data-style="5"] #bar { background: transparent; border: 4px solid var(--bar); border-radius: 18px; }
+  [data-style="5"] #fill { opacity: .85; box-shadow: 0 0 24px var(--bar); }
+
+  #track { display: contents; }
+  [data-style="3"] #track { display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #fill, #root { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root" data-style="1">
+  <div id="icon">
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M32 57S6 40.5 6 22.5C6 14.5 12.3 9 19.5 9c5 0 9.2 2.7 12.5 7.3C35.3 11.7 39.5 9 44.5 9 51.7 9 58 14.5 58 22.5 58 40.5 32 57 32 57z" fill="#ff4d6a"/>
+      <path d="M15 21c0-4 3-7 7-7" stroke="#fff" stroke-opacity=".85" stroke-width="4" stroke-linecap="round" fill="none"/>
+    </svg>
+  </div>
+  <div id="bar">
+    <div id="track"><div id="fill"></div></div>
+    <div id="frame"></div>
+    <div id="label"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('root');
+  var fill = document.getElementById('fill');
+  var frame = document.getElementById('frame');
+  var label = document.getElementById('label');
+  var icon = document.getElementById('icon');
+  var isPreview = /[?&]preview=1/.test(location.search);
+  var last = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+
+  function render(st) {
+    last = st;
+    var s = st.style;
+    var pct = st.goal > 0 ? Math.min(100, (st.current / st.goal) * 100) : 0;
+
+    var r = root.style;
+    r.setProperty('--font', '"' + s.font + '"');
+    r.setProperty('--font-size', s.fontSize + 'px');
+    r.setProperty('--gap', (s.fontSpacing / 100) + 'em');
+    r.setProperty('--title-color', s.titleColor);
+    r.setProperty('--progress-color', s.progressColor);
+    r.setProperty('--outline', s.borderColor);
+    r.setProperty('--bar', s.barColor);
+    r.setProperty('--track', s.bgColor);
+    r.setProperty('--bh', (s.barHeight || 100) / 100);
+    barWidth = (s.barWidth || 100) / 100;
+    applyScale();
+
+    root.setAttribute('data-style', st.styleId);
+    root.classList.toggle('hidden', !!st.hidden);
+    icon.classList.toggle('off', !s.showIcon);
+    label.classList.toggle('outlined', !!s.fontBorder);
+    frame.style.backgroundImage = s.barImage ? 'url("' + s.barImage + '")' : 'none';
+    fill.style.width = pct + '%';
+
+    var parts = [];
+    if (s.showTitle && st.title) parts.push('<span>' + esc(st.title) + '</span>');
+    var tail = [];
+    if (s.showPercent) tail.push(Math.floor(pct) + '% ' + esc(s.finalText)); // 99.9% no debe verse como 100%
+    if (parts.length && tail.length) parts.push('<span>-</span>');
+    if (tail.length) parts.push('<span>' + tail.join('').trim() + '</span>');
+    if (s.showProgress) parts.push('<span class="progress">' + st.current.toLocaleString('es') + '/' + st.goal.toLocaleString('es') + '</span>');
+    label.innerHTML = parts.join('');
+
+    fit();
+    root.classList.add('ready');
+  }
+
+  var scale = 1;
+  var barWidth = 1; // largo de la barra respecto al lienzo (0.3 a 1)
+  var MIN_CANVAS_W = 400; // en recuadros muy estrechos/altos el lienzo no baja de este ancho
+  function applyScale() {
+    var w = window.innerWidth, h = window.innerHeight;
+    if (!(w > 0 && h > 0)) { w = 900; h = 120; } // Live Studio a veces carga con 0x0
+    scale = Math.min(h / 120, w / MIN_CANVAS_W);
+    var canvasW = w / scale;
+    root.style.width = canvasW + 'px';
+    root.style.setProperty('--s', scale);
+    // Barra más corta: el sobrante se reparte a los lados para que quede centrada
+    var pad = 10 + canvasW * (1 - barWidth) / 2;
+    root.style.paddingLeft = root.style.paddingRight = pad + 'px';
+  }
+
+  // Si el texto no cabe en la barra, se encoge en vez de cortarse.
+  function fit() {
+    label.style.transform = '';
+    var kids = label.children;
+    if (!kids.length) return;
+    var avail = label.parentElement.clientWidth - 24;
+    // Las medidas del navegador ya incluyen la escala del lienzo: se deshace para comparar con avail
+    var need = (kids[kids.length - 1].getBoundingClientRect().right - kids[0].getBoundingClientRect().left) / scale;
+    if (need > avail && need > 0) label.style.transform = 'scale(' + (avail / need) + ')';
+  }
+  window.addEventListener('resize', function () { applyScale(); fit(); });
+  applyScale();
+
+  // Este mismo archivo sirve en dos modos:
+  //  - local: lo sirve la app (http://127.0.0.1:PUERTO/overlays/...) y usa su propio Socket.IO.
+  //  - remoto: está alojado en un dominio https (TikTok LIVE Studio no acepta localhost) y se conecta
+  //    por Socket.IO a la app en 127.0.0.1:PUERTO. Los datos no pasan por el servidor que aloja el HTML.
+  var port = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
+  if (!(port > 0 && port < 65536)) port = 3000;
+  var appOrigin = 'http://127.0.0.1:' + port;
+  // Servida por la propia app (http en localhost/127.0.0.1): usa su Socket.IO sin importar el puerto.
+  var isLocal = location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+
+  function start() {
+    var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
+    socket.on('connect', function () { socket.emit('overlay:join', { name: 'likes', preview: isPreview }); });
+    socket.on('overlay:likes:state', render);
+  }
+
+  var tag = document.createElement('script');
+  tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
+  tag.onload = start;
+  document.head.appendChild(tag);
+})();
+</script>
+</body>
+</html>

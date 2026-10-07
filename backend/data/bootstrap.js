@@ -1,7 +1,7 @@
 // backend/data/bootstrap.js
 const fs = require('fs');
 const paths = require('../paths');
-const { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS } = require('./defaults');
+const { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS } = require('./defaults');
 
 function writeJSON(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
@@ -19,6 +19,7 @@ function ensureFirstRun() {
   createIfMissing(paths.CATALOG_FILE, EMPTY_CATALOG, 'catalog.json');
   createIfMissing(paths.STICKERS_FILE, EMPTY_STICKERS, 'stickers.json');
   createIfMissing(paths.PROFILES_FILE, EMPTY_PROFILES, 'profiles.json');
+  createIfMissing(paths.OVERLAYS_FILE, DEFAULT_OVERLAYS, 'overlays.json');
 }
 
 module.exports = { ensureFirstRun };

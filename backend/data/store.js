@@ -1,7 +1,7 @@
 // backend/data/store.js
 const fs = require('fs');
 const paths = require('../paths');
-const { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS } = require('./defaults');
+const { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS } = require('./defaults');
 
 function readJSON(filePath, defaultData) {
   try {
@@ -47,6 +47,14 @@ function saveStickers(stickers) {
   writeJSON(paths.STICKERS_FILE, stickers);
 }
 
+// --- Overlays (overlays.json) ---
+function loadOverlays() {
+  return readJSON(paths.OVERLAYS_FILE, DEFAULT_OVERLAYS);
+}
+function saveOverlays(overlays) {
+  writeJSON(paths.OVERLAYS_FILE, overlays);
+}
+
 // --- Perfiles (profiles.json) ---
 // Ya NO migra aquí. bootstrap.js garantiza que el archivo existe
 // antes de que loadProfiles() se llame por primera vez.
@@ -71,5 +79,6 @@ module.exports = {
   loadCatalog, saveCatalog,
   loadStickers, saveStickers,
   loadProfiles, saveProfiles,
+  loadOverlays, saveOverlays,
   loadGames,
 };
