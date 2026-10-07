@@ -23,8 +23,8 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
   Ninguna pestaña escribe perfiles por su cuenta: eso causó pérdida de datos.
 
 ## Overlays (fuentes de navegador para OBS / TikTok LIVE Studio)
-- Metas de likes y seguidores. Página autónoma `backend/overlays/goal.html` (sin React), servida por server.js en
-  `/overlays/goal/likes|followers` y alimentada por Socket.IO. La vista previa del panel es un iframe de esa misma
+- Metas de likes, seguidores y compartidas. Página autónoma `backend/overlays/goal.html` (sin React), servida por server.js en
+  `/overlays/goal/likes|followers|shares` y alimentada por Socket.IO. La vista previa del panel es un iframe de esa misma
   página (`?preview=1`). Live Studio exige https + dominio real: el mismo HTML se aloja en overlays.reveljk.com y
   se conecta a la app local (127.0.0.1) por Socket.IO.
 - Lógica y estado en `backend/services/overlayService.js` (una meta por tipo); config en overlays.json (se guarda
@@ -32,7 +32,9 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
   con lo que ya hay) o 'live' (solo lo nuevo del directo). Ambas siguen el TOTAL que informa TikTok, no la suma de eventos:
   likes = campo `total` del evento like; seguidores = `roomInfo.data.owner.follow_info.follower_count` al conectar (sin
   petición extra) + `followCount` de cada evento follow (verificado exacto en un directo real). Los seguidores pueden bajar
-  (unfollow); los likes solo suben.
+  (unfollow); los likes solo suben. Compartidas: no hay total fiable, se cuentan eventos `share` desde que se conecta;
+  `allowMultiple` false = solo la primera compartida de cada usuario (Set `sharedUsers`), true = todas. El usuario del evento
+  share llega como `{ id, secUid, displayId, nickname }` SIN `userId`/`uniqueId` (otros eventos sí): ver `shareUserKey`.
 - Las metas solo trabajan con un overlay real enlazado (sala de Socket.IO `overlay:<tipo>`; la vista previa del panel no
   cuenta): sin enlace no disparan acciones, no emiten y no consultan el perfil; al enlazar se sincronizan en silencio.
 - tiktok-live-proto v3 (el que usa la librería): like trae `count`/`total`; los nombres `likeCount`/`totalLikeCount` son de v1.

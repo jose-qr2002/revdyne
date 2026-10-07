@@ -43,6 +43,7 @@ const COPY = {
     head: 'Meta de seguidores', unit: 'seguidores',
     modes: { total: 'Seguidores que ya tengo', live: 'Solo seguidores nuevos del directo' },
   },
+  shares: { head: 'Meta de compartidas', unit: 'compartidas', modes: null },
 };
 
 const TARGET_KEY = 'overlayTarget';
@@ -209,12 +210,22 @@ export default function GoalCard({ kind, socket, profiles }) {
         <label>Título
           <input className="key-input" type="text" maxLength={60} value={likes.title} onChange={e => save({ title: e.target.value })} />
         </label>
-        <label>Empezar desde
-          <select className="modifier-select" value={likes.countMode} onChange={e => save({ countMode: e.target.value })}>
-            <option value="total">{copy.modes.total}</option>
-            <option value="live">{copy.modes.live}</option>
-          </select>
-        </label>
+        {copy.modes && (
+          <label>Empezar desde
+            <select className="modifier-select" value={likes.countMode} onChange={e => save({ countMode: e.target.value })}>
+              <option value="total">{copy.modes.total}</option>
+              <option value="live">{copy.modes.live}</option>
+            </select>
+          </label>
+        )}
+        {kind === 'shares' && (
+          <label>Compartidas por usuario
+            <select className="modifier-select" value={likes.allowMultiple ? 'many' : 'one'} onChange={e => save({ allowMultiple: e.target.value === 'many' })}>
+              <option value="one">Solo una por usuario</option>
+              <option value="many">Todas (cada vez que comparte)</option>
+            </select>
+          </label>
+        )}
         <label>Al alcanzar la meta
           <select className="modifier-select" value={likes.onReach} onChange={e => save({ onReach: e.target.value })}>
             {ON_REACH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

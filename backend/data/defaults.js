@@ -85,6 +85,7 @@ const goalDefaults = ({ goal, title, finalText }) => {
     title,
     onReach: 'increase',    // keep | increase | double | hide
     countMode: 'total',     // total: empieza con lo que ya hay | live: solo lo nuevo del directo
+    allowMultiple: false,   // solo compartidas: false = una por usuario | true = todas las que haga
     actionId: '',           // acción al alcanzar la meta ('' = ninguna)
     activeStyle: 1,
     styles: {
@@ -101,6 +102,7 @@ const DEFAULT_OVERLAYS = {
   schemaVersion: 1,
   likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
   followers: goalDefaults({ goal: 100, title: 'Follower Goal', finalText: 'Seguidores' }),
+  shares: goalDefaults({ goal: 50, title: 'Share Goal', finalText: 'Compartidas' }),
 };
 
 module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, OVERLAY_PUBLIC_BASE_URL };

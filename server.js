@@ -63,7 +63,7 @@ app.use('/api', apiRoutes(settings, io, tiktokService));
 
 app.use('/sounds', express.static(paths.SOUNDS_DIR));
 // Página que OBS carga como Browser Source (HTML autónomo, sin React)
-app.get('/overlays/goal/:kind(likes|followers)', (req, res) => {
+app.get('/overlays/goal/:kind(likes|followers|shares)', (req, res) => {
   res.sendFile(path.join(__dirname, 'backend/overlays/goal.html'));
 });
 app.use(express.static(path.join(__dirname, 'frontend/dist')));

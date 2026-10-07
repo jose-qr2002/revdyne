@@ -4,6 +4,7 @@ import GoalCard from './GoalCard';
 const GOALS = [
   { kind: 'likes', label: 'Meta de likes' },
   { kind: 'followers', label: 'Meta de seguidores' },
+  { kind: 'shares', label: 'Meta de compartidas' },
 ];
 
 export default function OverlaysTab({ socket, profiles }) {

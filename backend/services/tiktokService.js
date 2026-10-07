@@ -191,6 +191,7 @@ function handleGift(data) {
 
 function handleShare(data) {
   const username = getUsername(data);
+  overlayService.addShare(data);
   console.log(`📢 ${username} ha compartido el directo`);
 
   let executed = false;

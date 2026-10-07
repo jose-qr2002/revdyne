@@ -38,8 +38,13 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
 
 ## Seguidores exactos y enlace
 - [x] Probado en un directo real (@teamgatitos_oficial): roomInfo.follower_count y followCount coinciden y son exactos.
-- [ ] Likes con un directo que sí tenga likes entrando: en la prueba no llegó ningún evento like, así que el total de
-      likes sigue sin verificarse con datos reales.
+- [x] Likes verificados en un directo real (@watef4k): la barra coincide con el total de TikTok (la suma de lotes quedaba un 22% corta).
 - [ ] Modo "Solo nuevos del directo" en ambas metas: debe arrancar en 0 y contar desde que se conecta.
 - [ ] Sin ningún enlace en uso (ni OBS ni Live Studio): no debe dispararse ninguna acción. Al enlazar con el directo ya
       iniciado, la barra se sincroniza sin disparar metas superadas.
+
+## Meta de compartidas
+- [ ] VPS: añadir shares al regex de nginx: `location ~ ^/goal/(likes|followers|shares)$ { ... }` y volver a subir goal.html.
+- [x] Compartidas probadas en un directo real (@watef4k): con "Solo una por usuario" 4 eventos del mismo usuario cuentan 1.
+- [ ] Comprobar con "Todas" en un directo real que cada compartida del mismo usuario suma (solo probado con eventos reales simulados).
+- [ ] Si el evento `share` no trae identificador de usuario, no se puede deduplicar y cuenta siempre.

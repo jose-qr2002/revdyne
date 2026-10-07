@@ -21,6 +21,7 @@ const MAX_REACH_LOOPS = 50;       // tope de seguridad si la meta es mínima y l
 const KINDS = {
   likes: { label: 'likes' },
   followers: { label: 'seguidores' },
+  shares: { label: 'compartidas' },
 };
 const kindOf = (kind) => (Object.prototype.hasOwnProperty.call(KINDS, kind) ? kind : null);
 
@@ -39,7 +40,11 @@ const newState = () => ({
   fetching: false,
   goal: 0, reached: false, hidden: false, emitTimer: null,
 });
-const states = { likes: newState(), followers: newState() };
+const states = { likes: newState(), followers: newState(), shares: newState() };
+
+// Usuarios que ya compartieron en este directo (siempre se llena, para poder activar "una por usuario" sobre la marcha).
+const sharedUsers = new Set();
+const MAX_SHARED_USERS = 50000;
 
 // ---------- Sanitizado ----------
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
@@ -85,6 +90,7 @@ function sanitizeGoal(kind, input, current) {
     title: String(merged.title ?? '').slice(0, 60),
     onReach: ON_REACH.includes(merged.onReach) ? merged.onReach : 'increase',
     countMode: COUNT_MODES.includes(merged.countMode) ? merged.countMode : 'total',
+    allowMultiple: kind === 'shares' && !!merged.allowMultiple,
     actionId: typeof merged.actionId === 'string' ? merged.actionId.slice(0, 80) : '',
     activeStyle: STYLE_IDS.includes(Number(merged.activeStyle)) ? Number(merged.activeStyle) : 1,
     styles,
@@ -277,6 +283,35 @@ function setFollowerTotal(total) {
   applyTotal('followers', total, 0);
 }
 
+// Identificador estable del usuario en un evento 'share'. Comprobado en directos reales: el usuario llega como
+// { id, secUid, displayId (@usuario), nickname } y NO trae userId ni uniqueId (otros eventos sí), así que se
+// prueban todos los campos conocidos de más a menos estable.
+function shareUserKey(data) {
+  const u = data.user || {};
+  const key = u.id || u.userId || u.secUid || u.displayId || u.uniqueId || data.uniqueId;
+  return key ? String(key) : '';
+}
+
+// Evento 'share' (alguien compartió el directo). No hay un total fiable de compartidas, así que se cuentan
+// eventos desde que se conecta. Con allowMultiple desactivado solo cuenta la primera compartida de cada usuario;
+// activado, cada vez que el mismo usuario comparte (p. ej. al copiar el enlace) la meta sube.
+function addShare(data = {}) {
+  const state = states.shares;
+  const cfg = getConfig('shares');
+  const key = shareUserKey(data);
+  if (key) {
+    const already = sharedUsers.has(key);
+    if (sharedUsers.size >= MAX_SHARED_USERS) sharedUsers.clear();
+    sharedUsers.add(key);
+    if (already && !cfg.allowMultiple) return;
+  }
+  state.lastTotal += 1;
+  state.live = Math.max(0, state.lastTotal - state.offset);
+  const firstSync = !state.synced;
+  state.synced = true;
+  recompute('shares', { silent: firstSync });
+}
+
 // Toma el total que ya trae la conexión (gratis, sin red). Se llama al conectar.
 function seedFollowers() {
   const n = hooks.followerTotalNow?.();
@@ -305,7 +340,7 @@ function reset(kind, fromNow = false) {
   state.current = 0;
   state.offset = fromNow ? state.lastTotal : 0;
   state.offsetSet = fromNow;
-  if (!fromNow) { state.lastTotal = 0; state.synced = false; }
+  if (!fromNow) { state.lastTotal = 0; state.synced = false; if (kind === 'shares') sharedUsers.clear(); }
   state.goal = getConfig(kind).goal;
   state.reached = false;
   state.hidden = false;
@@ -350,7 +385,7 @@ function init(ioInstance) {
 module.exports = {
   init, kinds: Object.keys(KINDS), kindOf,
   getConfig, updateConfig, snapshot, clientCount, isActive,
-  addManual, addLiveLikes, addFollower, setFollowerTotal, seedFollowers, requestFollowerBaseline,
+  addManual, addLiveLikes, addFollower, addShare, setFollowerTotal, seedFollowers, requestFollowerBaseline,
   reset, resetAll,
   setHooks: (h) => Object.assign(hooks, h),
   fonts: OVERLAY_FONTS,

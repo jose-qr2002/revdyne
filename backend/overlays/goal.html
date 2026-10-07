@@ -36,9 +36,9 @@
   #icon { flex: 0 0 auto; height: 86%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
   #icon.off { display: none; }
   #icon svg { height: 100%; width: 100%; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
-  #ico-followers { display: none; }
-  [data-kind="followers"] #ico-likes { display: none; }
-  [data-kind="followers"] #ico-followers { display: block; }
+  #ico-followers, #ico-shares { display: none; }
+  [data-kind="followers"] #ico-likes, [data-kind="shares"] #ico-likes { display: none; }
+  [data-kind="followers"] #ico-followers, [data-kind="shares"] #ico-shares { display: block; }
 
   /* Barra */
   #bar {
@@ -106,6 +106,9 @@
       <circle cx="50" cy="19" r="10" fill="#fff"/>
       <path d="M50 13v12M44 19h12" stroke="#ff4d6a" stroke-width="4" stroke-linecap="round"/>
     </svg>
+    <svg id="ico-shares" viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M36 8l24 21-24 21V37C20 37 10 43 4 56c1-18 11-31 32-33z" fill="#ff4d6a"/>
+    </svg>
   </div>
   <div id="bar">
     <div id="track"><div id="fill"></div></div>
@@ -122,7 +125,7 @@
   var label = document.getElementById('label');
   var icon = document.getElementById('icon');
   var isPreview = /[?&]preview=1/.test(location.search);
-  var kind = /\/followers\/?$/.test(location.pathname) ? 'followers' : 'likes';
+  var kind = /\/followers\/?$/.test(location.pathname) ? 'followers' : /\/shares\/?$/.test(location.pathname) ? 'shares' : 'likes';
   root.setAttribute('data-kind', kind);
   var last = null;
 
