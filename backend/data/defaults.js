@@ -98,6 +98,29 @@ const goalDefaults = ({ goal, title, finalText }) => {
   };
 };
 
+// Overlays "mejor regalo" / "mejor combo": tarjeta con el regalo, quién lo envió y su valor.
+const topDefaults = ({ title, valueColor }) => ({
+  activeStyle: 2,           // 1 tarjeta horizontal | 2 etiqueta compacta (por defecto, ocupa menos alto) | 3 vertical centrada
+  title,
+  font: 'Arial',
+  fontScale: 100,           // % del tamaño base del texto (título y usuario)
+  valueScale: 100,          // % del tamaño del valor (monedas / xN); bajarlo da un aspecto más compacto
+  valueMode: 'count',       // solo mejor regalo: count (×30) | coins (monedas totales) | both
+  transparentTitle: false,  // sin fondo en el título (estilo 3)
+  transparentValue: false,  // sin fondo ni borde en el valor (estilos 2 y 3)
+  nameOverIcon: false,      // solo estilo 3: el nombre se coloca encima del regalo
+  accentColor: '#ff0050',
+  titleColor: '#ffffff',
+  nameColor: '#ffffff',
+  valueColor,
+  cardColor: '#14141c',
+  showTitle: true,
+  showIcon: true,
+  showUser: true,
+  userField: 'nickname',    // nickname (nombre visible) | username (@usuario)
+  animate: true,
+});
+
 const DEFAULT_OVERLAYS = {
   schemaVersion: 1,
   likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
@@ -105,6 +128,8 @@ const DEFAULT_OVERLAYS = {
   shares: goalDefaults({ goal: 50, title: 'Share Goal', finalText: 'Compartidas' }),
   viewers: goalDefaults({ goal: 100, title: 'Viewer Goal', finalText: 'Espectadores' }),
   coins: goalDefaults({ goal: 1000, title: 'Coin Goal', finalText: 'Monedas' }),
+  topgift: topDefaults({ title: 'Mejor regalo', valueColor: '#ffd24a' }),
+  topcombo: topDefaults({ title: 'Mejor combo', valueColor: '#ff4d6a' }),
 };
 
 module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, OVERLAY_PUBLIC_BASE_URL };

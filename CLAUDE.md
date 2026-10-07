@@ -43,9 +43,32 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
 - Regalos con combo (rosas...): `giftStreaks.js` cuenta unidades nuevas por `groupId` (una ráfaga = un groupId; el evento
   de cierre repite el conteo final). NO usar usuario+regalo como clave: perder un cierre hacía ignorar la ráfaga siguiente.
   El usuario del evento gift trae `id`/`displayId` (sin `userId`). Se descartan mensajes repetidos por `common.msgId`.
+- Racha de regalos: `giftStreaks.process()` devuelve { units (incremento de este evento, para disparar acciones al instante), total (racha acumulada de
+  la ráfaga), ended, key }. El conteo SIEMPRE fue exacto (suma de incrementos == repeatCount final); lo que confundía era el Log en vivo mostrando
+  cada incremento como una línea. `giftReceived` lleva `groupId`, `streakTotal`, `streakEnded` y useSocket agrupa por groupId (una línea "Rose ×24").
+- Mejor regalo / mejor combo: `backend/services/topService.js` (kinds `topgift`, `topcombo`), página `backend/overlays/top.html` en
+  `/overlays/top/gift|combo`, API `/api/overlays/top` (montada ANTES de `/api/overlays`), UI `TopCard.jsx`. NINGUNO es acumulativo (muestran una sola ráfaga).
+  Mejor regalo = el regalo de MAYOR VALOR POR UNIDAD con la cantidad de su ráfaga (capibara ×30); solo lo reemplaza un regalo de más valor (100 rosas
+  no desplazan a un capibara); empate en valor -> gana la ráfaga con más unidades. Mejor combo = ráfaga con más unidades (mínimo 2); empate -> más valor. Se actualiza en vivo mientras la ráfaga líder crece; se reinicia al conectar.
+  3 estilos con lienzo propio (560×170, 480×150, 320×374; 320×314 con "nombre sobre el regalo") escalado para caber. Estilo por defecto: 2 (compacto).
+  El texto del nombre lleva padding + margen negativo: sin eso su overflow:hidden (para el "…") recorta la sombra al inicio/fin de la palabra. `valueScale` reduce el valor. Ajustes: `valueMode` (count ×N | coins | both, solo mejor regalo), `transparentTitle`/`transparentValue` (sin fondo), `nameOverIcon` (estilo 3). Icono: `gift.image.urlList[0]` (CDN de TikTok, `referrerpolicy=no-referrer`).
 - Las metas solo trabajan con un overlay real enlazado (sala de Socket.IO `overlay:<tipo>`; la vista previa del panel no
   cuenta): sin enlace no disparan acciones, no emiten y no consultan el perfil; al enlazar se sincronizan en silencio.
 - tiktok-live-proto v3 (el que usa la librería): like trae `count`/`total`; los nombres `likeCount`/`totalLikeCount` son de v1.
+
+## Registro de errores (log)
+- `backend/services/logger.js`: archivo `revdyne.log` en AppDataRoamingRevdynelogs (ruta en paths.js: LOGS_DIR/LOG_FILE),
+  rotación por tamaño (2 MB, 3 archivos). Escritura síncrona; nunca debe lanzar error. Uso: `logger.info|warn|error(categoria, mensaje, datos)`;
+  `debug` solo si está activo el "registro detallado" (config `logDebug`, interruptor en el panel). Solo ids/conteos/@usuario, nunca
+  tokens ni cookies. Mensajes idénticos (mismo texto y datos) repetidos en 5 s se resumen en una línea.
+- Qué se registra: conexión (conectar, fallos, desconexión inesperada con código, directo terminado, conexión muda 45 s), anomalías de
+  regalos (giftStreaks `onAnomaly`), excepciones en manejadores de eventos (`guard` en tiktokService), errores del proceso, overlays
+  (enlace, meta alcanzada, acción final inexistente), RobotJS y estadísticas de eventos cada 5 min.
+- API: `/api/logs` (últimas líneas), `/api/logs/debug`, `/api/logs/open`. UI: panel "Registro de errores" en la pestaña Log en vivo.
+- El evento `error` de la librería llega como `{ info, exception }`, no como Error.
+- Ubicación real: app con Electron (`npm start` / instalada) = `%APPDATA%Revdynelogsevdyne.log`; modo `npm run dev` (node puro) = `./logs/revdyne.log`
+  del directorio donde se lance (ignorado por git con `*.log`). `logger.file`/`logger.dir` son getters: NO exportar con `{ ...proxy }` (el spread los pierde).
+- "Abrir carpeta" usa `shell.showItemInFolder` (Electron) o `explorer.exe /select` (node) y devuelve cuál funcionó o por qué falló.
 
 ## Licencias
 Plan free (límites en backend/services/entitlements.js) y pro con código.

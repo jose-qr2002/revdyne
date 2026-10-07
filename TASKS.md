@@ -62,3 +62,26 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
       se sume de más ninguna, y que las reglas de regalo → acción disparen el número correcto de veces.
 - [ ] Los regalos sin combo (Confetti, etc.) se cuentan como 1 por evento: confirmar con envíos de varias unidades a la vez.
 - [ ] Meta de monedas: comprobar que las monedas coinciden con lo que muestra TikTok para los regalos recibidos.
+
+## Registro de errores (log)
+- [x] El log se crea y se escribe en AppDataRoamingevdynelogsevdyne.log con la app Electron (comprobado con el archivo real).
+- [ ] "Abrir carpeta" dentro de Electron (usa shell.showItemInFolder): en node puro se verificó que abre la ventana del Explorador,
+      pero en Electron falló por un error corregido (logger.dir salía undefined). Confirmar tras reiniciar la app.
+- [ ] Durante un directo largo revisar el log: líneas [WARN]/[ERROR], "Sin eventos de TikTok" (conexión muda) y "Desconexión inesperada".
+- [ ] Con el registro detallado activo, buscar ráfagas con "salto_grande"/"sin_cierre" y comparar con los regalos que se perdieron.
+- [ ] No hay reconexión automática: si el log muestra desconexiones inesperadas frecuentes, valorar añadirla.
+- [x] Prueba de 5 min en un directo con muchos regalos (@caydensitoh_): 195 regalos, ráfagas de hasta 66 unidades, 46/46 ráfagas idénticas entre la app y una
+      captura independiente, barra de monedas == suma del registro, sin avisos ni errores. El algoritmo anterior también acertó en esa muestra
+      (los fallos corregidos son casos raros: cierre perdido/tardío), así que la mejora es preventiva.
+
+## Mejor regalo / mejor combo
+- [ ] VPS: subir `top.html` junto a `goal.html` y añadir a nginx: `location ~ ^/top/(gift|combo)$ { alias /var/www/revdyne-overlays/top.html; default_type text/html; add_header Cache-Control "no-cache"; }`.
+- [ ] En Live Studio: URL `https://overlays.reveljk.com/top/gift?port=3000` (y `/top/combo`) con Resolución personalizada al tamaño del estilo elegido.
+- [x] Probado con 326 regalos reales de 3 directos: el líder coincide con el cálculo independiente por ráfaga; overlay enlazado recibió las actualizaciones en vivo.
+- [ ] Revisar que los iconos de regalo cargan en Live Studio (vienen de la CDN de TikTok; si alguno caduca se muestra el icono genérico).
+- [ ] Log en vivo: una línea por racha (Rose ×24). Comprobado con datos reales (GG ×108, Rose ×29 actualizándose en su sitio).
+- [ ] Mejor regalo/combo: estilo compacto por defecto, interruptor "Nombre sobre el regalo" (solo estilo vertical) y tamaño del valor ajustable. Revisar en Live Studio
+      la sombra del nombre (ya no se recorta) y que con nombres largos el "…" aparece donde se espera. Hay que volver a subir top.html al VPS.
+- [ ] Mejor regalo ya NO es acumulativo (gana el de más valor por unidad, p. ej. capibara ×30 no lo desplazan 100 rosas). Probado con el escenario del capibara y con 326 regalos reales.
+      Confirmar en un directo con regalos caros que el líder cambia como se espera. Nuevos ajustes: valor a mostrar (cantidad/monedas/ambos) y fondos transparentes.
+      Vuelve a subirse top.html al VPS (cambió).

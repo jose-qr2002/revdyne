@@ -16,6 +16,8 @@ const ROOT_DIR = isElectron
 // A propósito NO va dentro de ROOT_DIR, porque el usuario sí debe poder
 // verla y tocarla sin bucear en AppData.
 const TTS_ENGINES_DIR = path.join(ROOT_DIR, 'tts-engines');
+// Registro de avisos y errores (revdyne.log + rotados). En AppData, igual que el resto de datos.
+const LOGS_DIR = path.join(ROOT_DIR, 'logs');
 const SOUNDS_DIR = path.join(os.homedir(), 'Documents', 'REVDYNE', 'sounds');
 // PIPER TTS
 const PIPER_DIR = path.join(__dirname, 'bin', 'piper');
@@ -33,6 +35,7 @@ function engineRootDir(engineId) {
 
 ensureDir(ROOT_DIR);
 ensureDir(SOUNDS_DIR);
+ensureDir(LOGS_DIR);
 
 module.exports = {
   ROOT_DIR,
@@ -40,6 +43,8 @@ module.exports = {
   PIPER_EXECUTABLE,
   PIPER_VOICES_DIR,
   TTS_ENGINES_DIR,
+  LOGS_DIR,
+  LOG_FILE: path.join(LOGS_DIR, 'revdyne.log'),
   LICENSE_FILE,
   engineRootDir,
 

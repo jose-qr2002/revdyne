@@ -1,4 +1,5 @@
 import React from 'react';
+import ErrorLogPanel from './ErrorLogPanel';
 
 // Reutilizamos tu función de emojis
 const getGiftEmoji = (coins, giftId) => {
@@ -16,13 +17,18 @@ const getGiftEmoji = (coins, giftId) => {
 export default function EventLog({ events }) {
   if (events.length === 0) {
     return (
-      <div className="event-log">
-        <div className="log-empty">El log de eventos aparecerá aquí cuando lleguen regalos.</div>
-      </div>
+      <>
+        <ErrorLogPanel />
+        <div className="event-log">
+          <div className="log-empty">El log de eventos aparecerá aquí cuando lleguen regalos.</div>
+        </div>
+      </>
     );
   }
 
   return (
+    <>
+    <ErrorLogPanel />
     <div className="event-log">
       {events.map((ev, i) => {
         const time = new Date(ev.timestamp || Date.now()).toLocaleTimeString('es', { 
@@ -50,5 +56,6 @@ export default function EventLog({ events }) {
         );
       })}
     </div>
+    </>
   );
 }

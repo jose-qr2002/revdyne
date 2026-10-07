@@ -1,4 +1,6 @@
 // backend/services/actionDispatcher.js (corrección del nombre de módulo)
+const logger = require('./logger');
+
 function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'sequential' } = {}) {
   if (!action || !action.enabled) return { executed: false };
   const actionQueue = require('./actionQueue');
@@ -21,6 +23,7 @@ function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'seq
     }
     default:
       console.warn(`[ACTION] Tipo no soportado todavía: "${action.type}" (acción: "${action.name}")`);
+      logger.warn('acciones', 'Tipo de acción no soportado', { tipo: action.type, accion: action.name });
       return { executed: false };
   }
 }

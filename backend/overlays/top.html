@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Revdyne · Mejor regalo / combo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --font: Arial; --fs: 1; --vs: 1;
+    --accent: #ff0050; --title: #fff; --name: #fff; --value: #ffd24a; --card: #14141c;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+  /* Lienzo de tamaño fijo según el estilo (lo pone el script) que se escala para caber en cualquier recuadro, centrado */
+  #stage {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(var(--s, 1));
+    font-family: var(--font), sans-serif; color: var(--name);
+    opacity: 0; transition: opacity .4s;
+  }
+  #stage.ready { opacity: 1; }
+  #card { position: relative; width: 100%; height: 100%; }
+
+  #giftImg { display: block; max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+  #fallback { width: 70%; height: 70%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+  #iconWrap { display: flex; align-items: center; justify-content: center; position: relative; }
+  #iconWrap.off { display: none; }
+  #iconWrap::before { content: ""; position: absolute; inset: 6%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%); z-index: 0; }
+  #iconWrap > * { position: relative; z-index: 1; }
+
+  #title { text-transform: uppercase; letter-spacing: .14em; color: var(--title); opacity: .8; font-weight: 700; white-space: nowrap; }
+  #title.off { display: none; }
+  /* padding + margen negativo: la sombra tiene espacio para dibujarse sin que overflow:hidden (el "…") la recorte, y el texto no se mueve */
+  #name { font-weight: 800; color: var(--name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 6px rgba(0,0,0,.55); padding: .3em .6em; margin: -.3em -.6em; }
+  #name.off { display: none; }
+
+  /* Valor. Tres formas (body[data-vmode]): count = ×30 | coins = 🪙 total | both = ×30 y las monedas en pequeño.
+     El mejor combo siempre muestra la cantidad. */
+  #value { display: flex; align-items: center; gap: .3em; font-weight: 900; color: var(--value); line-height: 1; white-space: nowrap; text-shadow: 0 2px 8px rgba(0,0,0,.5); padding: .12em .25em; margin: -.12em -.25em; }
+  #value svg { width: .95em; height: .95em; flex: 0 0 auto; }
+  #value .mult { display: none; opacity: .85; }
+  #value .sub { display: none; align-items: center; gap: .25em; font-size: .5em; opacity: .9; margin-left: .3em; }
+  #value .sub svg { width: 1em; height: 1em; }
+  body[data-vmode="count"] #value > svg { display: none; }
+  body[data-vmode="count"] #value .mult, body[data-vmode="both"] #value .mult { display: inline; }
+  body[data-vmode="both"] #value > svg { display: none; }
+  body[data-vmode="both"] #value .sub { display: inline-flex; }
+
+  /* ---------- Estilo 1: tarjeta horizontal ---------- */
+  [data-style="1"] #stage { width: 560px; height: 170px; }
+  [data-style="1"] #card { display: flex; align-items: center; gap: 22px; padding: 0 28px 0 18px; background: var(--card); border-radius: 28px; border: 1px solid rgba(255,255,255,.07); border-left: 9px solid var(--accent); box-shadow: 0 14px 34px rgba(0,0,0,.45); }
+  [data-style="1"] #iconWrap { width: 128px; height: 128px; flex: 0 0 auto; }
+  [data-style="1"] #info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  [data-style="1"] #title { font-size: calc(15px * var(--fs)); }
+  [data-style="1"] #name { font-size: calc(34px * var(--fs)); }
+  [data-style="1"] #value { font-size: calc(48px * var(--fs) * var(--vs)); }
+
+  /* ---------- Estilo 2: etiqueta compacta con el icono desbordando ---------- */
+  [data-style="2"] #stage { width: 480px; height: 150px; }
+  [data-style="2"] #card { background: var(--card); border-radius: 22px; top: 22px; height: 106px; padding: 0 20px 0 132px; display: flex; align-items: center; border: 2px solid var(--accent); box-shadow: 0 10px 26px rgba(0,0,0,.45), 0 0 22px color-mix(in srgb, var(--accent) 35%, transparent); }
+  [data-style="2"] #iconWrap { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 130px; height: 130px; }
+  /* título y nombre a la izquierda, el valor como insignia a la derecha */
+  [data-style="2"] #info { min-width: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title value" "name value"; align-items: center; column-gap: 14px; row-gap: 3px; }
+  [data-style="2"] #title { grid-area: title; font-size: calc(12px * var(--fs)); }
+  [data-style="2"] #name { grid-area: name; font-size: calc(24px * var(--fs)); }
+  [data-style="2"] #value { grid-area: value; font-size: calc(30px * var(--fs) * var(--vs)); padding: 10px 14px; margin: 0; border-radius: 14px; background: rgba(0,0,0,.4); }
+
+  /* ---------- Estilo 3: vertical centrada ---------- */
+  [data-style="3"] #stage { width: 320px; height: 374px; }
+  [data-style="3"] #card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding-top: 14px; /* baja el título del borde */ }
+  [data-style="3"] #info { display: contents; }
+  [data-style="3"] #title { order: 0; font-size: calc(14px * var(--fs)); background: var(--accent); color: var(--title); opacity: 1; padding: 6px 18px; border-radius: 999px; }
+  [data-style="3"] #iconWrap { order: 1; width: 200px; height: 200px; }
+  [data-style="3"] #name { order: 2; font-size: calc(30px * var(--fs)); max-width: calc(100% + 1.2em); /* devuelve el ancho que quita el margen interior de la sombra */ }
+  [data-style="3"] #value { order: 3; font-size: calc(36px * var(--fs) * var(--vs)); padding: 8px 22px; margin: 0; border-radius: 999px; background: var(--card); border: 3px solid var(--accent); }
+
+  /* Estilo 3 con el nombre SOBRE el regalo: el nombre sube y se superpone a la parte baja del icono */
+  [data-style="3"][data-over="1"] #stage { height: 314px; }
+  [data-style="3"][data-over="1"] #name { position: relative; z-index: 3; margin-top: calc(-62px - .3em); font-size: calc(30px * var(--fs)); text-shadow: -2px -2px 0 rgba(0,0,0,.85), 2px -2px 0 rgba(0,0,0,.85), -2px 2px 0 rgba(0,0,0,.85), 2px 2px 0 rgba(0,0,0,.85), 0 4px 10px rgba(0,0,0,.6); }
+  [data-style="3"][data-over="1"] #iconWrap { z-index: 1; }
+
+  /* Fondos transparentes (opcionales): sin color de fondo ni borde en el título y/o en el valor.
+     El texto conserva una sombra para leerse sobre el video. */
+  body[data-tt="1"] #title { background: transparent; box-shadow: none; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+  body[data-tv="1"] #value { background: transparent; border-color: transparent; box-shadow: none; }
+
+  /* Animación al cambiar el líder */
+  #card.pop { animation: pop .65s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes pop { 0% { transform: scale(.88); } 55% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) { #card.pop { animation: none; } #stage { transition: none; } }
+</style>
+</head>
+<body>
+<div id="stage" data-kind="topgift">
+  <div id="card">
+    <div id="iconWrap">
+      <img id="giftImg" alt="" referrerpolicy="no-referrer" hidden>
+      <svg id="fallback" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="8" y="26" width="48" height="30" rx="4" fill="#ff4d6a"/>
+        <rect x="5" y="18" width="54" height="12" rx="4" fill="#ff7a90"/>
+        <rect x="29" y="18" width="6" height="38" fill="#ffd24a"/>
+        <path d="M32 18c-5-9-16-9-16-3s11 3 16 3zM32 18c5-9 16-9 16-3s-11 3-16 3z" fill="#ffd24a"/>
+      </svg>
+    </div>
+    <div id="info">
+      <div id="title"></div>
+      <div id="name"></div>
+      <div id="value">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="#ffc400"/><circle cx="32" cy="32" r="20" fill="none" stroke="#ff9d00" stroke-width="5"/><path d="M32 19v26M38 25c0-3-3-5-6-5s-6 2-6 5 3 4 6 5 6 2 6 5-3 5-6 5-6-2-6-5" fill="none" stroke="#ff9d00" stroke-width="4" stroke-linecap="round"/></svg>
+        <span class="mult">×</span><span id="num">0</span>
+        <span class="sub"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="#ffc400"/><circle cx="32" cy="32" r="20" fill="none" stroke="#ff9d00" stroke-width="5"/></svg><span id="num2">0</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var card = document.getElementById('card');
+  var img = document.getElementById('giftImg');
+  var fallback = document.getElementById('fallback');
+  var iconWrap = document.getElementById('iconWrap');
+  var titleEl = document.getElementById('title');
+  var nameEl = document.getElementById('name');
+  var numEl = document.getElementById('num');
+  var num2El = document.getElementById('num2');
+  var isPreview = /[?&]preview=1/.test(location.search);
+  // Ruta .../top/gift o .../top/combo
+  var kind = /\/combo\/?$/.test(location.pathname) ? 'topcombo' : 'topgift';
+  stage.setAttribute('data-kind', kind);
+  document.body.setAttribute('data-kind', kind);
+
+  var SIZES = { 1: [560, 170], 2: [480, 150], 3: [320, 374] };
+  var over = false; // estilo 3 con el nombre sobre el regalo: el lienzo es más bajo
+  var last = null, lastSig = '';
+
+  function applyScale() {
+    var s = SIZES[stage.getAttribute('data-style')] || SIZES[2];
+    if (over && stage.getAttribute('data-style') === '3') s = [320, 314];
+    var w = window.innerWidth, h = window.innerHeight;
+    if (!(w > 0 && h > 0)) { w = s[0]; h = s[1]; } // Live Studio a veces carga con 0x0
+    stage.style.width = s[0] + 'px'; stage.style.height = s[1] + 'px';
+    stage.style.setProperty('--s', Math.min(w / s[0], h / s[1]));
+  }
+
+  var fmt = function (n) { return Number(n).toLocaleString('es'); };
+
+  function render(st) {
+    last = st;
+    var c = st.config, b = st.best;
+    over = !!c.nameOverIcon && c.activeStyle === 3;
+    var body = document.body;
+    body.setAttribute('data-style', c.activeStyle);
+    body.setAttribute('data-over', over ? '1' : '0');
+    body.setAttribute('data-tt', c.transparentTitle ? '1' : '0');
+    body.setAttribute('data-tv', c.transparentValue ? '1' : '0');
+    // El mejor combo siempre muestra la cantidad; el mejor regalo según el ajuste (cantidad, monedas o ambos)
+    var vmode = kind === 'topcombo' ? 'count' : (c.valueMode || 'count');
+    body.setAttribute('data-vmode', vmode);
+    stage.setAttribute('data-style', c.activeStyle);
+    var r = document.documentElement.style;
+    r.setProperty('--font', '"' + c.font + '"'); r.setProperty('--fs', c.fontScale / 100); r.setProperty('--vs', c.valueScale / 100);
+    r.setProperty('--accent', c.accentColor); r.setProperty('--title', c.titleColor); r.setProperty('--name', c.nameColor);
+    r.setProperty('--value', c.valueColor); r.setProperty('--card', c.cardColor);
+
+    titleEl.textContent = c.title; titleEl.classList.toggle('off', !c.showTitle || !c.title);
+    iconWrap.classList.toggle('off', !c.showIcon);
+
+    var user = b ? (c.userField === 'username' ? (b.user.username ? '@' + b.user.username : b.user.name) : (b.user.nickname || (b.user.username ? '@' + b.user.username : ''))) : 'Sin regalos aún';
+    nameEl.textContent = user; nameEl.classList.toggle('off', !c.showUser);
+
+    var units = b ? b.units : 0, coins = b ? b.coins : 0;
+    numEl.textContent = fmt(vmode === 'coins' ? coins : units);
+    num2El.textContent = fmt(coins);
+
+    // Icono del regalo (si no carga, se queda el icono genérico)
+    var src = b && b.gift.icon;
+    if (src) { if (img.getAttribute('src') !== src) img.src = src; img.hidden = false; fallback.style.display = 'none'; }
+    else { img.hidden = true; img.removeAttribute('src'); fallback.style.display = ''; }
+
+    // Animación solo cuando cambia el líder (o crece su valor)
+    var sig = b ? b.gift.id + '|' + b.user.username + '|' + units + '|' + coins : '';
+    if (c.animate && sig && sig !== lastSig && lastSig !== '') { card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop'); }
+    lastSig = sig;
+
+    applyScale();
+    stage.classList.add('ready');
+  }
+  img.addEventListener('error', function () { img.hidden = true; fallback.style.display = ''; });
+  window.addEventListener('resize', applyScale);
+  applyScale();
+
+  // Mismo archivo en dos modos (ver goal.html):
+  //  - local: lo sirve la app (http://127.0.0.1:PUERTO/overlays/...) y usa su propio Socket.IO.
+  //  - remoto: alojado en un dominio https (TikTok LIVE Studio no acepta localhost); se conecta a la app en 127.0.0.1:PUERTO.
+  var port = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
+  if (!(port > 0 && port < 65536)) port = 3000;
+  var appOrigin = 'http://127.0.0.1:' + port;
+  var isLocal = location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+
+  function start() {
+    var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
+    socket.on('connect', function () { socket.emit('overlay:join', { name: kind, preview: isPreview }); });
+    socket.on('overlay:' + kind + ':state', render);
+  }
+  var tag = document.createElement('script');
+  tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
+  tag.onload = start;
+  document.head.appendChild(tag);
+})();
+</script>
+</body>
+</html>

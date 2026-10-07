@@ -1,9 +1,11 @@
 // backend/services/actionQueue.js (antes keyboardQueue.js)
+const logger = require('./logger');
 let robot = null;
 try {
   robot = require('@jitsi/robotjs');
 } catch (e) {
   console.warn('⚠️ RobotJS no disponible. Solo simulación.');
+  logger.warn('teclas', 'RobotJS no disponible: las teclas solo se simulan', { error: e.message });
 }
 
 const queue = [];
@@ -32,6 +34,7 @@ async function processQueue() {
           else robot.keyTap(task.key);
         } catch (err) {
           console.error(`⚠️ Error en RobotJS al presionar '${task.key}':`, err.message);
+          logger.error('teclas', 'Error de RobotJS al presionar una tecla', { tecla: task.key, modificador: task.modifier, error: err.message });
         }
       }
       console.log(`🎹 ${robot ? 'Presionado' : '[SIMULADO]'}: ${task.modifier !== 'none' ? task.modifier + '+' : ''}${task.key}`);

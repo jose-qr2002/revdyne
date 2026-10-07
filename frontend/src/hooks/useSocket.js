@@ -16,7 +16,20 @@ export function useSocket() {
     socketRef.current.on('status', (data) => setStatus(prev => ({ ...prev, ...data })));
 
     socketRef.current.on('giftReceived', (data) => {
-      setEvents(prev => [data, ...prev].slice(0, 100));
+      setEvents(prev => {
+        // Una racha de regalos llega en varios eventos con el mismo groupId: se muestra UNA línea que va subiendo
+        // (Rose ×24) en vez de una por incremento (x2, x6, x8...).
+        const total = data.streakTotal ?? data.newCount;
+        if (data.groupId && data.groupId !== '0') {
+          const i = prev.findIndex(e => e.groupId === data.groupId && e.giftId === data.giftId && e.sender === data.sender);
+          if (i !== -1) {
+            const old = prev[i];
+            const merged = { ...old, ...data, newCount: total, pressed: old.pressed || data.pressed, key: data.key !== 'Ninguna' ? data.key : old.key, timestamp: old.timestamp };
+            const copy = [...prev]; copy[i] = merged; return copy;
+          }
+        }
+        return [{ ...data, newCount: total }, ...prev].slice(0, 100);
+      });
     });
 
     // NUEVO: Escuchar los comentarios del TTS

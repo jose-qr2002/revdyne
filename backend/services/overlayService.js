@@ -9,6 +9,7 @@
 const store = require('../data/store');
 const entitlements = require('./entitlements');
 const actionDispatcher = require('./actionDispatcher');
+const logger = require('./logger');
 const { DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS } = require('../data/defaults');
 
 const ON_REACH = ['keep', 'increase', 'double', 'hide'];
@@ -179,12 +180,18 @@ function findAction(actionId) {
 }
 
 function runFinishAction(kind, cfg) {
+  logger.info('overlay', `Meta de ${KINDS[kind].label} alcanzada`, { meta: states[kind].goal, actual: states[kind].current, accion: cfg.actionId || null });
   const action = findAction(cfg.actionId);
-  if (!action) return;
+  if (!action) {
+    // Hay una acción elegida pero no se puede usar: borrada, o fuera del límite del plan gratis
+    if (cfg.actionId) logger.warn('overlay', `La acción final de la meta de ${KINDS[kind].label} no existe o no está permitida por el plan`, { accion: cfg.actionId });
+    return;
+  }
   const result = actionDispatcher.dispatch(action, {
     times: 1,
     defaultDelayMs: store.loadSettings().keyDelayMs || 80,
   });
+  if (!result.executed) logger.warn('overlay', `La acción final de la meta de ${KINDS[kind].label} no se ejecutó (¿desactivada o sin tecla/sonido?)`, { accion: cfg.actionId, nombre: action.name });
   io?.emit('giftReceived', {
     giftId: `overlay_${kind}_goal`, giftName: `🎯 Meta de ${KINDS[kind].label} alcanzada (${states[kind].goal})`, coins: 0,
     sender: 'Overlay', newCount: 1,
@@ -404,8 +411,20 @@ function init(ioInstance) {
   io = ioInstance;
   for (const kind of Object.keys(KINDS)) states[kind].goal = getConfig(kind).goal;
 
+  // Se registra cuándo un overlay real (OBS / Live Studio) se enlaza o se cae
+  const lastClients = {};
   const broadcastClients = () => {
-    for (const kind of Object.keys(KINDS)) io.emit(`overlay:${kind}:clients`, clientCount(kind));
+    for (const kind of Object.keys(KINDS)) {
+      const n = clientCount(kind);
+      io.emit(`overlay:${kind}:clients`, n);
+      const before = lastClients[kind] || 0;
+      if (before !== n) {
+        // Solo importa cuando se enlaza (0 -> n) o se queda sin enlace (n -> 0); otros cambios son una conexión más o menos
+        const text = before === 0 ? 'enlazado' : n === 0 ? 'sin enlace (se desconectó)' : `${n} conexiones`;
+        logger.info('overlay', `Overlay de ${KINDS[kind].label}: ${text}`, { conexiones: n });
+        lastClients[kind] = n;
+      }
+    }
   };
 
   io.on('connection', (socket) => {

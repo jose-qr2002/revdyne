@@ -10,6 +10,8 @@ const secUidResolver = require('./secUidResolver'); // agregar arriba
 const chatFilter = require('./chatFilter');
 const overlayService = require('./overlayService');
 const { createGiftStreakCounter } = require('./giftStreaks');
+const logger = require('./logger');
+const topService = require('./topService');
 
 // ==========================================
 // 1. ESTADO GLOBAL DEL SERVICIO
@@ -19,7 +21,21 @@ let isConnected = false;
 let ioInstance = null;
 let settingsRef = null; // antes "configRef" — ahora solo trae username/keyDelayMs/tts
 
-const giftStreaks = createGiftStreakCounter(); // unidades nuevas por evento de regalo (ráfagas por groupId)
+// Anomalías del contador de regalos -> registro. Nivel: warn si pudo afectar al conteo, info si solo es informativo.
+const GIFT_ANOMALIES = {
+  mensaje_repetido: ['info', 'Mensaje de regalo repetido (se ignoró)'],
+  conteo_retrocede: ['warn', 'Llegó un regalo con repeatCount menor que el ya contado (fuera de orden)'],
+  cierre_menor_que_lo_contado: ['warn', 'El evento de cierre trae menos unidades que las ya contadas'],
+  salto_grande: ['info', 'Una ráfaga saltó muchas unidades en un solo evento (faltaron eventos intermedios; sí se contaron)'],
+  combo_sin_groupId: ['warn', 'Regalo con combo sin groupId (no se pueden separar ráfagas)'],
+  sin_cierre: ['info', 'Ráfaga de regalos que nunca recibió su evento de cierre (ya se había contado)'],
+};
+const giftStreaks = createGiftStreakCounter({
+  onAnomaly: (type, info) => {
+    const [level, text] = GIFT_ANOMALIES[type] || ['warn', `Anomalía de regalo: ${type}`];
+    logger[level]('regalos', text, info);
+  },
+}); // unidades nuevas por evento de regalo (ráfagas por groupId)
 const followedUsers = new Set();
 const stickerCooldowns = new Map();
 const onceSeen = new Set();          // "reglaId_usuario" ya ejecutados (modo "una vez")
@@ -168,11 +184,21 @@ function handleGift(data) {
 
   // Unidades nuevas de este evento. El usuario se identifica por su id estable (el displayId puede faltar o repetirse).
   const userKey = String(data.user?.id || data.user?.userId || data.user?.secUid || sender);
-  const newCount = giftStreaks.unitsFor(data, userKey);
+  if (!data.gift) logger.warn('regalos', 'Evento de regalo sin detalles del regalo (monedas desconocidas)', { giftId, usuario: sender });
+  const streak = giftStreaks.process(data, userKey);
+  const newCount = streak.units;
+  logger.debug('regalos', 'evento', { giftId, nombre: giftName, monedas: coins, repeatCount: data.repeatCount, repeatEnd: data.repeatEnd, groupId: String(data.groupId), usuario: sender, unidadesNuevas: newCount });
   if (newCount <= 0) return;
 
   // La meta de monedas cuenta todos los regalos, también los que no llegan al mínimo de monedas de las reglas.
   overlayService.addCoins(newCount * coins);
+
+  // Mejor regalo / mejor combo: usan el total acumulado de la ráfaga (no el incremento de este evento)
+  topService.record({
+    key: streak.key, giftId, giftName, perUnit: coins, units: streak.total,
+    icon: giftObj.image?.urlList?.[0] || giftObj.icon?.urlList?.[0] || '',
+    user: { id: userKey, nickname: data.user?.nickname, username: data.user?.displayId || sender },
+  });
 
   if (coins < (settingsRef?.minCoins || 0)) return;
 
@@ -180,6 +206,8 @@ function handleGift(data) {
 
   ioInstance.emit('giftReceived', {
     giftId, giftName, coins, sender, newCount,
+    // Racha completa hasta ahora: el log agrupa por groupId y muestra "Rose ×24" en vez de x2, x6, x8...
+    groupId: streak.combo ? String(data.groupId) : '', streakTotal: streak.total, streakEnded: streak.ended,
     key: result.keyExecuted || 'Ninguna',
     pressed: result.actionExecuted,
     timestamp: Date.now()
@@ -453,13 +481,82 @@ function getCurrentSecUid() {
   return findSecUidDeep(tiktokConnection?.roomInfo);
 }
 
+// Ajustables por variable de entorno solo para pruebas
+const SILENCE_MS = Number(process.env.REVDYNE_SILENCE_MS) || 45000;   // sin ningún evento -> aviso de conexión muda
+const WATCH_EVERY_MS = Number(process.env.REVDYNE_WATCH_MS) || 15000;
+const STATS_EVERY_MS = Number(process.env.REVDYNE_STATS_MS) || 5 * 60 * 1000;
+
+let lastEventAt = 0;
+let silentSince = 0;           // 0 = hay eventos; si no, desde cuándo no llegan
+let eventCounts = {};          // eventos recibidos desde la última línea de estadísticas
+let watchTimer = null;
+let statsTimer = null;
+
+// Resumen mínimo de un evento para el registro (nunca volcamos el evento completo)
+function describeEvent(name, d) {
+  if (!d) return undefined;
+  const who = d.user?.displayId || d.uniqueId || undefined;
+  if (name === 'gift') return { giftId: String(d.giftId), repeatCount: d.repeatCount, repeatEnd: d.repeatEnd, groupId: String(d.groupId), usuario: who };
+  return { usuario: who };
+}
+
+// Envuelve un manejador: cuenta el evento, marca que la conexión sigue viva y, si el manejador lanza una
+// excepción, la registra (antes se perdía el evento en silencio).
+function guard(name, fn) {
+  return (...args) => {
+    lastEventAt = Date.now();
+    eventCounts[name] = (eventCounts[name] || 0) + 1;
+    try {
+      return fn(...args);
+    } catch (err) {
+      logger.error('eventos', `Excepción procesando un evento "${name}" (el evento se perdió)`, {
+        error: err.message, evento: describeEvent(name, args[0]), stack: String(err.stack || '').split('\n').slice(0, 4).join(' | '),
+      });
+    }
+  };
+}
+
+// Conexión "muda": está marcada como conectada pero no llega ningún evento (ni siquiera roomUser, que llega cada
+// pocos segundos). Suele ser una caída de red o de TikTok que la librería no avisa.
+function checkSilence(t = Date.now()) {
+  if (!isConnected || !lastEventAt) return;
+  const quiet = t - lastEventAt;
+  if (quiet >= SILENCE_MS && !silentSince) {
+    silentSince = lastEventAt;
+    logger.warn('conexion', `Sin eventos de TikTok hace ${Math.round(quiet / 1000)} s (posible conexión caída)`, { usuario: currentUser });
+  } else if (quiet < SILENCE_MS && silentSince) {
+    logger.info('conexion', `Los eventos se reanudaron tras ${Math.round((t - silentSince) / 1000)} s de silencio`, { usuario: currentUser });
+    silentSince = 0;
+  }
+}
+
+function startMonitors() {
+  stopMonitors();
+  lastEventAt = Date.now(); silentSince = 0; eventCounts = {};
+  watchTimer = setInterval(() => checkSilence(), WATCH_EVERY_MS);
+  statsTimer = setInterval(() => {
+    const span = STATS_EVERY_MS >= 60000 ? `${Math.round(STATS_EVERY_MS / 60000)} min` : `${Math.round(STATS_EVERY_MS / 1000)} s`;
+    logger.info('estadisticas', `Eventos recibidos en los últimos ${span}`, { usuario: currentUser, ...eventCounts });
+    eventCounts = {};
+  }, STATS_EVERY_MS);
+  for (const t of [watchTimer, statsTimer]) if (t.unref) t.unref();
+}
+function stopMonitors() {
+  clearInterval(watchTimer); clearInterval(statsTimer);
+  watchTimer = statsTimer = null;
+}
+
+let currentUser = null;
+
 function connect(username) {
   if (tiktokConnection) disconnect();
+  currentUser = username || null;
   
   stickerUserLast.clear();
   onceSeen.clear();
   eventCooldowns.clear();
   overlayService.resetAll();
+  topService.resetAll();
   giftStreaks.reset();
   
   if (!username) {
@@ -468,13 +565,18 @@ function connect(username) {
   }
 
   console.log(`\n🔄 Conectando a @${username}...`);
+  logger.info('conexion', 'Conectando', { usuario: username });
   ioInstance.emit('status', { connected: false, message: `Conectando a @${username}...` });
 
   tiktokConnection = new TikTokLiveConnection(username, { processInitialData: false,  });
+  const conn = tiktokConnection; // los manejadores de esta conexión ignoran eventos si ya hay otra más nueva
+  let streamEnded = false;       // TikTok avisó de que el directo terminó (la desconexión posterior es normal)
 
   tiktokConnection.connect().then(async state => {
     isConnected = true;
     console.log(`✅ Conectado a @${username} | Room ID: ${state.roomId}`);
+    logger.info('conexion', 'Conectado', { usuario: username, roomId: state.roomId });
+    startMonitors();
     ioInstance.emit('status', { connected: true, message: `✅ Conectado a @${username}`, roomId: state.roomId, username });
 
     
@@ -500,25 +602,39 @@ function connect(username) {
     }*/
   }).catch(err => {
     console.error('❌ Error de conexión:', err.message);
+    logger.error('conexion', 'No se pudo conectar', { usuario: username, error: err.message, tipo: err.name });
     ioInstance.emit('status', { connected: false, message: `❌ Error: ${err.message}` });
   });
 
-  tiktokConnection.on('gift', handleGift);
-  tiktokConnection.on('share', handleShare);
-  tiktokConnection.on('roomUser', d => overlayService.setViewers(d.total)); // espectadores actuales
-  tiktokConnection.on('follow', handleFollow);
-  tiktokConnection.on('like', handleLike);
-  tiktokConnection.on('chat', handleChat);
+  tiktokConnection.on('gift', guard('gift', handleGift));
+  tiktokConnection.on('share', guard('share', handleShare));
+  tiktokConnection.on('roomUser', guard('roomUser', d => overlayService.setViewers(d.total))); // espectadores actuales
+  tiktokConnection.on('follow', guard('follow', handleFollow));
+  tiktokConnection.on('like', guard('like', handleLike));
+  tiktokConnection.on('chat', guard('chat', handleChat));
 
   tiktokConnection.on('disconnected', (state) => {
+    // Si ya no es la conexión actual, la desconexión la pidió la app (disconnect() o una reconexión): ya quedó
+    // registrada allí y no debe tocar el estado de la conexión nueva.
+    if (conn !== tiktokConnection) return;
     isConnected = false;
+    stopMonitors();
     console.log('🔌 Desconectado de TikTok Live');
+    // Una desconexión que nadie pidió es el dato clave para diagnosticar conexiones malas (salvo que el directo haya terminado)
+    if (streamEnded) logger.info('conexion', 'Desconectado: el directo había terminado', { usuario: username, codigo: state?.code });
+    else logger.warn('conexion', 'Desconexión inesperada de TikTok', { usuario: username, codigo: state?.code, motivo: state?.reason });
     ioInstance.emit('status', { connected: false, message: '🔌 Desconectado' });
   });
 
+  tiktokConnection.on('streamEnd', (e) => { streamEnded = true; logger.info('conexion', 'El directo terminó', { usuario: username, accion: e?.action }); });
+
   tiktokConnection.on('error', err => {
-    console.error('❌ Error TikTok:', err.message);
-    ioInstance.emit('error', { message: err.message });
+    // La librería entrega { info, exception } (no un Error). Se saca el motivo real de la excepción.
+    const reason = err?.exception?.message || err?.message || err?.info || String(err);
+    console.error('❌ Error TikTok:', reason);
+    // Si falla el propio connect() ya se registra en su .catch(); aquí solo los errores durante la sesión
+    if (isConnected) logger.error('conexion', 'Error de la conexión con TikTok', { usuario: username, error: reason, contexto: err?.info, tipo: err?.exception?.constructor?.name });
+    ioInstance.emit('error', { message: reason });
   });
   
   
@@ -526,10 +642,12 @@ function connect(username) {
 
 function disconnect() {
   if (tiktokConnection) {
+    logger.info('conexion', 'Desconectado (a petición del usuario o por reconexión)', { usuario: currentUser });
+    stopMonitors();
     tiktokConnection.disconnect();
     tiktokConnection = null;
     isConnected = false;
   }
 }
 
-module.exports = { init, connect, disconnect, isConnected: () => isConnected , getCurrentSecUid };
+module.exports = { init, connect, disconnect, isConnected: () => isConnected , getCurrentSecUid, _test: { checkSilence, guard } };

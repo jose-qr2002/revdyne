@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import GoalCard from './GoalCard';
+import TopCard from './TopCard';
 
 const GOALS = [
   { kind: 'likes', label: 'Meta de likes' },
@@ -7,6 +8,8 @@ const GOALS = [
   { kind: 'shares', label: 'Meta de compartidas' },
   { kind: 'viewers', label: 'Meta de espectadores' },
   { kind: 'coins', label: 'Meta de monedas' },
+  { kind: 'topgift', label: 'Mejor regalo', top: true },
+  { kind: 'topcombo', label: 'Mejor combo', top: true },
 ];
 
 export default function OverlaysTab({ socket, profiles }) {
@@ -19,7 +22,9 @@ export default function OverlaysTab({ socket, profiles }) {
           <button key={g.kind} className={kind === g.kind ? 'active' : ''} onClick={() => setKind(g.kind)}>{g.label}</button>
         ))}
       </div>
-      <GoalCard key={kind} kind={kind} socket={socket} profiles={profiles} />
+      {GOALS.find(g => g.kind === kind)?.top
+        ? <TopCard key={kind} kind={kind} socket={socket} />
+        : <GoalCard key={kind} kind={kind} socket={socket} profiles={profiles} />}
     </div>
   );
 }
