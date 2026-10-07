@@ -22,13 +22,14 @@ const KINDS = {
   likes: { label: 'likes' },
   followers: { label: 'seguidores' },
   shares: { label: 'compartidas' },
+  viewers: { label: 'espectadores' },
 };
 const kindOf = (kind) => (Object.prototype.hasOwnProperty.call(KINDS, kind) ? kind : null);
 
 let io = null;
 // Los registra tiktokService: followerTotalNow() = seguidores del streamer según la conexión (sin red);
 // fetchFollowerTotal() = lo mismo pero refrescado desde TikTok (una petición).
-const hooks = { followerTotalNow: null, fetchFollowerTotal: null };
+const hooks = { followerTotalNow: null, fetchFollowerTotal: null, viewersNow: null }; // viewersNow(): espectadores actuales según la conexión
 
 // current = lo que muestra la barra = manual + live.
 // live    = total que informa TikTok (lastTotal) menos `offset`; manual = lo del botón de probar.
@@ -40,7 +41,7 @@ const newState = () => ({
   fetching: false,
   goal: 0, reached: false, hidden: false, emitTimer: null,
 });
-const states = { likes: newState(), followers: newState(), shares: newState() };
+const states = { likes: newState(), followers: newState(), shares: newState(), viewers: newState() };
 
 // Usuarios que ya compartieron en este directo (siempre se llena, para poder activar "una por usuario" sobre la marcha).
 const sharedUsers = new Set();
@@ -225,6 +226,10 @@ function recompute(kind, { silent = false, force = false } = {}) {
   if (!state.goal) state.goal = getConfig(kind).goal;
   state.current = state.manual + state.live;
 
+  // Los espectadores suben y bajan: con "Mantener meta" se vuelve a armar si bajan de la meta, para que
+  // pueda dispararse otra vez al volver a subir. Aumentar/Duplicar siguen siendo de un solo sentido.
+  if (kind === 'viewers' && state.reached && state.current < state.goal) state.reached = false;
+
   const active = isActive(kind);
   if (!active && !force) return;       // sin enlace: solo cuentas, nada de acciones ni emisiones
   checkGoal(kind, silent || !active);
@@ -312,6 +317,24 @@ function addShare(data = {}) {
   recompute('shares', { silent: firstSync });
 }
 
+// Espectadores ACTUALES (no acumulados): sube y baja con la gente que hay en el directo. Viene en el evento
+// 'roomUser' (campo `total`, string; `totalUser` en cambio es el acumulado de entradas y no se usa).
+function setViewers(rawTotal) {
+  const n = Math.floor(Number(rawTotal));
+  if (!Number.isFinite(n) || n < 0) return;
+  const state = states.viewers;
+  state.live = n;
+  const firstSync = !state.synced;
+  state.synced = true;
+  recompute('viewers', { silent: firstSync });
+}
+
+// Valor inicial de espectadores desde la conexión (roomInfo.user_count), sin red. Se llama al conectar.
+function seedViewers() {
+  const n = hooks.viewersNow?.();
+  if (n !== null && n !== undefined) setViewers(n);
+}
+
 // Toma el total que ya trae la conexión (gratis, sin red). Se llama al conectar.
 function seedFollowers() {
   const n = hooks.followerTotalNow?.();
@@ -335,6 +358,7 @@ function requestFollowerBaseline() {
 // fromNow=false (nueva conexión / cambio de modo): se descarta todo y el primer dato fija el punto de partida.
 function reset(kind, fromNow = false) {
   const state = states[kind];
+  const prevLive = state.live;
   state.manual = 0;
   state.live = 0;
   state.current = 0;
@@ -344,8 +368,15 @@ function reset(kind, fromNow = false) {
   state.goal = getConfig(kind).goal;
   state.reached = false;
   state.hidden = false;
+  // Espectadores: Reiniciar no borra la gente que hay en el directo, solo la meta y lo del botón de probar
+  if (kind === 'viewers' && fromNow) {
+    state.live = prevLive;
+    state.current = prevLive;
+    checkGoal(kind, true); // ya hay gente por encima de la meta base: se salta a la meta vigente sin disparar acciones
+  }
   scheduleEmit(kind, true);
   if (!fromNow && kind === 'followers') seedFollowers(); // ya conectados: se vuelve a tomar el total conocido
+  if (!fromNow && kind === 'viewers') seedViewers();
 }
 
 const resetAll = () => Object.keys(KINDS).forEach(kind => reset(kind));
@@ -385,7 +416,7 @@ function init(ioInstance) {
 module.exports = {
   init, kinds: Object.keys(KINDS), kindOf,
   getConfig, updateConfig, snapshot, clientCount, isActive,
-  addManual, addLiveLikes, addFollower, addShare, setFollowerTotal, seedFollowers, requestFollowerBaseline,
+  addManual, addLiveLikes, addFollower, addShare, setViewers, seedViewers, setFollowerTotal, seedFollowers, requestFollowerBaseline,
   reset, resetAll,
   setHooks: (h) => Object.assign(hooks, h),
   fonts: OVERLAY_FONTS,

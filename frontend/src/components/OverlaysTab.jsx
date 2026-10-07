@@ -5,6 +5,7 @@ const GOALS = [
   { kind: 'likes', label: 'Meta de likes' },
   { kind: 'followers', label: 'Meta de seguidores' },
   { kind: 'shares', label: 'Meta de compartidas' },
+  { kind: 'viewers', label: 'Meta de espectadores' },
 ];
 
 export default function OverlaysTab({ socket, profiles }) {

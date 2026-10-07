@@ -1277,6 +1277,6 @@ img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 .pz-range { width: 100%; accent-color: var(--accent); cursor: pointer; }
 
 .lk-wrap { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 940px; margin: 0 auto; }
-.lk-kinds { display: inline-flex; align-self: flex-start; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.lk-kinds { display: inline-flex; flex-wrap: wrap; align-self: flex-start; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .lk-kinds button { padding: 8px 16px; border: 0; border-radius: 6px; background: transparent; color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; }
 .lk-kinds button.active { background: var(--accent); color: #fff; }

@@ -34,6 +34,11 @@ function init(io, settings) {
   const followerTotalFrom = (info) => Number(info?.data?.owner?.follow_info?.follower_count) || null;
   overlayService.setHooks({
     followerTotalNow: () => (isConnected ? followerTotalFrom(tiktokConnection?.roomInfo) : null),
+    // Espectadores actuales al conectar (roomInfo.data.user_count); después los da el evento roomUser.
+    viewersNow: () => {
+      const n = Number(tiktokConnection?.roomInfo?.data?.user_count);
+      return isConnected && Number.isFinite(n) ? n : null;
+    },
     fetchFollowerTotal: async () => {
       if (!isConnected || !tiktokConnection) return null;
       try { return followerTotalFrom(await tiktokConnection.fetchRoomInfo()); } catch { return null; }
@@ -483,6 +488,7 @@ function connect(username) {
 
     // La meta de seguidores arranca con los que ya tiene el streamer (viene en roomInfo, sin otra petición).
     overlayService.seedFollowers();
+    overlayService.seedViewers();
 
     const secUid = await ensureRoomInfoWithRetry(tiktokConnection);
     if (secUid) secUidResolver.saveSecUid(username, secUid);
@@ -506,6 +512,7 @@ function connect(username) {
 
   tiktokConnection.on('gift', handleGift);
   tiktokConnection.on('share', handleShare);
+  tiktokConnection.on('roomUser', d => overlayService.setViewers(d.total)); // espectadores actuales
   tiktokConnection.on('follow', handleFollow);
   tiktokConnection.on('like', handleLike);
   tiktokConnection.on('chat', handleChat);

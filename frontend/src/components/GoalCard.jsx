@@ -44,6 +44,10 @@ const COPY = {
     modes: { total: 'Seguidores que ya tengo', live: 'Solo seguidores nuevos del directo' },
   },
   shares: { head: 'Meta de compartidas', unit: 'compartidas', modes: null },
+  viewers: {
+    head: 'Meta de espectadores', unit: 'espectadores', modes: null,
+    note: 'Sigue a los espectadores actuales: si la gente sale del directo, la barra baja con ellos.',
+  },
 };
 
 const TARGET_KEY = 'overlayTarget';
@@ -246,6 +250,7 @@ export default function GoalCard({ kind, socket, profiles }) {
               <br /><strong>Tamaño de la fuente:</strong> activa <strong>Resolución personalizada</strong> y pon una <strong>altura de 120</strong>; en el <strong>ancho</strong>, 900 es la medida base y cuanto mayor sea el valor, más larga será la barra.
             </>
           : <>En OBS añade una fuente <strong>Navegador</strong> con esa URL, tamaño {OVERLAY_W}×{OVERLAY_H}.</>}
+        {copy.note && <>{' '}{copy.note}</>}
         {' '}La meta solo funciona mientras el enlace esté en uso: al enlazarla empieza a contar y a disparar acciones.
       </p>
 

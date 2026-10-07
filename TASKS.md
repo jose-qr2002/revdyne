@@ -48,3 +48,8 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
 - [x] Compartidas probadas en un directo real (@watef4k): con "Solo una por usuario" 4 eventos del mismo usuario cuentan 1.
 - [ ] Comprobar con "Todas" en un directo real que cada compartida del mismo usuario suma (solo probado con eventos reales simulados).
 - [ ] Si el evento `share` no trae identificador de usuario, no se puede deduplicar y cuenta siempre.
+
+## Meta de espectadores
+- [ ] VPS: añadir viewers al regex de nginx: `location ~ ^/goal/(likes|followers|shares|viewers)$ { ... }` y volver a subir goal.html.
+- [x] Probado en un directo real (@watef4k): la barra sigue a roomUser.total (10-16 espectadores) subiendo y bajando.
+- [ ] Revisar en Live Studio el ícono de ojo y que con "Mantener meta" la acción se vuelva a disparar al volver a superar la meta.

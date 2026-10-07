@@ -103,6 +103,7 @@ const DEFAULT_OVERLAYS = {
   likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
   followers: goalDefaults({ goal: 100, title: 'Follower Goal', finalText: 'Seguidores' }),
   shares: goalDefaults({ goal: 50, title: 'Share Goal', finalText: 'Compartidas' }),
+  viewers: goalDefaults({ goal: 100, title: 'Viewer Goal', finalText: 'Espectadores' }),
 };
 
 module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, OVERLAY_PUBLIC_BASE_URL };
