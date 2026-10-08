@@ -153,6 +153,9 @@ function clientCount(kind) {
   return io?.sockets.adapter.rooms.get(room(kind))?.size || 0;
 }
 const isActive = (kind) => clientCount(kind) > 0;
+// Vistas previas abiertas del panel (iframe `?preview=1`): no cuentan como enlace, pero mientras alguna está abierta se le emite el estado en vivo
+const previewRoom = (kind) => `overlay-preview:${kind}`;
+const hasPreview = (kind) => (io?.sockets.adapter.rooms.get(previewRoom(kind))?.size || 0) > 0;
 
 function emitNow(kind) {
   states[kind].emitTimer = null;
@@ -239,7 +242,10 @@ function recompute(kind, { silent = false, force = false } = {}) {
   if (kind === 'viewers' && state.reached && state.current < state.goal) state.reached = false;
 
   const active = isActive(kind);
-  if (!active && !force) return;       // sin enlace: solo cuentas, nada de acciones ni emisiones
+  if (!active && !force) {             // sin enlace: solo cuentas, nada de acciones
+    if (hasPreview(kind)) { checkGoal(kind, true); scheduleEmit(kind); } // con la vista previa abierta se emite, en silencio (sin acciones)
+    return;
+  }
   checkGoal(kind, silent || !active);
   scheduleEmit(kind);
 }
@@ -294,6 +300,17 @@ function addFollower(data = {}) {
 // Seguidores del streamer conocidos por otra vía (roomInfo): fija el punto de partida, no cuenta como nuevo.
 function setFollowerTotal(total) {
   applyTotal('followers', total, 0);
+}
+
+// Seguidores APROXIMADOS (perfil público, redondeado: 35.8k -> 35800) para cuando roomInfo no trae el total exacto
+// (directos que TikTok restringe: roomInfo llega solo con status_code 4003110). Sirve para no dejar la meta en 0 hasta
+// el primer seguidor nuevo; el total exacto del primer evento 'follow' lo reemplaza. Si ya hay un dato, no hace nada.
+// En modo "solo lo nuevo" la meta sigue en 0 y el punto de partida real se toma del primer total exacto.
+function setFollowerApprox(total) {
+  const state = states.followers;
+  if (state.lastTotal > 0) return;
+  applyTotal('followers', total, 0);
+  if (getConfig('followers').countMode === 'live') state.offsetSet = false;
 }
 
 // Identificador estable del usuario en un evento 'share'. Comprobado en directos reales: el usuario llega como
@@ -431,7 +448,8 @@ function init(ioInstance) {
     socket.on('overlay:join', ({ name, preview } = {}) => {
       const kind = kindOf(name);
       if (!kind) return;
-      if (!preview) {
+      if (preview) socket.join(previewRoom(kind)); // se sale sola al cerrarse la vista previa (al cambiar de sección)
+      else {
         const wasActive = isActive(kind);
         socket.join(room(kind));
         broadcastClients();
@@ -447,7 +465,7 @@ function init(ioInstance) {
 module.exports = {
   init, kinds: Object.keys(KINDS), kindOf,
   getConfig, updateConfig, snapshot, clientCount, isActive,
-  addManual, addLiveLikes, addFollower, addShare, addCoins, setViewers, seedViewers, setFollowerTotal, seedFollowers, requestFollowerBaseline,
+  addManual, addLiveLikes, addFollower, addShare, addCoins, setViewers, seedViewers, setFollowerTotal, setFollowerApprox, seedFollowers, requestFollowerBaseline,
   reset, resetAll,
   setHooks: (h) => Object.assign(hooks, h),
   fonts: OVERLAY_FONTS,

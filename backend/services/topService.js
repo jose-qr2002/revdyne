@@ -3,8 +3,11 @@
 //   topgift:  el regalo de MAYOR VALOR por unidad (p. ej. un Capibara) con la cantidad de su ráfaga ("x30").
 //             Solo lo reemplaza un regalo de más valor; 100 rosas no desplazan a un capibara.
 //             Si empatan en valor, gana la ráfaga con más unidades.
-//   topcombo: la ráfaga con MÁS UNIDADES seguidas (lo que TikTok muestra como "x100"); mínimo 2 para ser un combo.
+//   topcombo: la ráfaga con MÁS UNIDADES seguidas (lo que TikTok muestra como "x100"); una sola unidad (x1) ya cuenta, para que el público vea algo desde el primer regalo.
 //             Si empatan, gana el regalo de más valor.
+// NO se reinician al desconectar/reconectar (una caída de conexión no debe borrar el combo del directo): solo al cerrar la app,
+// al cambiar de usuario (otro directo) o con el botón de reinicio. Opción `keepOnClose`: guarda el líder en overlays.json
+// (clave `topSaved`) para conservarlo aunque se cierre la app.
 // Una "ráfaga" es una racha identificada por su groupId (ver giftStreaks.js). Mientras la racha de quien lidera
 // sigue creciendo, el valor se actualiza en vivo; si otra la supera, pasa a ser la nueva líder.
 //
@@ -17,11 +20,11 @@ const { DEFAULT_OVERLAYS, OVERLAY_FONTS } = require('../data/defaults');
 // score = [criterio principal, desempate]; gana quien tenga un score estrictamente mayor
 const KINDS = {
   topgift: { label: 'mejor regalo', score: (units, perUnit) => [perUnit, units], minUnits: 1 },
-  topcombo: { label: 'mejor combo', score: (units, perUnit) => [units, perUnit], minUnits: 2 },
+  topcombo: { label: 'mejor combo', score: (units, perUnit) => [units, perUnit], minUnits: 1 },
 };
 const better = (a, b) => (a[0] !== b[0] ? a[0] > b[0] : a[1] > b[1]);
 const sameScore = (a, b) => a[0] === b[0] && a[1] === b[1];
-const VALUE_MODES = ['count', 'coins', 'both'];
+const VALUE_MODES = ['unit', 'count', 'coins', 'both'];
 const STYLE_IDS = [1, 2, 3];
 const EMIT_INTERVAL_MS = 120;
 
@@ -50,9 +53,9 @@ function sanitize(kind, input, current) {
     fontScale: clampInt(m.fontScale, 60, 160, d.fontScale),
     valueScale: clampInt(m.valueScale, 50, 150, d.valueScale),
     nameOverIcon: !!m.nameOverIcon,
-    valueMode: VALUE_MODES.includes(m.valueMode) ? m.valueMode : d.valueMode,
-    transparentTitle: !!m.transparentTitle,
-    transparentValue: !!m.transparentValue,
+    keepOnClose: !!m.keepOnClose,
+    // 'count' era el modo por defecto anterior (mostraba 101 con 101 rosas); en el mejor regalo ahora se muestra el valor del regalo ('unit')
+    valueMode: VALUE_MODES.includes(m.valueMode) ? (kind === 'topgift' && m.valueMode === 'count' ? 'unit' : m.valueMode) : d.valueMode,
     accentColor: hex('accentColor'),
     titleColor: hex('titleColor'),
     nameColor: hex('nameColor'),
@@ -73,17 +76,58 @@ function getConfig(kind) {
 }
 
 function updateConfig(kind, patch) {
+  const before = getConfig(kind).keepOnClose;
   const next = sanitize(kind, patch, getConfig(kind));
   store.saveOverlays({ ...store.loadOverlays(), schemaVersion: 1, [kind]: next });
   configCache[kind] = next;
+  if (next.keepOnClose !== before) persist(kind, true);
   scheduleEmit(kind, true);
   return next;
 }
 
 // ---------- Estado ----------
+let owner = null; // usuario del directo al que pertenecen los líderes actuales
+const saveTimers = {};
+
+// Guarda (o borra, si la opción está apagada) el líder de este tipo. Con debounce: la ráfaga líder cambia varias veces por segundo.
+function persist(kind, now = false) {
+  clearTimeout(saveTimers[kind]);
+  const write = () => {
+    try {
+      const all = store.loadOverlays();
+      const saved = { ...(all.topSaved || {}) };
+      if (getConfig(kind).keepOnClose) saved[kind] = { owner, best: states[kind].best };
+      else delete saved[kind];
+      store.saveOverlays({ ...all, topSaved: saved });
+    } catch (e) { logger.warn('overlay', 'No se pudo guardar el líder de ' + KINDS[kind].label, { error: e.message }); }
+  };
+  if (now) write(); else { saveTimers[kind] = setTimeout(write, 2000); if (saveTimers[kind].unref) saveTimers[kind].unref(); }
+}
+
+// Al arrancar: recupera los líderes guardados (solo de los tipos con la opción activa)
+function restoreSaved() {
+  const saved = store.loadOverlays().topSaved || {};
+  for (const kind of Object.keys(KINDS)) {
+    if (!getConfig(kind).keepOnClose || !saved[kind]?.best) continue;
+    states[kind].best = saved[kind].best;
+    owner = saved[kind].owner || owner;
+  }
+}
+
+// Se llama al conectar. Reconectar al MISMO usuario conserva todo; otro usuario es otro directo y empieza de cero.
+function setOwner(username) {
+  const name = String(username || '').replace(/^@/, '').toLowerCase() || null;
+  if (!name) return;
+  if (owner && owner !== name) resetAll();
+  owner = name;
+}
+
 const room = (kind) => `overlay:${kind}`;
 const clientCount = (kind) => io?.sockets.adapter.rooms.get(room(kind))?.size || 0;
 const isActive = (kind) => clientCount(kind) > 0;
+// Vistas previas abiertas del panel: no cuentan como enlace, pero mientras alguna está abierta se le emite el estado en vivo
+const previewRoom = (kind) => `overlay-preview:${kind}`;
+const hasPreview = (kind) => (io?.sockets.adapter.rooms.get(previewRoom(kind))?.size || 0) > 0;
 
 function snapshot(kind) {
   const cfg = getConfig(kind);
@@ -144,7 +188,8 @@ function record(ev) {
     } else {
       continue;
     }
-    if (isActive(kind)) scheduleEmit(kind);
+    persist(kind);
+    if (isActive(kind) || hasPreview(kind)) scheduleEmit(kind);
   }
 }
 
@@ -162,6 +207,7 @@ function test(kind) {
 
 function reset(kind) {
   states[kind].best = null;
+  persist(kind);
   scheduleEmit(kind, true);
 }
 const resetAll = () => Object.keys(KINDS).forEach(reset);
@@ -169,6 +215,7 @@ const resetAll = () => Object.keys(KINDS).forEach(reset);
 // ---------- Sockets ----------
 function init(ioInstance) {
   io = ioInstance;
+  restoreSaved();
   const lastClients = {};
   const broadcastClients = () => {
     for (const kind of Object.keys(KINDS)) {
@@ -187,7 +234,8 @@ function init(ioInstance) {
     socket.on('overlay:join', ({ name, preview } = {}) => {
       const kind = kindOf(name);
       if (!kind) return;
-      if (!preview) { socket.join(room(kind)); broadcastClients(); }
+      if (preview) socket.join(previewRoom(kind));
+      else { socket.join(room(kind)); broadcastClients(); }
       socket.emit(`overlay:${kind}:state`, snapshot(kind));
     });
     socket.on('disconnect', broadcastClients);
@@ -196,7 +244,7 @@ function init(ioInstance) {
 }
 
 module.exports = {
-  init, kinds: Object.keys(KINDS), kindOf,
+  init, setOwner, kinds: Object.keys(KINDS), kindOf,
   getConfig, updateConfig, snapshot, clientCount, isActive,
   record, test, reset, resetAll,
   fonts: OVERLAY_FONTS,

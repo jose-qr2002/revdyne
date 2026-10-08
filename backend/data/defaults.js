@@ -100,15 +100,14 @@ const goalDefaults = ({ goal, title, finalText }) => {
 
 // Overlays "mejor regalo" / "mejor combo": tarjeta con el regalo, quién lo envió y su valor.
 const topDefaults = ({ title, valueColor }) => ({
-  activeStyle: 2,           // 1 tarjeta horizontal | 2 etiqueta compacta (por defecto, ocupa menos alto) | 3 vertical centrada
+  activeStyle: 3,           // 1 tarjeta horizontal | 2 etiqueta compacta | 3 vertical compacta sin fondos (por defecto)
   title,
   font: 'Arial',
   fontScale: 100,           // % del tamaño base del texto (título y usuario)
   valueScale: 100,          // % del tamaño del valor (monedas / xN); bajarlo da un aspecto más compacto
-  valueMode: 'count',       // solo mejor regalo: count (×30) | coins (monedas totales) | both
-  transparentTitle: false,  // sin fondo en el título (estilo 3)
-  transparentValue: false,  // sin fondo ni borde en el valor (estilos 2 y 3)
-  nameOverIcon: false,      // solo estilo 3: el nombre se coloca encima del regalo
+  valueMode: 'unit',        // solo mejor regalo: unit (valor del regalo, por defecto) | coins (monedas totales) | both (xN + monedas); 'count' (xN) ya no se ofrece
+  keepOnClose: false,       // guardar el líder aunque se cierre la app (si no, se reinicia al cerrarla)
+  nameOverIcon: false,      // en desuso: el estilo 3 siempre coloca el nombre sobre el regalo
   accentColor: '#ff0050',
   titleColor: '#ffffff',
   nameColor: '#ffffff',

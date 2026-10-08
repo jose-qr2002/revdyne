@@ -95,3 +95,4 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
 - [ ] Revisar a ojo en la app real las pantallas con más cambios: Bot TTS (muchos controles) y los modales de Acciones/Eventos/Stickers (alineación de íconos junto al texto).
 - [ ] Los íconos de regalos del Log/Catálogo salen por nivel de monedas (caja, destellos, gema, cohete, corona); si prefieres otro criterio o más niveles, se ajusta en giftUtils.js.
 - [ ] Los nombres de eventos del servidor (giftName) aún llevan emoji en backend/services/tiktokService.js y overlayService.js; la interfaz los oculta con plainText(), pero siguen en el registro de errores.
+- [ ] Meta de seguidores en un directo restringido (roomInfo 4003110, p. ej. lizzymp37): al conectar debe mostrar el total aproximado del perfil (35800) y al primer follow pasar al exacto (35767...). Probar también en modo "solo lo nuevo" (debe quedar en 0 y contar desde el primer follow).

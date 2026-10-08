@@ -48,7 +48,6 @@ function init(io, settings) {
   settingsRef = settings;
   // Seguidores del streamer: roomInfo.data.owner.follow_info.follower_count (exacto, igual que el
   // followCount de los eventos follow). followerTotalNow no usa red; fetchFollowerTotal refresca.
-  const followerTotalFrom = (info) => Number(info?.data?.owner?.follow_info?.follower_count) || null;
   overlayService.setHooks({
     followerTotalNow: () => (isConnected ? followerTotalFrom(tiktokConnection?.roomInfo) : null),
     // Espectadores actuales al conectar (roomInfo.data.user_count); después los da el evento roomUser.
@@ -61,6 +60,22 @@ function init(io, settings) {
       try { return followerTotalFrom(await tiktokConnection.fetchRoomInfo()); } catch { return null; }
     },
   });
+}
+
+// Seguidores desde el perfil público (https://www.tiktok.com/@usuario). Viene REDONDEADO (35.8k -> 35800), por eso solo se usa
+// de respaldo cuando roomInfo no trae el total exacto. Mejor esfuerzo: si falla, devuelve null y la meta espera al primer follow.
+async function fetchProfileFollowers(username) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(`https://www.tiktok.com/@${encodeURIComponent(username)}`, {
+      signal: ctrl.signal,
+      headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', 'accept-language': 'en-US,en;q=0.9' },
+    });
+    if (!res.ok) return null;
+    const m = (await res.text()).match(/"followerCount":\s*(\d+)/);
+    return m ? Number(m[1]) || null : null;
+  } catch { return null; } finally { clearTimeout(timer); }
 }
 
 // ==========================================
@@ -546,6 +561,9 @@ function stopMonitors() {
   watchTimer = statsTimer = null;
 }
 
+// Total de seguidores exacto de roomInfo (null si TikTok no lo entrega)
+const followerTotalFrom = (info) => Number(info?.data?.owner?.follow_info?.follower_count) || null;
+
 let currentUser = null;
 
 function connect(username) {
@@ -556,7 +574,7 @@ function connect(username) {
   onceSeen.clear();
   eventCooldowns.clear();
   overlayService.resetAll();
-  topService.resetAll();
+  topService.setOwner(username); // no reinicia al reconectar al mismo usuario
   giftStreaks.reset();
   
   if (!username) {
@@ -584,6 +602,15 @@ function connect(username) {
     // La meta de seguidores arranca con los que ya tiene el streamer (viene en roomInfo, sin otra petición).
     overlayService.seedFollowers();
     overlayService.seedViewers();
+    if (!followerTotalFrom(tiktokConnection.roomInfo)) {
+      // roomInfo sin total de seguidores (p. ej. status_code 4003110): se usa el del perfil (aproximado) hasta el primer follow
+      logger.warn('overlay', 'roomInfo sin total de seguidores; se usa el del perfil (aproximado)', { usuario: username, status: tiktokConnection.roomInfo?.status_code });
+      fetchProfileFollowers(username).then(n => {
+        if (!n || conn !== tiktokConnection) return; // falló, o ya hay otra conexión
+        overlayService.setFollowerApprox(n);
+        logger.info('overlay', 'Seguidores aproximados del perfil', { usuario: username, seguidores: n });
+      });
+    }
 
     const secUid = await ensureRoomInfoWithRetry(tiktokConnection);
     if (secUid) secUidResolver.saveSecUid(username, secUid);

@@ -5,11 +5,11 @@ import { apiFetch } from '../services/api';
 const STYLES = {
   1: { label: 'Tarjeta horizontal', w: 560, h: 170 },
   2: { label: 'Etiqueta compacta', w: 480, h: 150 },
-  3: { label: 'Vertical centrada', w: 320, h: 374, hOver: 314 }, // hOver: alto cuando el nombre va sobre el regalo
+  3: { label: 'Vertical compacta', w: 260, h: 300 },
 };
 const COPY = {
   topgift: { head: 'Mejor regalo', slug: 'gift', help: 'Muestra el regalo de mayor valor del directo con la cantidad de su racha (p. ej. Capibara ×30). No es acumulativo: solo lo reemplaza un regalo de más valor (100 rosas no desplazan a un capibara); si empatan en valor, gana la racha más larga.' },
-  topcombo: { head: 'Mejor combo', slug: 'combo', help: 'Muestra la racha más larga del directo (lo que TikTok muestra como "x100") y quién la hizo. Cuenta como combo desde 2 unidades.' },
+  topcombo: { head: 'Mejor combo', slug: 'combo', help: 'Muestra la racha más larga del directo (lo que TikTok muestra como "x100") y quién la hizo. Se muestra desde la primera unidad (x1).' },
 };
 const COLORS = [
   ['accentColor', 'Acento'], ['cardColor', 'Fondo de la tarjeta'], ['titleColor', 'Color del título'],
@@ -78,7 +78,7 @@ export default function TopCard({ kind, socket }) {
   }, [socket, kind]);
 
   const base = STYLES[data?.config?.activeStyle] || STYLES[2];
-  const style = data?.config?.nameOverIcon && base.hOver ? { ...base, h: base.hOver } : base;
+  const style = base;
 
   // La vista previa es la propia página del overlay, escalada al ancho disponible
   useEffect(() => {
@@ -172,7 +172,7 @@ export default function TopCard({ kind, socket }) {
         {kind === 'topgift' && (
           <label>Valor a mostrar
             <select className="modifier-select" value={cfg.valueMode} onChange={e => save({ valueMode: e.target.value })}>
-              <option value="count">Cantidad (×30)</option>
+              <option value="unit">Valor del regalo (30)</option>
               <option value="coins">Monedas totales</option>
               <option value="both">Cantidad y monedas</option>
             </select>
@@ -184,7 +184,7 @@ export default function TopCard({ kind, socket }) {
             <option value="username">@usuario</option>
           </select>
         </label>
-        <label>Tamaño del texto: {cfg.fontScale}%
+        <label>Tamaño del título: {cfg.fontScale}%
           <input type="range" className="pz-range" min="60" max="160" value={cfg.fontScale} onChange={e => save({ fontScale: Number(e.target.value) })} />
         </label>
         <label>Tamaño del valor (monedas / ×N): {cfg.valueScale}%
@@ -208,9 +208,7 @@ export default function TopCard({ kind, socket }) {
         <Toggle label="Icono del regalo" checked={cfg.showIcon} onChange={v => save({ showIcon: v })} />
         <Toggle label="Usuario" checked={cfg.showUser} onChange={v => save({ showUser: v })} />
         <Toggle label="Animación" checked={cfg.animate} onChange={v => save({ animate: v })} />
-        <Toggle label="Fondo del título transparente" checked={cfg.transparentTitle} onChange={v => save({ transparentTitle: v })} />
-        <Toggle label="Fondo del valor transparente" checked={cfg.transparentValue} onChange={v => save({ transparentValue: v })} />
-        {cfg.activeStyle === 3 && <Toggle label="Nombre sobre el regalo" checked={cfg.nameOverIcon} onChange={v => save({ nameOverIcon: v })} />}
+        <Toggle label="Conservar al cerrar la app" checked={cfg.keepOnClose} onChange={v => save({ keepOnClose: v })} />
         <button className="btn btn-sm btn-secondary" onClick={() => save(defaults)}>Restablecer</button>
       </div>
 

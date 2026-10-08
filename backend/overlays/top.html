@@ -39,6 +39,7 @@
      El mejor combo siempre muestra la cantidad. */
   #value { display: flex; align-items: center; gap: .3em; font-weight: 900; color: var(--value); line-height: 1; white-space: nowrap; text-shadow: 0 2px 8px rgba(0,0,0,.5); padding: .12em .25em; margin: -.12em -.25em; }
   #value svg { width: .95em; height: .95em; flex: 0 0 auto; }
+  #value #num, #value .mult { position: relative; top: -.06em; } /* los dígitos quedan visualmente más bajos que el centro de la caja: se suben para alinearlos con la moneda */
   #value .mult { display: none; opacity: .85; }
   #value .sub { display: none; align-items: center; gap: .25em; font-size: .5em; opacity: .9; margin-left: .3em; }
   #value .sub svg { width: 1em; height: 1em; }
@@ -53,8 +54,7 @@
   [data-style="1"] #iconWrap { width: 128px; height: 128px; flex: 0 0 auto; }
   [data-style="1"] #info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
   [data-style="1"] #title { font-size: calc(15px * var(--fs)); }
-  [data-style="1"] #name { font-size: calc(34px * var(--fs)); }
-  [data-style="1"] #value { font-size: calc(48px * var(--fs) * var(--vs)); }
+    [data-style="1"] #value { font-size: calc(48px * var(--vs)); }
 
   /* ---------- Estilo 2: etiqueta compacta con el icono desbordando ---------- */
   [data-style="2"] #stage { width: 480px; height: 150px; }
@@ -63,27 +63,22 @@
   /* título y nombre a la izquierda, el valor como insignia a la derecha */
   [data-style="2"] #info { min-width: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title value" "name value"; align-items: center; column-gap: 14px; row-gap: 3px; }
   [data-style="2"] #title { grid-area: title; font-size: calc(12px * var(--fs)); }
-  [data-style="2"] #name { grid-area: name; font-size: calc(24px * var(--fs)); }
-  [data-style="2"] #value { grid-area: value; font-size: calc(30px * var(--fs) * var(--vs)); padding: 10px 14px; margin: 0; border-radius: 14px; background: rgba(0,0,0,.4); }
+  [data-style="2"] #name { grid-area: name; }
+  [data-style="2"] #value { grid-area: value; font-size: calc(30px * var(--vs)); padding: 10px 14px; margin: 0; border-radius: 14px; background: rgba(0,0,0,.4); }
 
-  /* ---------- Estilo 3: vertical centrada ---------- */
-  [data-style="3"] #stage { width: 320px; height: 374px; }
-  [data-style="3"] #card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding-top: 14px; /* baja el título del borde */ }
+  /* ---------- Estilo 3: vertical compacta, sin fondos ----------
+     Título arriba, regalo grande, el nombre inclinado y con sombra "3D" montado sobre la parte baja del regalo y el valor debajo.
+     Sin tarjeta: todo es texto con sombra para leerse sobre el video. */
+  [data-style="3"] #stage { width: 260px; height: 300px; }
+  [data-style="3"] #card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; text-align: center; padding-top: 4px; }
   [data-style="3"] #info { display: contents; }
-  [data-style="3"] #title { order: 0; font-size: calc(14px * var(--fs)); background: var(--accent); color: var(--title); opacity: 1; padding: 6px 18px; border-radius: 999px; }
-  [data-style="3"] #iconWrap { order: 1; width: 200px; height: 200px; }
-  [data-style="3"] #name { order: 2; font-size: calc(30px * var(--fs)); max-width: calc(100% + 1.2em); /* devuelve el ancho que quita el margen interior de la sombra */ }
-  [data-style="3"] #value { order: 3; font-size: calc(36px * var(--fs) * var(--vs)); padding: 8px 22px; margin: 0; border-radius: 999px; background: var(--card); border: 3px solid var(--accent); }
-
-  /* Estilo 3 con el nombre SOBRE el regalo: el nombre sube y se superpone a la parte baja del icono */
-  [data-style="3"][data-over="1"] #stage { height: 314px; }
-  [data-style="3"][data-over="1"] #name { position: relative; z-index: 3; margin-top: calc(-62px - .3em); font-size: calc(30px * var(--fs)); text-shadow: -2px -2px 0 rgba(0,0,0,.85), 2px -2px 0 rgba(0,0,0,.85), -2px 2px 0 rgba(0,0,0,.85), 2px 2px 0 rgba(0,0,0,.85), 0 4px 10px rgba(0,0,0,.6); }
-  [data-style="3"][data-over="1"] #iconWrap { z-index: 1; }
-
-  /* Fondos transparentes (opcionales): sin color de fondo ni borde en el título y/o en el valor.
-     El texto conserva una sombra para leerse sobre el video. */
-  body[data-tt="1"] #title { background: transparent; box-shadow: none; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
-  body[data-tv="1"] #value { background: transparent; border-color: transparent; box-shadow: none; }
+  [data-style="3"] #title { order: 0; text-transform: none; letter-spacing: .01em; font-size: calc(30px * var(--fs)); font-weight: 800; color: var(--title); opacity: 1; line-height: 1.1; text-shadow: 0 2px 6px rgba(0,0,0,.65); }
+  [data-style="3"] #iconWrap { order: 1; width: 196px; height: 196px; margin-top: 2px; flex: 0 0 auto; }
+  [data-style="3"] #iconWrap::before { display: none; }
+  [data-style="3"] #name { order: 2; position: relative; z-index: 3; align-self: center; max-width: 270px; margin-top: calc(-58px - .3em); font-weight: 900; line-height: 1.05;
+    color: var(--name); transform: rotate(-6deg);
+    text-shadow: 1px 1px 0 #3b2147, 2px 2px 0 #3b2147, 3px 3px 0 #3b2147, 4px 4px 0 #3b2147, 5px 5px 6px rgba(0,0,0,.55); }
+  [data-style="3"] #value { order: 3; margin-top: 6px; font-size: calc(40px * var(--vs)); padding: .12em .25em; background: none; border: 0; }
 
   /* Animación al cambiar el líder */
   #card.pop { animation: pop .65s cubic-bezier(.2,1.4,.4,1); }
@@ -132,17 +127,26 @@
   stage.setAttribute('data-kind', kind);
   document.body.setAttribute('data-kind', kind);
 
-  var SIZES = { 1: [560, 170], 2: [480, 150], 3: [320, 374] };
-  var over = false; // estilo 3 con el nombre sobre el regalo: el lienzo es más bajo
+  var SIZES = { 1: [560, 170], 2: [480, 150], 3: [260, 300] };
   var last = null, lastSig = '';
 
   function applyScale() {
     var s = SIZES[stage.getAttribute('data-style')] || SIZES[2];
-    if (over && stage.getAttribute('data-style') === '3') s = [320, 314];
     var w = window.innerWidth, h = window.innerHeight;
     if (!(w > 0 && h > 0)) { w = s[0]; h = s[1]; } // Live Studio a veces carga con 0x0
     stage.style.width = s[0] + 'px'; stage.style.height = s[1] + 'px';
     stage.style.setProperty('--s', Math.min(w / s[0], h / s[1]));
+  }
+
+  // El nombre NO usa el tamaño de texto del panel: se ajusta solo. Parte del tamaño base del estilo y lo reduce hasta que quepa;
+  // solo si ni así cabe (mínimo 55% del base, para que siga legible) se corta con "…".
+  var NAME_BASE = { 1: 34, 2: 24, 3: 34 };
+  function fitName() {
+    var base = NAME_BASE[stage.getAttribute('data-style')] || 24;
+    nameEl.style.fontSize = base + 'px';
+    if (nameEl.classList.contains('off')) return;
+    var size = base, min = base * 0.55;
+    while (size > min && nameEl.scrollWidth > nameEl.clientWidth + 1) { size -= 1; nameEl.style.fontSize = size + 'px'; }
   }
 
   var fmt = function (n) { return Number(n).toLocaleString('es'); };
@@ -150,19 +154,15 @@
   function render(st) {
     last = st;
     var c = st.config, b = st.best;
-    over = !!c.nameOverIcon && c.activeStyle === 3;
     var body = document.body;
     body.setAttribute('data-style', c.activeStyle);
-    body.setAttribute('data-over', over ? '1' : '0');
-    body.setAttribute('data-tt', c.transparentTitle ? '1' : '0');
-    body.setAttribute('data-tv', c.transparentValue ? '1' : '0');
     // El mejor combo siempre muestra la cantidad; el mejor regalo según el ajuste (cantidad, monedas o ambos)
     var vmode = kind === 'topcombo' ? 'count' : (c.valueMode || 'count');
     body.setAttribute('data-vmode', vmode);
     stage.setAttribute('data-style', c.activeStyle);
     var r = document.documentElement.style;
     r.setProperty('--font', '"' + c.font + '"'); r.setProperty('--fs', c.fontScale / 100); r.setProperty('--vs', c.valueScale / 100);
-    r.setProperty('--accent', c.accentColor); r.setProperty('--title', c.titleColor); r.setProperty('--name', c.nameColor);
+    r.setProperty('--accent', c.accentColor); r.setProperty('--title', c.titleColor); r.setProperty('--name', c.activeStyle === 3 && /^#fff(fff)?$/i.test(c.nameColor) ? '#f7c93e' : c.nameColor); // estilo 3: el blanco por defecto pasa a dorado
     r.setProperty('--value', c.valueColor); r.setProperty('--card', c.cardColor);
 
     titleEl.textContent = c.title; titleEl.classList.toggle('off', !c.showTitle || !c.title);
@@ -172,7 +172,7 @@
     nameEl.textContent = user; nameEl.classList.toggle('off', !c.showUser);
 
     var units = b ? b.units : 0, coins = b ? b.coins : 0;
-    numEl.textContent = fmt(vmode === 'coins' ? coins : units);
+    numEl.textContent = fmt(vmode === 'coins' ? coins : vmode === 'unit' ? (b ? b.perUnit : 0) : units);
     num2El.textContent = fmt(coins);
 
     // Icono del regalo (si no carga, se queda el icono genérico)
@@ -186,10 +186,12 @@
     lastSig = sig;
 
     applyScale();
+    fitName();
     stage.classList.add('ready');
   }
   img.addEventListener('error', function () { img.hidden = true; fallback.style.display = ''; });
   window.addEventListener('resize', applyScale);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (last) fitName(); });
   applyScale();
 
   // Mismo archivo en dos modos (ver goal.html):
