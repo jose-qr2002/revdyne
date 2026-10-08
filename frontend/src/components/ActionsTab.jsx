@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 
 const TYPE_META = {
-  keyboard: { icon: '⌨️', label: 'Macro de Teclado' },
-  sound: { icon: '🎵', label: 'Sonido Directo' },
-  l4d2_command: { icon: '🎮', label: 'Comando L4D2' },
-  minecraft_command: { icon: '⛏️', label: 'Comando Minecraft' },
+  keyboard: { label: 'Macro de Teclado' },
+  sound: { label: 'Sonido Directo' },
+  l4d2_command: { label: 'Comando L4D2' },
+  minecraft_command: { label: 'Comando Minecraft' },
 };
 
 const SUPPORTED_TYPES = ['keyboard', 'sound'];
@@ -78,7 +79,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
       if (delayMs === 0) {
         if (!data.ok) return showToast('error', 'La acción no se ejecutó');
-        return showToast('success', data.simulated ? 'Ejecutada en modo simulación (sin motor de teclado)' : '▶ Acción ejecutada');
+        return showToast('success', data.simulated ? 'Ejecutada en modo simulación (sin motor de teclado)' : 'Acción ejecutada');
       }
 
       const seconds = Math.round(delayMs / 1000);
@@ -265,7 +266,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       </select>
       <input type="file" accept="audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
       <button className="btn btn-secondary" onClick={() => fileInputRef.current.click()} disabled={isUploading} title="Subir audio (.mp3, .wav)" style={{ padding: '0 12px', fontWeight: 'bold' }}>
-        {isUploading ? '⏳' : '➕ Subir'}
+        {isUploading ? <Icon name="clock" size={15} /> : <><Icon name="plus" size={15} /> Subir</>}
       </button>
     </div>
   );
@@ -275,7 +276,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
       <ConfirmModal
         isOpen={isDeleteModalOpen}
-        title="⚠️ Eliminar Acción"
+        title={<><Icon name="alert" size={18} /> Eliminar acción</>}
         message="¿Estás seguro de que deseas eliminar esta acción del arsenal? Cualquier evento de TikTok o Sticker vinculado a ella dejará de funcionar."
         onConfirm={confirmDeleteAction}
         onCancel={() => { setIsDeleteModalOpen(false); setActionToDelete(null); }}
@@ -289,7 +290,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', alignItems: 'center', gap: '10px',
           animation: 'fadeInDown 0.3s ease-out'
         }}>
-          <span>{notification.type === 'error' ? '❌' : '✅'}</span>
+          <span><Icon name={notification.type === 'error' ? 'x' : 'check'} size={16} /></span>
           <span>{notification.text}</span>
         </div>
       )}
@@ -297,7 +298,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       {confirmDialog && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--card)', border: '2px solid #ff9800', borderRadius: '12px', width: '100%', maxWidth: '450px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
-            <div style={{ fontSize: '40px' }}>⚠️</div>
+            <div style={{ color: 'var(--yellow)' }}><Icon name="alert" size={40} /></div>
             <h3 style={{ margin: 0, color: '#ff9800' }}>ADVERTENCIA DE DURACIÓN</h3>
             <p style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
               El audio <strong>"{confirmDialog.file.name}"</strong> dura <strong>{confirmDialog.duration.toFixed(1)} segundos</strong>.
@@ -320,7 +321,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       <ModalShell
         isOpen={showForm}
         onClose={resetForm}
-        title={editingActionId ? '✏️ Editando Acción' : '✨ Nueva Acción'}
+        title={editingActionId ? <><Icon name="edit" size={16} /> Editando acción</> : <><Icon name="sparkles" size={16} /> Nueva acción</>}
         width="600px"
         footer={
           <>
@@ -346,11 +347,11 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Tipo de Acción</label>
               <select className="modifier-select" value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} disabled={editingActionId !== null}>
                 {availableTypes.map(t => {
-                  const meta = TYPE_META[t] || { icon: '❓', label: t };
+                  const meta = TYPE_META[t] || { label: t };
                   const supported = SUPPORTED_TYPES.includes(t);
                   return (
                     <option key={t} value={t} disabled={!supported}>
-                      {meta.icon} {meta.label}{!supported ? ' (próximamente)' : ''}
+                      {meta.label}{!supported ? ' (próximamente)' : ''}
                     </option>
                   );
                 })}
@@ -366,7 +367,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                   <input type="text" className="key-input" placeholder="Ej: r, o {shift+w}{space}" value={key} onChange={e => setKey(e.target.value)} style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: '90px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms) ⏳</label>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms)</label>
                   <input type="number" className="key-input" value={delay} onChange={e => setDelay(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="10" max="5000" />
                 </div>
                 <div style={{ flex: 2, minWidth: '220px' }}>
@@ -377,7 +378,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               {sound && (
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>
-                    🔊 Volumen del sonido: {volume}%
+                    <Icon name="volume" size={15} /> Volumen del sonido: {volume}%
                   </label>
                   <input
                     type="range" min="0" max="100" value={volume}
@@ -389,7 +390,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               {sound && isMultiKey && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px', padding: '8px', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '6px', borderLeft: '3px solid #ff9800' }}>
                   <label style={{ fontSize: '12px', color: '#ffeb3b', margin: 0, cursor: 'pointer' }}>
-                    🔊 ¿Reproducir sonido en <strong>cada</strong> tecla del combo?
+                    <Icon name="volume" size={15} /> ¿Reproducir sonido en <strong>cada</strong> tecla del combo?
                   </label>
                   <label className="switch">
                     <input type="checkbox" checked={soundEveryKey} onChange={e => setSoundEveryKey(e.target.checked)} />
@@ -408,7 +409,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                   {renderSoundPicker()}
                 </div>
                 <div style={{ flex: 1, minWidth: '90px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms) ⏳</label>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms)</label>
                   <input type="number" className="key-input" value={delay} onChange={e => setDelay(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="0" max="5000" />
                 </div>
               </div>
@@ -417,7 +418,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               </p>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>
-                  🔊 Volumen: {volume}%
+                  <Icon name="volume" size={15} /> Volumen: {volume}%
                 </label>
                 <input
                   type="range" min="0" max="100" value={volume}
@@ -443,17 +444,17 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                 {act.type === 'keyboard' && (
                   <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>{act.key}</span>
-                    <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>⏳ {act.delay || 80}ms</span>
-                    {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}>🔊 {act.sound} · {act.volume ?? 100}% (1 vez)</span>}
-                    {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}>🔊 {act.sound} · {act.volume ?? 100}% (En cada tecla)</span>}
+                    <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="clock" size={13} /> {act.delay || 80}ms</span>
+                    {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.sound} · {act.volume ?? 100}% (1 vez)</span>}
+                    {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.sound} · {act.volume ?? 100}% (En cada tecla)</span>}
                   </div>
                 )}
 
                 {act.type === 'sound' && (
                   <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ background: 'rgba(76,175,80,0.15)', color: '#4caf50', padding: '4px 8px', borderRadius: '4px' }}>🎵 {act.sound}</span>
-                    <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>⏳ {act.delay || 0}ms</span>
-                    <span style={{ background: 'rgba(0,188,212,0.15)', color: '#00bcd4', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>🔊 {act.volume ?? 100}%</span>
+                    <span style={{ background: 'rgba(76,175,80,0.15)', color: '#4caf50', padding: '4px 8px', borderRadius: '4px' }}><Icon name="music" size={13} /> {act.sound}</span>
+                    <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="clock" size={13} /> {act.delay || 0}ms</span>
+                    <span style={{ background: 'rgba(0,188,212,0.15)', color: '#00bcd4', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.volume ?? 100}%</span>
                   </div>
                 )}
               </div>
@@ -466,20 +467,20 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                     title="Cancelar la prueba programada"
                     style={{ minWidth: '84px', borderColor: '#ff9800', color: '#ff9800' }}
                   >
-                    ✖ {countdowns[id].left}s
+                    <Icon name="x" size={13} /> {countdowns[id].left}s
                   </button>
                 ) : (
                   <>
-                    <button className="btn btn-secondary btn-sm" onClick={() => testAction(id, 0)} title="Probar ahora">▶</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => testAction(id, TEST_DELAY_MS)} title="Probar en 5 segundos, para darte tiempo de pasar al juego">⏱ 5s</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => testAction(id, 0)} title="Probar ahora" aria-label="Probar ahora"><Icon name="play" size={14} /></button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => testAction(id, TEST_DELAY_MS)} title="Probar en 5 segundos, para darte tiempo de pasar al juego"><Icon name="clock" size={14} /> 5s</button>
                   </>
                 )}
                 <label className="switch" style={{ marginRight: '8px' }}>
                   <input type="checkbox" checked={act.enabled} onChange={() => handleToggleAction(id, act.enabled)} />
                   <span className="slider"></span>
                 </label>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleEditAction(id, act)}>✏️</button>
-                <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => requestDeleteAction(id)}>🗑️</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => handleEditAction(id, act)} title="Editar" aria-label="Editar"><Icon name="edit" size={14} /></button>
+                <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => requestDeleteAction(id)} title="Eliminar" aria-label="Eliminar"><Icon name="trash" size={14} /></button>
               </div>
             </div>
           ))

@@ -88,5 +88,10 @@ Cosas que dependen de Windows, de un directo real o del instalador y no se pudie
 
 ## Navegación en el sidebar
 - [ ] Revisar en la ventana real de Electron (1100x750 por defecto) que el sidebar no se corte y que la lista de secciones haga scroll si hay más.
-- [ ] Emojis que quedan dentro del contenido de las secciones (≈200): migrar a Icon.jsx por sección cuando se toque cada una.
+- [x] Emojis de las secciones migrados a Icon.jsx (TTS, Acciones, Eventos, Stickers, Regalos, Motores de voz, Log, modales). Comprobado en navegador sin emojis visibles.
 - [ ] "Limpiar log" ahora solo aparece en la sección Log en vivo (antes estaba siempre en la cabecera).
+
+## Migración de emojis a íconos
+- [ ] Revisar a ojo en la app real las pantallas con más cambios: Bot TTS (muchos controles) y los modales de Acciones/Eventos/Stickers (alineación de íconos junto al texto).
+- [ ] Los íconos de regalos del Log/Catálogo salen por nivel de monedas (caja, destellos, gema, cohete, corona); si prefieres otro criterio o más niveles, se ajusta en giftUtils.js.
+- [ ] Los nombres de eventos del servidor (giftName) aún llevan emoji en backend/services/tiktokService.js y overlayService.js; la interfaz los oculta con plainText(), pero siguen en el registro de errores.

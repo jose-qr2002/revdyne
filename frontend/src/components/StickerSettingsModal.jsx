@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Icon from './Icon';
 import ModalShell from './ModalShell';
 
 export default function StickerSettingsModal({ isOpen, sticker, assignment, actionType, onClose, onSave }) {
@@ -22,7 +23,7 @@ export default function StickerSettingsModal({ isOpen, sticker, assignment, acti
         <ModalShell
             isOpen={isOpen}
             onClose={onClose}
-            title={`⚙️ Ajustes de "${sticker.name}"`}
+            title={<><Icon name="settings" size={16} /> Ajustes de "{sticker.name}"</>}
             footer={
                 <>
                     <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
@@ -44,7 +45,7 @@ export default function StickerSettingsModal({ isOpen, sticker, assignment, acti
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
                 {actionType !== 'sound' && (
                     <div>
-                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>⏳ Enfriamiento por usuario</label>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}><Icon name="clock" size={15} /> Enfriamiento por usuario</label>
                         <p style={{ fontSize: '12px', color: 'var(--text2)', margin: '0 0 8px' }}>
                             El mismo usuario no podrá volver a activar esto con este sticker hasta que pase este tiempo. 0 = sin enfriamiento.
                         </p>
@@ -56,7 +57,7 @@ export default function StickerSettingsModal({ isOpen, sticker, assignment, acti
                 )}
 
                 <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>🔁 Si mandan el mismo sticker varias veces en un solo comentario</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}><Icon name="repeat" size={15} /> Si mandan el mismo sticker varias veces en un solo comentario</label>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -84,7 +85,7 @@ export default function StickerSettingsModal({ isOpen, sticker, assignment, acti
                                 </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
                                     <input type="radio" checked={playbackStyle === 'simultaneous'} onChange={() => setPlaybackStyle('simultaneous')} />
-                                    <span>🎉 Todas a la vez (caótico, a propósito)</span>
+                                    <span><Icon name="sparkles" size={15} /> Todas a la vez (caótico, a propósito)</span>
                                 </label>
                             </div>
                         )}

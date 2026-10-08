@@ -1,18 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import GiftTierIcon from './GiftTier';
+import Icon from './Icon';
 
 export default function GiftCard({ giftId, giftData, onUpdate, onDelete, onTest, onOpenConfig }) {
   const [isListening, setIsListening] = useState(false);
-
-  // Función para obtener el emoji según las monedas (la misma que tenías)
-  const getGiftEmoji = (coins) => {
-    if (!coins || coins < 5) return '🌹';
-    if (coins < 20) return '🍪';
-    if (coins < 50) return '🎁';
-    if (coins < 100) return '✨';
-    if (coins < 500) return '💎';
-    if (coins < 1000) return '🚀';
-    return '👑';
-  };
 
   // Escuchar el teclado cuando le damos clic al botón
   useEffect(() => {
@@ -64,14 +55,14 @@ export default function GiftCard({ giftId, giftData, onUpdate, onDelete, onTest,
             onError={(e) => { e.target.style.display = 'none'; }} 
           />
         ) : (
-          getGiftEmoji(giftData.coins)
+          <GiftTierIcon coins={giftData.coins} size={28} />
         )}
       </div>
       
       <div className="gift-info">
         <div className="gift-name">{giftData.name}</div>
         <div className="gift-meta">
-          ID: {giftId} · {giftData.coins || 0} 💎
+          ID: {giftId} · {giftData.coins || 0} <Icon name="gem" size={13} />
         </div>
       </div>
 
@@ -91,7 +82,7 @@ export default function GiftCard({ giftId, giftData, onUpdate, onDelete, onTest,
           onClick={() => onOpenConfig(giftId)}
           style={{ minWidth: '100px' }}
         >
-          {giftData.key ? '⚙️ Editar Macro' : '⚙️ Configurar'}
+          <Icon name="settings" size={14} /> {giftData.key ? 'Editar macro' : 'Configurar'}
         </button>
 
         <button className="btn btn-test" onClick={() => onTest(giftId)} title="Probar tecla">Test</button>

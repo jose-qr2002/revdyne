@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Icon from './Icon';
 import { apiFetch } from '../services/api';
 import { enqueueTTS, setPlaybackRate, setVolume } from '../services/ttsPlayer';
 
@@ -181,7 +182,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
   return (
     <div className="tts-layout">
       <div className="tts-settings">
-        <div className="tts-section-title">⚙️ Configuración General</div>
+        <div className="tts-section-title"><Icon name="settings" size={15} /> Configuración General</div>
 
         <div className="tts-row">
           <label>Activar bot TTS</label>
@@ -192,16 +193,16 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
         </div>
 
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-          <label>¿A quién leemos? 🕵️</label>
+          <label>¿A quién leemos? <Icon name="eye" size={15} /></label>
           <select 
             className="modifier-select" 
             style={{ width: '100%' }} 
             value={tts.filterMode || 'all'} 
             onChange={e => updateTTS({ filterMode: e.target.value })}
           >
-            <option value="all">🌎 A Todos</option>
-            <option value="followers">❤️ Solo Seguidores y Fans</option>
-            <option value="fans">⭐ Solo Club de Fans</option>
+            <option value="all">A Todos</option>
+            <option value="followers">Solo Seguidores y Fans</option>
+            <option value="fans">Solo Club de Fans</option>
           </select>
         </div>
 
@@ -214,7 +215,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
             borderLeft: '4px solid #ff4d6e',
             borderRadius: '0 4px 4px 0'
           }}>
-            <label style={{ color: '#ff4d6e', fontWeight: 'bold' }}>❤️ Nivel Mínimo Exigido:</label>
+            <label style={{ color: '#ff4d6e', fontWeight: 'bold' }}><Icon name="heart" size={15} /> Nivel Mínimo Exigido:</label>
             <select 
               value={config?.tts?.minFanLevel || 1} 
               onChange={(e) => onUpdateConfig({ tts: { ...config.tts, minFanLevel: parseInt(e.target.value, 10) } })}
@@ -238,7 +239,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
 
         {/* 🌟 NUEVOS INTERRUPTORES DE FILTRO Y LECTURA 🌟 */}
         <div className="tts-row" style={{ marginTop: '8px' }}>
-          <label>🗣️ Leer el nombre de usuario</label>
+          <label><Icon name="mic" size={15} /> Leer el nombre de usuario</label>
           <label className="switch">
             <input type="checkbox" checked={tts.sayUsername || false} onChange={e => updateTTS({ sayUsername: e.target.checked })} />
             <span className="slider"></span>
@@ -247,7 +248,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
 
         <div className="tts-row" style={{ marginTop: '8px' }}>
           <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span>🛡️ Filtro Anti-Spam (Idiomas)</span>
+            <span><Icon name="shield" size={15} /> Filtro Anti-Spam (Idiomas)</span>
             <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Bloquea ruso, georgiano, árabe, etc.</span>
           </label>
           <label className="switch">
@@ -258,7 +259,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
         {/* 🌟 NUEVO: CONTROL DE VELOCIDAD */}
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-            <label>⚡ Velocidad del Bot</label>
+            <label><Icon name="bolt" size={15} /> Velocidad del Bot</label>
             <span style={{ color: '#00bcd4', fontWeight: 'bold' }}>{speed}x</span>
           </div>
           <input 
@@ -273,7 +274,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
         {/* 🌟 NUEVO: FILTRO DE VOLUMEN */}
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-            <label>🔊 Volumen del Bot</label>
+            <label><Icon name="volume" size={15} /> Volumen del Bot</label>
             <span style={{ color: '#00bcd4', fontWeight: 'bold' }}>{volume}%</span>
           </div>
           <input
@@ -287,7 +288,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
 
         {/* 🌟 NUEVO: FILTRO DE PREFIJO EXCLUSIVO */}
         <div className="tts-row" style={{ marginTop: '8px' }}>
-          <label>🔒 Requerir Prefijo obligatorio</label>
+          <label><Icon name="lock" size={15} /> Requerir Prefijo obligatorio</label>
           <label className="switch">
             <input type="checkbox" checked={tts.usePrefix || false} onChange={e => updateTTS({ usePrefix: e.target.checked })} />
             <span className="slider"></span>
@@ -307,10 +308,10 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
         )}
 
         {/* 🌟 NUEVO: FILTRO ANTI SPAM */}
-        <div className="tts-section-title" style={{ marginTop: '16px' }}>🛡️ Antispam y Filtros</div>
+        <div className="tts-section-title" style={{ marginTop: '16px' }}><Icon name="shield" size={15} /> Antispam y Filtros</div>
         <div className="tts-row">
           <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span>♻️ Ignorar mensajes repetidos</span>
+            <span><Icon name="repeat" size={15} /> Ignorar mensajes repetidos</span>
             <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Si un usuario repite lo mismo, solo se lee la primera vez</span>
           </label>
           <label className="switch">
@@ -332,7 +333,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
 
         <div className="tts-row" style={{ marginTop: '8px' }}>
           <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span>🐢 Modo lento por usuario</span>
+            <span><Icon name="clock" size={15} /> Modo lento por usuario</span>
             <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Tiempo mínimo entre dos mensajes leídos del mismo usuario</span>
           </label>
           <label className="switch">
@@ -354,7 +355,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
 
         <div className="tts-row" style={{ marginTop: '8px' }}>
           <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span>🤬 Bloquear palabras soeces</span>
+            <span><Icon name="ban" size={15} /> Bloquear palabras soeces</span>
             <span style={{ fontSize: '10px', color: 'var(--text2)' }}>El mensaje completo se omite, no se lee</span>
           </label>
           <label className="switch">
@@ -374,81 +375,81 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
               style={{ width: '100%', fontFamily: 'monospace', resize: 'vertical' }}
             />
             <div style={{ fontSize: '11px', color: 'var(--text2)' }}>
-              💡 Escribe la palabra normal. El filtro ya detecta mayúsculas, acentos, letras repetidas,
+              <Icon name="info" size={15} /> Escribe la palabra normal. El filtro ya detecta mayúsculas, acentos, letras repetidas,
               espacios entre letras ("p u t a"), números por letras ("pu7a") y la h muda ("putha").
               Si usan sílabas partidas (ej. "mari qui con"), agrega esa variante: <code>mariquicon</code>.
             </div>
             <button className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addSuggestedTerms}>
-              ➕ Agregar lista sugerida
+              <Icon name="plus" size={15} /> Agregar lista sugerida
             </button>
 
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              <input type="text" className="key-input" placeholder="🧪 Prueba una frase..." value={filterTestText}
+              <input type="text" className="key-input" placeholder="Prueba una frase..." value={filterTestText}
                 onChange={e => { setFilterTestText(e.target.value); setFilterTestResult(null); }} style={{ flex: 1 }} />
               <button className="btn btn-secondary btn-sm" onClick={runFilterTest}>Probar</button>
             </div>
             {filterTestResult && (
               <div style={{ fontSize: '12px', color: filterTestResult.blocked ? '#ff4d4d' : '#4caf50' }}>
-                {filterTestResult.blocked ? `🚫 Se bloquearía (coincide con "${filterTestResult.term}")` : '✅ Se leería normal'}
+                {filterTestResult.blocked ? <><Icon name="ban" size={15} /> Se bloquearía (coincide con "{filterTestResult.term}")</> : <><Icon name="check" size={15} /> Se leería normal</>}
               </div>
             )}
           </div>
         )}
 
-        <div className="tts-section-title" style={{ marginTop: '16px' }}>⌨️ Atajos de Teclado (Globales)</div>
+        <div className="tts-section-title" style={{ marginTop: '16px' }}><Icon name="keyboard" size={15} /> Atajos de Teclado (Globales)</div>
         
         <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '12px' }}>
-          💡 <strong>Recomendación:</strong> Usa combinaciones con <strong>Ctrl</strong> o <strong>Alt</strong> + Tecla (Ej: Ctrl+S). Evita usar teclas sueltas para no apagar el bot accidentalmente mientras juegas.
+          <Icon name="info" size={15} /> <strong>Recomendación:</strong> Usa combinaciones con <strong>Ctrl</strong> o <strong>Alt</strong> + Tecla (Ej: Ctrl+S). Evita usar teclas sueltas para no apagar el bot accidentalmente mientras juegas.
         </div>
 
         <div className="tts-row">
-          <label>⏭️ Omitir actual</label>
+          <label><Icon name="arrowRight" size={15} /> Omitir actual</label>
           <button 
             className="btn"
             style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipCurrent' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
             onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipCurrent' ? setListeningFor(null) : setListeningFor('keySkipCurrent'); }}
           >
-            {listeningFor === 'keySkipCurrent' ? '⏳ Presiona atajo...' : formatShortcutDisplay(tts.keySkipCurrent)}
+            {listeningFor === 'keySkipCurrent' ? <><Icon name="clock" size={15} /> Presiona atajo...</> : formatShortcutDisplay(tts.keySkipCurrent)}
           </button>
         </div>
 
         <div className="tts-row">
-          <label>🧹 Limpiar cola</label>
+          <label><Icon name="trash" size={15} /> Limpiar cola</label>
           <button 
             className="btn"
             style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipAll' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
             onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipAll' ? setListeningFor(null) : setListeningFor('keySkipAll'); }}
           >
-            {listeningFor === 'keySkipAll' ? '⏳ Presiona atajo...' : formatShortcutDisplay(tts.keySkipAll)}
+            {listeningFor === 'keySkipAll' ? <><Icon name="clock" size={15} /> Presiona atajo...</> : formatShortcutDisplay(tts.keySkipAll)}
           </button>
         </div>
 
         <div className="tts-row">
-          <label>🛑 Apagar Bot</label>
+          <label><Icon name="stop" size={15} /> Apagar Bot</label>
           <button 
             className="btn"
             style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keyToggleBot' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
             onClick={(e) => { e.stopPropagation(); listeningFor === 'keyToggleBot' ? setListeningFor(null) : setListeningFor('keyToggleBot'); }}
           >
-            {listeningFor === 'keyToggleBot' ? '⏳ Presiona atajo...' : formatShortcutDisplay(tts.keyToggleBot)}
+            {listeningFor === 'keyToggleBot' ? <><Icon name="clock" size={15} /> Presiona atajo...</> : formatShortcutDisplay(tts.keyToggleBot)}
           </button>
         </div>
 
-        <div className="tts-section-title" style={{ marginTop: '16px' }}>🎙️ Motor de voz</div>
+        <div className="tts-section-title" style={{ marginTop: '16px' }}><Icon name="mic" size={15} /> Motor de voz</div>
         
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>Motor</label>
           <select className="modifier-select" style={{ width: '100%' }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
             <option value="browser">Voces del sistema (offline)</option>
-            <option value="elevenlabs" disabled={!canUse('elevenlabs')}>ElevenLabs (IA Premium){canUse('elevenlabs') ? '' : ' 🔒'}</option>
-            <option value="tiktok" disabled={!canUse('tiktok')}>TikTok (Voces virales){canUse('tiktok') ? '' : ' 🔒'}</option>
-            <option value="piper" disabled={!canUse('piper')}>Piper (IA local, sin internet){canUse('piper') ? '' : ' 🔒'}</option>
-            <option value="edge" disabled={!canUse('edge')}>Edge TTS (Microsoft, gratis){canUse('edge') ? '' : ' 🔒'}</option>
+            <option value="elevenlabs" disabled={!canUse('elevenlabs')}>ElevenLabs (IA Premium){canUse('elevenlabs') ? '' : ' (Pro)'}</option>
+            <option value="tiktok" disabled={!canUse('tiktok')}>TikTok (Voces virales){canUse('tiktok') ? '' : ' (Pro)'}</option>
+            <option value="piper" disabled={!canUse('piper')}>Piper (IA local, sin internet){canUse('piper') ? '' : ' (Pro)'}</option>
+            <option value="edge" disabled={!canUse('edge')}>Edge TTS (Microsoft, gratis){canUse('edge') ? '' : ' (Pro)'}</option>
           </select>
         </div>
 
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-          <label>Dispositivo de salida 🔊</label>
+          <label>Dispositivo de salida</label>
           <select 
             className="modifier-select" 
             style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
@@ -466,7 +467,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
               <label>API Key</label>
               <input type="password" className="key-input" placeholder="sk-..." value={tts.elevenLabsKey || ''} onChange={e => updateTTS({ elevenLabsKey: e.target.value })} />
             </div>
-            <button className="btn btn-secondary" style={{ width: '100%', margin: '8px 0', fontSize: '12px' }} onClick={fetchElevenVoices}>🔄 Cargar voces ElevenLabs</button>
+            <button className="btn btn-secondary" style={{ width: '100%', margin: '8px 0', fontSize: '12px' }} onClick={fetchElevenVoices}><Icon name="refresh" size={15} /> Cargar voces ElevenLabs</button>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz</label>
               <select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.elevenLabsVoiceId || ''} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
@@ -484,9 +485,9 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                 <option value="es_female_f6">🇲🇽 Mujer (Graciosa)</option>
                 <option value="es_female_fp1">🇪🇸 Mujer (España)</option>
                 <option value="es_male_m3">🇪🇸 Hombre (España)</option>
-                <option value="en_us_ghostface">👻 Ghostface (Scream)</option>
-                <option value="en_us_chewbacca">🐻 Chewbacca</option>
-                <option value="en_us_stitch">👽 Stitch</option>
+                <option value="en_us_ghostface">Ghostface (Scream)</option>
+                <option value="en_us_chewbacca">Chewbacca</option>
+                <option value="en_us_stitch">Stitch</option>
                 <option value="en_us_001">🇺🇸 Mujer (Siri Inglés)</option>
               </select>
             </div>
@@ -552,11 +553,11 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           </div>
         )}
 
-        <button className="btn btn-test" style={{ marginTop: '12px', width: '100%' }} onClick={testAudio}>▶ Probar Audio</button>
+        <button className="btn btn-test" style={{ marginTop: '12px', width: '100%' }} onClick={testAudio}><Icon name="play" size={15} /> Probar Audio</button>
       </div>
 
       <div className="tts-log-panel">
-        <div className="tts-section-title">💬 Comentarios leídos</div>
+        <div className="tts-section-title"><Icon name="message" size={15} /> Comentarios leídos</div>
         <div className="tts-log">
           {ttsEvents.length === 0 ? (
             <div className="log-empty">Los comentarios aparecerán aquí cuando el bot esté activo.</div>
@@ -569,21 +570,21 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                   {/* 💎 NUEVO: Badge de Donador (Team/Level) con CSS puro */}
                   {ev.isDonator && (
                     <span className="tts-badge donator" style={{ background: '#f59e0b', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', fontSize: '11px', fontWeight: 'bold' }}>
-                      💎 Nvl {ev.donatorLevel}
+                      <Icon name="gem" size={13} /> Nvl {ev.donatorLevel}
                     </span>
                   )}
 
                   {/* ❤️ ACTUALIZADO: Badge de Fan con su nivel */}
                   {ev.isFanClub && (
                     <span className="tts-badge fan" style={{ marginLeft: '6px' }}>
-                      ❤️ Fan {ev.fanLevel > 0 ? ev.fanLevel : ''}
+                      <Icon name="heart" size={13} /> Fan {ev.fanLevel > 0 ? ev.fanLevel : ''}
                     </span>
                   )}
 
                   {/* 🛡️ Badge de Mod */}
                   {ev.isMod && (
                     <span className="tts-badge mod" style={{ marginLeft: '6px' }}>
-                      🛡️ Mod
+                      <Icon name="shield" size={13} /> Mod
                     </span>
                   )}
                 </div>

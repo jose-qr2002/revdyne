@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Icon from './Icon';
 
 // 🎵 NUEVO 1: Agregamos "availableSounds" a las propiedades que recibe el modal
 export default function GiftConfigModal({ giftId, giftData, availableSounds = [], onClose, onSave }) {
@@ -24,8 +25,8 @@ export default function GiftConfigModal({ giftId, giftData, availableSounds = []
   return (
     <div className="modal-overlay">
       <div className="modal" style={{ width: '420px' }}>
-        <h3>⚙️ Configurar: {giftData.name}</h3>
-        <p className="modal-sub">ID del regalo: {giftId} · {giftData.coins} 💎</p>
+        <h3><Icon name="settings" size={18} /> Configurar: {giftData.name}</h3>
+        <p className="modal-sub">ID del regalo: {giftId} · {giftData.coins} <Icon name="gem" size={13} /></p>
 
         <div className="form-group" style={{ marginTop: '12px' }}>
           <label>Secuencia de Teclas (Macro)</label>
@@ -46,7 +47,7 @@ export default function GiftConfigModal({ giftId, giftData, availableSounds = []
 
         {/* 🎵 NUEVO 5: El Selector de Sonidos */}
         <div className="form-group" style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-          <label>🎵 Sonido de Alerta (Opcional)</label>
+          <label><Icon name="music" size={15} /> Sonido de alerta (opcional)</label>
           <select 
             className="modifier-select" 
             value={selectedSound} 
@@ -56,7 +57,7 @@ export default function GiftConfigModal({ giftId, giftData, availableSounds = []
             <option value="">— Ninguno —</option>
             {availableSounds.map((soundFile) => (
               <option key={soundFile} value={soundFile}>
-                🔊 {soundFile}
+                {soundFile}
               </option>
             ))}
           </select>

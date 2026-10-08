@@ -73,9 +73,11 @@ con `backend/data/store.js`. Las rutas se definen solo en `backend/paths.js`.
 ## Interfaz (navegación e íconos)
 - Las secciones viven en el sidebar (navegación vertical con scroll propio), no en pestañas horizontales. Se definen en `frontend/src/components/navItems.js`
   ({ id, label, icon } agrupados) y su contenido se renderiza en App.jsx con `activeTab === id`. La cabecera muestra el nombre de la sección activa.
-- Íconos: `components/Icon.jsx` (SVG de línea, hereda el color). Para uno nuevo, añadir su trazado a `PATHS`. No usar emojis en la interfaz nueva.
-  Pendiente de migrar: los emojis dentro del contenido de TTSControl, ActionsTab, EventsTab, StickersTab, CatalogTab, GiftCard, EngineManagerTab, EventLog,
-  GiftConfigModal, LicenseModal y StickerSettingsModal.
+- Íconos: `components/Icon.jsx` (SVG de línea, hereda el color). Para uno nuevo, añadir su trazado a `PATHS`. NO usar emojis en la interfaz: toda la UI ya está migrada
+  (solo quedan en comentarios y console.*). Reglas: texto visible -> `<Icon name=... />`; `<option>`, `placeholder`, `title` de texto y toasts NO admiten SVG -> texto sin emoji;
+  los `title` de ModalShell/ConfirmModal sí admiten JSX (con Icon). Botones solo-ícono llevan `aria-label`.
+- Nivel de un regalo según sus monedas: `GiftTier.jsx` (+ `giftUtils.js`: `giftTier`, `plainText`). Antes eran emojis duplicados en GiftCard, CatalogTab y EventLog.
+  El servidor antepone emojis a algunos `giftName` de eventos ("👤 Nuevo Seguidor"); EventLog los muestra con `plainText()` y elige el ícono por `giftId`.
 - Ya no hay "motor de teclado activo" en el sidebar; solo aparece un aviso "Teclado en simulación" si RobotJS no cargó (config.robotAvailable === false).
 
 ## Licencias

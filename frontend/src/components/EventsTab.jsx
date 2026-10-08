@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 
@@ -129,18 +130,18 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   };
 
   const renderTriggerName = (evt) => {
-    if (evt.trigger === 'follow') return <span>👤 Alguien te sigue</span>;
+    if (evt.trigger === 'follow') return <span><Icon name="user" size={15} /> Alguien te sigue</span>;
     if (evt.trigger === 'share') {
       const freq = evt.frequency || 'once';
       const freqLabel = freq === 'always' ? 'siempre' : freq === 'cooldown' ? `cada ${evt.cooldownSeconds}s por usuario` : '1 vez por usuario';
       return (
         <span>
-          📢 Alguien comparte el directo{' '}
+          <Icon name="share" size={15} /> Alguien comparte el directo{' '}
           <span style={{ fontSize: '11px', color: 'var(--text2)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>{freqLabel}</span>
         </span>
       );
     }
-    if (evt.trigger === 'like') return <span>❤️ Al llegar a {evt.condition} Likes</span>;
+    if (evt.trigger === 'like') return <span><Icon name="heart" size={15} /> Al llegar a {evt.condition} Likes</span>;
 
     if (evt.trigger === 'gift') {
       const gift = catalog[evt.condition];
@@ -149,12 +150,12 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {gift.icon ? (
               <img src={gift.icon} alt={gift.name} style={{ width: '28px', height: '28px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '2px' }} onError={(e) => e.target.style.display = 'none'} />
-            ) : <span>🎁</span>}
-            <span>Envían: {gift.name} <span style={{ color: '#ffd700' }}>({gift.coins} 💎)</span></span>
+            ) : <span><Icon name="gift" size={20} /></span>}
+            <span>Envían: {gift.name} <span style={{ color: '#ffd700' }}>({gift.coins} <Icon name="gem" size={13} />)</span></span>
           </div>
         );
       }
-      return <span>🎁 Regalo Desconocido (ID: {evt.condition})</span>;
+      return <span><Icon name="gift" size={15} /> Regalo desconocido (ID: {evt.condition})</span>;
     }
     return <span>{evt.trigger}</span>;
   };
@@ -164,7 +165,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
       <ConfirmModal
         isOpen={isDeleteModalOpen}
-        title="⚠️ Eliminar Regla"
+        title={<><Icon name="alert" size={18} /> Eliminar regla</>}
         message="¿Estás seguro de que deseas eliminar este vínculo? Esta acción dejará de ejecutarse en tus directos."
         onConfirm={confirmDeleteEvent}
         onCancel={() => { setIsDeleteModalOpen(false); setEventToDelete(null); }}
@@ -178,7 +179,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
       <ModalShell
         isOpen={showForm}
         onClose={resetForm}
-        title={editingEventId ? '✏️ Editando Regla' : '✨ Diseñar Regla'}
+        title={editingEventId ? <><Icon name="edit" size={16} /> Editando regla</> : <><Icon name="sparkles" size={16} /> Diseñar regla</>}
         width="700px"
         footer={
           <>
@@ -194,10 +195,10 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
             <label style={{ display: 'block', fontSize: '13px', color: '#ffeb3b', marginBottom: '8px', fontWeight: 'bold' }}>1. CUANDO OCURRA ESTO...</label>
             <select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
-              <option value="gift">🎁 Recibir un Regalo específico</option>
-              <option value="like">❤️ Alcanzar meta de Likes</option>
-              <option value="follow">👤 Nuevo Seguidor</option>
-              <option value="share">📢 Compartir Directo</option>
+              <option value="gift">Recibir un regalo específico</option>
+              <option value="like">Alcanzar meta de likes</option>
+              <option value="follow">Nuevo seguidor</option>
+              <option value="share">Compartir directo</option>
             </select>
 
             {trigger === 'gift' && (
@@ -211,12 +212,12 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                   <>
                     {catalog[condition].icon ? (
                       <img src={catalog[condition].icon} alt="Icon" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
-                    ) : <span style={{ fontSize: '20px' }}>🎁</span>}
-                    <span style={{ fontWeight: 'bold' }}>{catalog[condition].name} <span style={{ color: '#ffd700', marginLeft: '4px' }}>({catalog[condition].coins} 💎)</span></span>
+                    ) : <span style={{ fontSize: '20px' }}><Icon name="gift" size={22} /></span>}
+                    <span style={{ fontWeight: 'bold' }}>{catalog[condition].name} <span style={{ color: '#ffd700', marginLeft: '4px' }}>({catalog[condition].coins} <Icon name="gem" size={13} />)</span></span>
                   </>
                 ) : (
                   <span style={{ color: '#00bcd4', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    🔍 Clic aquí para elegir un regalo...
+                    <Icon name="search" size={15} /> Clic aquí para elegir un regalo...
                   </span>
                 )}
               </div>
@@ -253,7 +254,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-            <span style={{ fontSize: '24px' }}>➡️</span>
+            <span style={{ fontSize: '24px' }}><Icon name="arrowRight" size={24} /></span>
           </div>
 
           <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
@@ -279,13 +280,13 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: '#00bcd4' }}>Seleccionar Regalo</h3>
-              <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>✖</button>
+              <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', display: 'inline-flex' }} aria-label="Cerrar"><Icon name="x" size={18} /></button>
             </div>
 
             <div style={{ padding: '16px 20px', background: 'rgba(0,0,0,0.2)' }}>
               <input
                 type="text" className="key-input"
-                placeholder="🔍 Busca por nombre o valor de monedas (ej. 1, 99, rosa...)"
+                placeholder="Busca por nombre o valor de monedas (ej. 1, 99, rosa...)"
                 value={giftSearch} onChange={e => setGiftSearch(e.target.value)}
                 style={{ width: '100%', fontSize: '15px', padding: '12px' }} autoFocus
               />
@@ -303,10 +304,10 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                   >
                     {data.icon ? (
                       <img src={data.icon} loading="lazy" alt={data.name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }} onError={(e) => e.target.style.display = 'none'} />
-                    ) : <span style={{ fontSize: '24px' }}>🎁</span>}
+                    ) : <span style={{ fontSize: '24px' }}><Icon name="gift" size={26} /></span>}
                     <div style={{ overflow: 'hidden' }}>
                       <div style={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.name}</div>
-                      <div style={{ color: '#ffd700', fontSize: '12px', fontWeight: 'bold', marginTop: '2px' }}>{data.coins} 💎</div>
+                      <div style={{ color: '#ffd700', fontSize: '12px', fontWeight: 'bold', marginTop: '2px' }}>{data.coins} <Icon name="gem" size={13} /></div>
                     </div>
                   </div>
                 ))}
@@ -316,9 +317,9 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
             {totalGiftPages > 1 && (
               <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', background: 'rgba(0,0,0,0.1)' }}>
-                <button className="btn btn-secondary btn-sm" disabled={giftCurrentPage === 1} onClick={() => setGiftCurrentPage(prev => prev - 1)}>◀ Ant</button>
+                <button className="btn btn-secondary btn-sm" disabled={giftCurrentPage === 1} onClick={() => setGiftCurrentPage(prev => prev - 1)}><Icon name="chevronLeft" size={14} /> Ant</button>
                 <span style={{ fontSize: '12px', color: 'var(--text2)' }}>Pág {giftCurrentPage} de {totalGiftPages}</span>
-                <button className="btn btn-secondary btn-sm" disabled={giftCurrentPage === totalGiftPages} onClick={() => setGiftCurrentPage(prev => prev + 1)}>Sig ▶</button>
+                <button className="btn btn-secondary btn-sm" disabled={giftCurrentPage === totalGiftPages} onClick={() => setGiftCurrentPage(prev => prev + 1)}>Sig <Icon name="chevronRight" size={14} /></button>
               </div>
             )}
           </div>
@@ -337,7 +338,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                   <div style={{ padding: '8px 12px', background: 'rgba(255,235,59,0.1)', borderLeft: '3px solid #ffeb3b', borderRadius: '0 4px 4px 0' }}>
                     <div style={{ fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center' }}>{renderTriggerName(evt)}</div>
                   </div>
-                  <span style={{ fontSize: '18px' }}>⚡</span>
+                  <span style={{ fontSize: '18px' }}><Icon name="bolt" size={18} /></span>
                   <div style={{ padding: '8px 12px', background: 'rgba(76,175,80,0.1)', borderLeft: '3px solid #4caf50', borderRadius: '0 4px 4px 0' }}>
                     <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
                       {actionData ? actionData.name : <span style={{ color: 'red' }}>Acción eliminada</span>}
@@ -349,8 +350,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                     <input type="checkbox" checked={evt.enabled} onChange={() => handleToggleEvent(evt.id, evt.enabled)} />
                     <span className="slider"></span>
                   </label>
-                  <button className="btn btn-secondary btn-sm" onClick={() => handleEditEvent(evt)}>✏️</button>
-                  <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => requestDeleteEvent(evt)}>🗑️</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleEditEvent(evt)} title="Editar" aria-label="Editar"><Icon name="edit" size={14} /></button>
+                  <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => requestDeleteEvent(evt)} title="Eliminar" aria-label="Eliminar"><Icon name="trash" size={14} /></button>
                 </div>
               </div>
             );

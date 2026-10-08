@@ -1288,3 +1288,10 @@ img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 .elp-title { display: inline-flex; align-items: center; gap: 8px; }
 .elp-caret { display: inline-flex; }
 .elp-b { display: inline-flex; align-items: center; }
+
+/* Íconos dentro de texto / nivel de regalo */
+.icon { vertical-align: -0.2em; }
+.gift-tier { display: inline-flex; align-items: center; justify-content: center; }
+.gift-tier .icon { vertical-align: 0; }
+.log-ok { color: var(--green); }
+.log-fail { color: var(--accent2); }

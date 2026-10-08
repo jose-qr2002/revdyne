@@ -1,17 +1,17 @@
 import React from 'react';
+import GiftTierIcon from './GiftTier';
+import { plainText } from './giftUtils';
+import Icon from './Icon';
 import ErrorLogPanel from './ErrorLogPanel';
 
-// Reutilizamos tu función de emojis
-const getGiftEmoji = (coins, giftId) => {
-  if (giftId === 'action_follow') return '';
-  if (giftId === 'action_share') return ''; // NUEVO: Icono para compartir
-  if (!coins || coins < 5) return '🌹';
-  if (coins < 20) return '🍪';
-  if (coins < 50) return '🎁';
-  if (coins < 100) return '✨';
-  if (coins < 500) return '💎';
-  if (coins < 1000) return '🚀';
-  return '👑';
+// Ícono de cada línea del log: seguidores/compartidas/metas tienen el suyo; un regalo usa su nivel por monedas
+const eventIcon = (ev) => {
+  const id = String(ev.giftId || '');
+  if (id === 'action_follow') return <Icon name="user" size={16} />;
+  if (id === 'action_share') return <Icon name="share" size={16} />;
+  if (id.startsWith('like_')) return <Icon name="heart" size={16} />;
+  if (id.startsWith('overlay_')) return <Icon name="target" size={16} />;
+  return <GiftTierIcon coins={ev.coins} size={16} />;
 };
 
 export default function EventLog({ events }) {
@@ -39,18 +39,18 @@ export default function EventLog({ events }) {
           <div key={i} className={`log-entry ${ev.pressed ? 'pressed' : 'no-key'}`}>
             <div className="log-time">{time}</div>
             <div className="log-body">
-              <span className="log-gift">{getGiftEmoji(ev.coins, ev.giftId)} {ev.giftName}</span>
+              <span className="log-gift">{eventIcon(ev)} {plainText(ev.giftName)}</span>
               <span className="log-sender"> de @{ev.sender}</span>
               {ev.newCount > 1 && <span className="log-count">×{ev.newCount}</span>}
               
               {ev.key ? (
                 <span className="log-key">
-                  {ev.modifier !== 'none' ? `${ev.modifier}+` : ''}{ev.key}
+                  {ev.modifier && ev.modifier !== 'none' ? `${ev.modifier}+` : ''}{ev.key}
                 </span>
               ) : (
                 <span className="log-no-key">sin tecla asignada</span>
               )}
-              {ev.pressed ? ' ✅' : ' ❌'}
+              {' '}<Icon name={ev.pressed ? 'check' : 'x'} size={14} className={ev.pressed ? 'log-ok' : 'log-fail'} />
             </div>
           </div>
         );

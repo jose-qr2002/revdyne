@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import { apiFetch } from '../services/api';
 
@@ -98,7 +99,7 @@ export default function EngineManagerTab() {
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
       <ConfirmModal
         isOpen={!!confirmTarget}
-        title={confirmTarget?.type === 'engine' ? '⚠️ Desinstalar motor' : '⚠️ Eliminar voz'}
+        title={<><Icon name="alert" size={18} /> {confirmTarget?.type === 'engine' ? 'Desinstalar motor' : 'Eliminar voz'}</>}
         message={confirmTarget?.type === 'engine'
           ? 'Se borrarán todos sus archivos y voces instaladas. ¿Continuar?'
           : 'Esta voz dejará de estar disponible en el selector de TTS. ¿Continuar?'}
@@ -113,7 +114,7 @@ export default function EngineManagerTab() {
       )}
 
       <div>
-        <h3 style={{ margin: 0 }}>🎙️ Voces y Motores</h3>
+        <h3 style={{ margin: 0 }}><Icon name="mic" size={20} /> Voces y motores</h3>
         <p style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>
           Motores de voz que corren localmente en tu PC, sin depender de servicios externos.
         </p>
@@ -148,12 +149,12 @@ export default function EngineManagerTab() {
                       {expandedEngine === engine.id ? 'Ocultar voces' : 'Ver voces'}
                     </button>
                     <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => setConfirmTarget({ type: 'engine', engineId: engine.id })}>
-                      🗑️ Desinstalar
+                      <Icon name="trash" size={14} /> Desinstalar
                     </button>
                   </>
                 ) : (
                   <button className="btn" onClick={() => handleInstallEngine(engine.id)} disabled={loadingKey === engine.id}>
-                    {loadingKey === engine.id ? '⏳ Instalando...' : '⬇ Instalar'}
+                    {loadingKey === engine.id ? <><Icon name="clock" size={14} /> Instalando...</> : <><Icon name="download" size={14} /> Instalar</>}
                   </button>
                 )}
               </div>
@@ -170,7 +171,7 @@ export default function EngineManagerTab() {
                     <div key={voiceId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '6px' }}>
                       <span style={{ fontFamily: 'monospace', fontSize: '13px' }}>{voiceId}</span>
                       <button className="btn btn-secondary btn-sm" style={{ background: '#ff4d4d', color: 'white', border: 'none' }} onClick={() => setConfirmTarget({ type: 'voice', engineId: engine.id, voiceId })}>
-                        🗑️
+                        <Icon name="trash" size={15} />
                       </button>
                     </div>
                   ))
@@ -192,7 +193,7 @@ export default function EngineManagerTab() {
                           onClick={() => handleInstallVoice(engine.id, voice.onnxUrl, voice.label)}
                           disabled={loadingKey === `${engine.id}-${voice.onnxUrl}`}
                         >
-                          {loadingKey === `${engine.id}-${voice.onnxUrl}` ? '⏳' : '⬇ Instalar'}
+                          {loadingKey === `${engine.id}-${voice.onnxUrl}` ? <Icon name="clock" size={14} /> : <><Icon name="download" size={14} /> Instalar</>}
                         </button>
                       )}
                     </div>

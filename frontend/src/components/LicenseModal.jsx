@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Icon from './Icon';
 import ModalShell from './ModalShell';
 
 const fmt = (n) => (n === null || n === undefined ? '∞' : n);
@@ -24,7 +25,7 @@ export default function LicenseModal({ isOpen, license, onClose, onChanged }) {
         setMessage({ type: 'error', text: data.error || 'No se pudo completar la acción.' });
       } else {
         setCode('');
-        setMessage({ type: 'success', text: path === 'activate' ? '✅ Licencia activada' : 'Licencia desactivada en este equipo' });
+        setMessage({ type: 'success', text: path === 'activate' ? 'Licencia activada' : 'Licencia desactivada en este equipo' });
         onChanged();
       }
     } catch {
@@ -43,7 +44,7 @@ export default function LicenseModal({ isOpen, license, onClose, onChanged }) {
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title={isPro ? '⭐ Plan Pro' : '🔓 Plan Gratis'}
+      title={isPro ? <><Icon name="star" size={16} /> Plan Pro</> : <><Icon name="unlock" size={16} /> Plan Gratis</>}
       width="460px"
       footer={<button className="btn btn-secondary" onClick={onClose}>Cerrar</button>}
     >
@@ -89,7 +90,7 @@ export default function LicenseModal({ isOpen, license, onClose, onChanged }) {
                 className="btn" style={{ background: 'var(--accent)', color: '#fff' }}
                 disabled={busy || !code.trim()} onClick={() => call('activate', { code })}
               >
-                {busy ? '⏳' : 'Activar'}
+                {busy ? <Icon name="clock" size={14} /> : 'Activar'}
               </button>
             </div>
           </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import StickerSettingsModal from './StickerSettingsModal';
 
 const CATEGORY_LABELS = {
-  tiktok: '🌐 Emotes de TikTok',
-  fanclub: '❤️ Club de Fans',
-  superfan: '⭐ Super Fan',
-  unknown: '❓ Sin clasificar'
+  tiktok: 'Emotes de TikTok',
+  fanclub: 'Club de Fans',
+  superfan: 'Super Fan',
+  unknown: 'Sin clasificar'
 };
 const CATEGORY_ORDER = { tiktok: 0, fanclub: 1, superfan: 2, unknown: 3 };
 const ITEMS_PER_PAGE = 10;
@@ -114,7 +115,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
     if (!isElectron) return showToast('error', 'Solo disponible en la app de escritorio');
     const { ipcRenderer } = window.require('electron');
     ipcRenderer.send('open-tiktok-login');
-    ipcRenderer.once('tiktok-login-success', () => showToast('success', '✅ Sesión de TikTok vinculada'));
+    ipcRenderer.once('tiktok-login-success', () => showToast('success', 'Sesión de TikTok vinculada'));
   };
 
   const handleAssignAction = (stickerId, actionId) => {
@@ -187,7 +188,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
 
       <ConfirmModal
         isOpen={modalOpen}
-        title="⚠️ Eliminar Sticker"
+        title={<><Icon name="alert" size={18} /> Eliminar sticker</>}
         message={`¿Eliminar "${stickerToDelete?.name}"? Se quitará de TODOS los perfiles donde esté asignado.`}
         onConfirm={confirmDelete}
         onCancel={() => setModalOpen(false)}
@@ -209,7 +210,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
       )}
 
       <div>
-        <h3 style={{ margin: 0 }}>🎴 Radar de Stickers de Suscriptores</h3>
+        <h3 style={{ margin: 0 }}><Icon name="image" size={20} /> Radar de stickers de suscriptores</h3>
         <p style={{ fontSize: '12px', color: 'var(--text2)', margin: '4px 0 0' }}>
           Editando para el perfil activo: <strong>{activeProfileName}</strong> (cámbialo desde el panel izquierdo)
         </p>
@@ -217,22 +218,22 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
         <input
-          type="text" className="key-input" placeholder="🔍 Buscar por nombre o ID..."
+          type="text" className="key-input" placeholder="Buscar por nombre o ID..."
           value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
           style={{ flex: 1, minWidth: '180px' }}
         />
         <select className="modifier-select" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ minWidth: '160px' }}>
           <option value="all">Todas las categorías</option>
-          <option value="tiktok">🌐 Emotes de TikTok</option>
-          <option value="fanclub">❤️ Club de Fans</option>
-          <option value="superfan">⭐ Super Fan</option>
-          <option value="unknown">❓ Sin clasificar</option>
+          <option value="tiktok">Emotes de TikTok</option>
+          <option value="fanclub">Club de Fans</option>
+          <option value="superfan">Super Fan</option>
+          <option value="unknown">Sin clasificar</option>
         </select>
         <button className="btn btn-sm" onClick={syncStickers} disabled={isSyncing}>
-          {isSyncing ? '⏳ Sincronizando...' : '🔄 Sincronizar Stickers'}
+          {isSyncing ? <><Icon name="clock" size={15} /> Sincronizando...</> : <><Icon name="refresh" size={15} /> Sincronizar stickers</>}
         </button>
         <button className="btn btn-secondary btn-sm" onClick={handleTikTokLogin}>
-          🔐 Vincular sesión
+          <Icon name="lock" size={15} /> Vincular sesión
         </button>
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
@@ -245,7 +246,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
           </label>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-            <span>⏳ Enfriamiento por usuario</span>
+            <span><Icon name="clock" size={15} /> Enfriamiento por usuario</span>
             <input type="number" min="0" step="500" className="key-input" style={{ width: '90px' }}
               value={cooldownMs}
               onChange={e => setCooldownMs(e.target.value)}
@@ -280,7 +281,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                     {item.icon ? (
                       <img src={item.icon} alt={item.name} style={{ width: '48px', height: '48px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} />
                     ) : (
-                      <div style={{ width: '48px', height: '48px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>✨</div>
+                      <div style={{ width: '48px', height: '48px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><Icon name="sparkles" size={22} /></div>
                     )}
                     <div style={{ minWidth: 0, overflow: 'hidden' }}>
                       <div title={item.name} style={{ fontWeight: 'bold', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
@@ -295,15 +296,15 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                       onChange={(e) => handleAssignAction(item.id, e.target.value)}
                       style={{ minWidth: '160px', maxWidth: '200px' }}
                     >
-                      <option value="">🚫 Ninguna</option>
+                      <option value="">Ninguna</option>
                       {Object.entries(scopeActions).map(([actId, act]) => (
-                        <option key={actId} value={actId}>{act.type === 'sound' ? '🎵' : '⌨️'} {act.name}</option>
+                        <option key={actId} value={actId}>{act.name}</option>
                       ))}
                     </select>
 
                     {assignment && (
                       <button onClick={() => setSettingsSticker(item)} title="Enfriamiento y repeticiones" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}>
-                        ⚙️
+                        <Icon name="settings" size={16} />
                       </button>
                     )}
 
@@ -313,7 +314,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                     </label>
 
                     <button onClick={() => requestDelete(item.id, item)} title="Eliminar Sticker" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}>
-                      🗑️
+                      <Icon name="trash" size={16} />
                     </button>
                   </div>
                 </div>
@@ -325,9 +326,9 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
 
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
-          <button className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>◀ Anterior</button>
+          <button className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><Icon name="chevronLeft" size={14} /> Anterior</button>
           <span style={{ fontSize: '13px', color: 'var(--text2)' }}>Página {currentPage} de {totalPages}</span>
-          <button className="btn btn-secondary btn-sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>Siguiente ▶</button>
+          <button className="btn btn-secondary btn-sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>Siguiente <Icon name="chevronRight" size={14} /></button>
         </div>
       )}
     </div>
