@@ -118,17 +118,12 @@ process.on('unhandledRejection', reason => {
 
 tiktokService.init(io, settings);
 
-// Puerto: 47321 en la app instalada, 3000 en desarrollo (o PORT). En la app instalada (Electron empaquetado), si está ocupado por otro programa se usa el siguiente libre
-// (hasta +20) y main.js abre la ventana en el puerto real. En desarrollo (node puro o `npm start` sin empaquetar) NO hay alternativa
-// automática: la ventana carga Vite, cuyo proxy apunta a un puerto fijo (VITE_BACKEND_PORT, por defecto 3000), y un puerto distinto
-// lo dejaría hablando con otro programa. Ahí se elige a mano con PORT y VITE_BACKEND_PORT.
+// Puerto fijo: 47321 en la app instalada (un puerto poco usado, para chocar poco con otros programas) y 3000 en desarrollo; PORT manda sobre ambos.
+// Mismo valor que DEFAULT_PORT en frontend/src/components/portUtils.js y en backend/overlays/*.html. No hay búsqueda automática de otro
+// puerto: si está ocupado, el arranque falla con un mensaje claro (antes de esto, el servidor podía arrancar "junto" a otro programa y
+// quedar hablando con él sin avisar).
 const packagedElectron = !!process.versions.electron && !process.defaultApp; // defaultApp = `electron .` (desarrollo)
-// App instalada: 47321 (poco usado, para chocar menos con otros programas). Desarrollo: 3000. PORT manda sobre ambos.
-// Mismo valor que DEFAULT_PORT en frontend/src/components/portUtils.js y en backend/overlays/*.html.
 const BASE_PORT = Number(process.env.PORT) || (packagedElectron ? 47321 : 3000);
-const PORT_TRIES = 20; // mismo rango que PORT_RANGE de backend/overlays/*.html
-const canFallback = packagedElectron || process.env.REVDYNE_PORT_FALLBACK === '1'; // la variable permite probarlo sin empaquetar
-let activePort = BASE_PORT;
 
 // ¿Hay algo escuchando ya en ese puerto? En Windows un servidor en 0.0.0.0 puede arrancar "encima" de otro programa que escucha en
 // 127.0.0.1:PUERTO, y entonces el navegador hablaría con el otro programa; por eso se prueba antes con una conexión de verdad.
@@ -147,34 +142,26 @@ const listenOn = (port) => new Promise((resolve, reject) => {
 });
 
 const ready = (async () => {
-  const candidates = canFallback ? Array.from({ length: PORT_TRIES + 1 }, (_, i) => BASE_PORT + i) : [BASE_PORT];
-  for (const port of candidates) {
-    const busyMessage = `El puerto ${port} está ocupado por otro programa. En desarrollo elige otro: en PowerShell, $env:PORT=3100 antes de iniciar el backend (npm start / npm run dev) y $env:VITE_BACKEND_PORT=3100 antes de iniciar Vite.`;
-    // Se prueba siempre (también sin alternativa): sin esto, Windows deja arrancar el servidor junto a otro programa que ya usa ese puerto
-    if (await portInUse(port)) { if (canFallback) continue; throw new Error(busyMessage); }
-    try { activePort = await listenOn(port); break; } catch (err) {
-      if (err.code !== 'EADDRINUSE') throw err;
-      if (!canFallback) throw new Error(busyMessage);
-    }
-  }
-  if (!server.listening) throw new Error(`No hay un puerto libre entre ${BASE_PORT} y ${BASE_PORT + PORT_TRIES}`);
+  const busyMessage = packagedElectron
+    ? `El puerto ${BASE_PORT} está ocupado por otro programa. Ciérralo y vuelve a abrir Revdyne.`
+    : `El puerto ${BASE_PORT} está ocupado por otro programa. En desarrollo elige otro: en PowerShell, $env:PORT=3100 antes de iniciar el backend (npm start / npm run dev) y $env:VITE_BACKEND_PORT=3100 antes de iniciar Vite.`;
+  if (await portInUse(BASE_PORT)) throw new Error(busyMessage);
+  try { await listenOn(BASE_PORT); } catch (err) { throw err.code === 'EADDRINUSE' ? new Error(busyMessage) : err; }
 
-  process.env.REVDYNE_PORT = String(activePort);
-  if (activePort !== BASE_PORT) logger.warn('app', `El puerto ${BASE_PORT} estaba ocupado: Revdyne usa el ${activePort}`, { puerto: activePort });
   console.log('\n╔══════════════════════════════════════════╗');
   console.log('║  🎁 REVDYNE Activo                      ║');
   console.log('╠══════════════════════════════════════════╣');
-  console.log(`║  Abre: http://localhost:${activePort}             ║`);
+  console.log(`║  Abre: http://localhost:${BASE_PORT}             ║`);
   console.log(`║  RobotJS: ${isRobotAvailable() ? '✅ Activo' : '❌ No disponible'}                 ║`);
   console.log('╚══════════════════════════════════════════╝\n');
 
   require('./backend/services/license').startRefreshLoop();
-  return activePort;
+  return BASE_PORT;
 })();
 ready.catch(err => {
   console.error('❌ El servidor no pudo arrancar:', err.message);
   logger.error('app', 'El servidor no pudo arrancar', { error: err.message, codigo: err.code });
-  if (!canFallback) process.exit(1); // en Electron lo gestiona main.js (diálogo de error)
+  if (!process.versions.electron) process.exit(1); // en Electron lo gestiona main.js (diálogo de error)
 });
 
-module.exports = { ready, getPort: () => activePort };
+module.exports = { ready, getPort: () => BASE_PORT };

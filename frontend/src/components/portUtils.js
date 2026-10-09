@@ -4,8 +4,7 @@ export const DEFAULT_PORT = 47321;
 // En desarrollo el backend usa el 3000 (a menos que se indique otro con VITE_BACKEND_PORT, ver vite.config.js)
 const DEV_BACKEND_PORT = 3000;
 
-// Sufijo del enlace de Live Studio: solo hace falta indicar el puerto si no es el de por defecto. Es una pista: la página del
-// overlay prueba además el rango por defecto (+20), así que un enlace antiguo sigue funcionando aunque la app cambie de puerto.
+// Sufijo del enlace de Live Studio: solo hace falta indicar el puerto si no es el de por defecto (las páginas del overlay asumen 47321).
 export const portQuery = (port) => (Number(port) === DEFAULT_PORT ? '' : `?port=${port}`);
 
 // Puerto de la app (el servidor local que sirve overlays y datos). En producción es el de la propia página del panel; en desarrollo

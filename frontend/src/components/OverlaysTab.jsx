@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import GoalCard from './GoalCard';
 import TopCard from './TopCard';
-import PortNotice from './PortNotice';
 
 const GOALS = [
   { kind: 'likes', label: 'Meta de likes' },
@@ -18,7 +17,6 @@ export default function OverlaysTab({ socket, profiles }) {
 
   return (
     <div className="lk-wrap">
-      <PortNotice />
       <div className="lk-kinds" role="tablist" aria-label="Tipo de meta">
         {GOALS.map(g => (
           <button key={g.kind} className={kind === g.kind ? 'active' : ''} onClick={() => setKind(g.kind)}>{g.label}</button>

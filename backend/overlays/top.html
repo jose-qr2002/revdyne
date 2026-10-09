@@ -168,7 +168,7 @@
     titleEl.textContent = c.title; titleEl.classList.toggle('off', !c.showTitle || !c.title);
     iconWrap.classList.toggle('off', !c.showIcon);
 
-    var user = b ? (c.userField === 'username' ? (b.user.username ? '@' + b.user.username : b.user.name) : (b.user.nickname || (b.user.username ? '@' + b.user.username : ''))) : 'Sin regalos aún';
+    var user = b ? (c.userField === 'username' ? (b.user.username ? '@' + b.user.username : b.user.name) : (b.user.nickname || (b.user.username ? '@' + b.user.username : ''))) : 'Sin regalos';
     nameEl.textContent = user; nameEl.classList.toggle('off', !c.showUser);
 
     var units = b ? b.units : 0, coins = b ? b.coins : 0;
@@ -197,61 +197,41 @@
   // Mismo archivo en dos modos (ver goal.html):
   //  - local: lo sirve la app (http://127.0.0.1:PUERTO/overlays/...) y usa su propio Socket.IO.
   //  - remoto: alojado en un dominio https (TikTok LIVE Studio no acepta localhost); se conecta a la app en 127.0.0.1:PUERTO.
-  // Puerto de la app. 47321 es el valor por defecto de Revdyne (mismo valor que BASE_PORT en server.js y DEFAULT_PORT en
-  // frontend/src/components/portUtils.js); si otro programa lo ocupaba, la app usó el siguiente libre (hasta +20).
-  // En modo remoto la página prueba esos puertos hasta encontrar a Revdyne, así los enlaces ya copiados no se rompen aunque el puerto cambie.
-  var DEFAULT_PORT = 47321, PORT_RANGE = 20, STORE_KEY = 'revdyne.overlayPort';
+  // Puerto de la app: 47321 por defecto (mismo valor que BASE_PORT en server.js y DEFAULT_PORT en frontend/src/components/portUtils.js).
+  // El enlace puede traer ?port= para otro puerto (desarrollo).
+  var DEFAULT_PORT = 47321;
+  var port = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
+  if (!(port > 0 && port < 65536)) port = DEFAULT_PORT;
+  var appOrigin = 'http://127.0.0.1:' + port;
   // Servida por la propia app (http en localhost/127.0.0.1): usa su Socket.IO sin importar el puerto.
   var isLocal = location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]remote=1/.test(location.search); // ?remote=1 fuerza el modo remoto (pruebas)
 
-  // Orden de prueba: el último puerto que funcionó, el del enlace (?port=), el rango por defecto y el rango a partir del del enlace
-  function candidatePorts() {
-    var list = [], saved = NaN;
-    var hint = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
-    try { saved = parseInt(localStorage.getItem(STORE_KEY), 10); } catch (e) { /* sin almacenamiento: no se recuerda */ }
-    function add(p) { if (p > 0 && p < 65536 && list.indexOf(p) < 0) list.push(p); }
-    add(saved); add(hint);
-    for (var i = 0; i <= PORT_RANGE; i++) add(DEFAULT_PORT + i);
-    if (hint > 0) for (var j = 1; j <= PORT_RANGE; j++) add(hint + j);
-    return list;
-  }
+  // Vista previa sin datos: Live Studio suele abrirse ANTES que Revdyne y, sin esto, el overlay se quedaría invisible hasta que la app
+  // envíe su estado. Se dibuja con el último diseño recibido (guardado en este navegador) o con uno por defecto, y se reemplaza al
+  // llegar el primer estado real. Si la app se cierra después, se conserva lo último mostrado.
+  var CACHE_KEY = 'revdyne.lastState.' + kind;
+  var gotState = false;
+  function saveCache(st) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(st)); } catch (e) { /* sin almacenamiento: se usa el diseño por defecto */ } }
+  function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) { return null; } }
+  function onState(st) { gotState = true; if (!isLocal) saveCache(st); render(st); }
+  function showPlaceholder() { if (!gotState) render(placeholderState()); }
 
-  function connectRemote() {
-    var ports = candidatePorts(), index = 0, current = null;
-    function next() {
-      if (current) { current.close(); current = null; }
-      if (index >= ports.length) { index = 0; setTimeout(next, 3000); return; } // se probaron todos: se vuelve a empezar con calma
-      var port = ports[index++];
-      var s = io('http://127.0.0.1:' + port, { reconnection: false, timeout: 900, transports: ['websocket', 'polling'] });
-      current = s;
-      var accepted = false, failed = false, timer = null;
-      function fail() { if (accepted || failed) return; failed = true; clearTimeout(timer); next(); }
-      s.on('connect_error', fail);
-      s.on('connect', function () {
-        s.emit('overlay:join', { name: kind, preview: isPreview });
-        timer = setTimeout(fail, 1500); // Revdyne responde con el estado del overlay; si no llega, ese puerto es de otro programa
-      });
-      s.on('overlay:' + kind + ':state', function (st) {
-        if (!accepted && !failed) {
-          accepted = true; clearTimeout(timer);
-          try { localStorage.setItem(STORE_KEY, String(port)); } catch (e) { /* sin almacenamiento: no se recuerda */ }
-        }
-        if (accepted) render(st);
-      });
-      s.on('disconnect', function () {
-        if (!accepted) return;
-        ports = candidatePorts(); index = 0; // la app se cerró o cambió de puerto: se busca otra vez, empezando por el último
-        setTimeout(next, 1000);
-      });
-    }
-    next();
+  var TOP_DEFAULTS = {    // copia de topDefaults en backend/data/defaults.js
+    activeStyle: 3, title: kind === 'topcombo' ? 'Mejor combo' : 'Mejor regalo', font: 'Arial', fontScale: 100, valueScale: 100, valueMode: 'unit',
+    accentColor: '#ff0050', titleColor: '#ffffff', nameColor: '#ffffff', valueColor: kind === 'topcombo' ? '#ff4d6a' : '#ffd24a', cardColor: '#14141c',
+    showTitle: true, showIcon: true, showUser: true, userField: 'nickname', animate: true
+  };
+  function placeholderState() {
+    var cached = loadCache();
+    var config = cached && cached.config ? cached.config : TOP_DEFAULTS;
+    return { kind: kind, config: config, best: null }; // "Sin regalos aún", con su diseño
   }
 
   function start() {
-    if (!isLocal) return connectRemote();
-    var socket = io();
+    if (!isLocal) showPlaceholder();
+    var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
     socket.on('connect', function () { socket.emit('overlay:join', { name: kind, preview: isPreview }); });
-    socket.on('overlay:' + kind + ':state', render);
+    socket.on('overlay:' + kind + ':state', onState);
   }
 
   var tag = document.createElement('script');
