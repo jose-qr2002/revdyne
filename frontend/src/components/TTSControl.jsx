@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from './Select';
 import Icon from './Icon';
+import { showAlert } from '../services/dialog';
 import TTSAntispamModal from './TTSAntispamModal';
 import TTSShortcutsModal from './TTSShortcutsModal';
 import { apiFetch } from '../services/api';
@@ -56,9 +57,9 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
   }, []);
 
   const fetchElevenVoices = async () => {
-    if (!tts.elevenLabsKey) return alert('Ingresa tu API Key de ElevenLabs primero');
+    if (!tts.elevenLabsKey) return void showAlert('Ingresa tu API Key de ElevenLabs primero.', { title: 'Falta la API Key' });
     const voices = await apiFetch(`/api/tts/elevenlabs/voices?key=${tts.elevenLabsKey}`);
-    if (voices.error) alert('Error: ' + voices.error);
+    if (voices.error) showAlert(String(voices.error), { title: 'No se pudieron cargar las voces', type: 'error' });
     else setElevenVoices(voices);
   };
 

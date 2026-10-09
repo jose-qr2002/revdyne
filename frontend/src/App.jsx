@@ -14,6 +14,10 @@ import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import LicenseModal from './components/LicenseModal';
 import Icon from './components/Icon';
+import Select from './components/Select';
+import ProfilesModal from './components/ProfilesModal';
+import AlertHost from './components/AlertHost';
+import { showAlert } from './services/dialog';
 import { NAV_ITEMS } from './components/navItems';
 import './index.css';
 
@@ -29,6 +33,7 @@ function App() {
 
   const [games, setGames] = useState({});
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showProfilesManager, setShowProfilesManager] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileGame, setNewProfileGame] = useState('');
 
@@ -260,6 +265,25 @@ function App() {
     handleUpdateProfiles({ ...profilesData, activeProfileId: newId });
   };
 
+  // Cambiar el nombre de un perfil (por el canal único de perfiles, como el resto de cambios)
+  const renameProfile = (id, name) => {
+    if (!profilesData.list[id] || profilesData.list[id].isGlobal) return;
+    const newProfiles = JSON.parse(JSON.stringify(profilesData));
+    newProfiles.list[id].name = name;
+    handleUpdateProfiles(newProfiles);
+  };
+
+  // Eliminar un perfil con todas sus acciones y eventos. El Global no se puede eliminar; si se elimina el activo, se pasa al Global.
+  const deleteProfile = (id) => {
+    if (!profilesData.list[id] || profilesData.list[id].isGlobal) return;
+    const newProfiles = JSON.parse(JSON.stringify(profilesData));
+    delete newProfiles.list[id];
+    if (newProfiles.activeProfileId === id) {
+      newProfiles.activeProfileId = Object.keys(newProfiles.list).find(k => newProfiles.list[k].isGlobal) || null;
+    }
+    handleUpdateProfiles(newProfiles);
+  };
+
   const openNewProfileModal = () => {
     setNewProfileName('');
     setNewProfileGame(Object.keys(games)[0] || '');
@@ -268,11 +292,11 @@ function App() {
 
   const saveNewProfile = () => {
     if (!newProfileName.trim()) {
-      alert("Por favor, ingresa un nombre para el juego.");
+      showAlert('Escribe un nombre para el juego o perfil.', { title: 'Falta el nombre' });
       return;
     }
     if (!newProfileGame) {
-      alert("Selecciona un tipo de juego.");
+      showAlert('Selecciona un tipo de juego.', { title: 'Falta el tipo de juego' });
       return;
     }
 
@@ -303,6 +327,7 @@ function App() {
         profilesList={profilesData.list}
         onChangeProfile={changeProfile}
         onCreateProfile={openNewProfileModal}
+        onManageProfiles={() => setShowProfilesManager(true)}
         license={license} onOpenLicense={() => setShowLicense(true)}
         activeTab={activeTab} onSelectTab={setActiveTab}
       />
@@ -446,7 +471,7 @@ function App() {
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text2)' }}>
               Tipo de juego
             </label>
-            <select
+            <Select
               className="modifier-select"
               value={newProfileGame}
               onChange={e => setNewProfileGame(e.target.value)}
@@ -455,7 +480,7 @@ function App() {
               {Object.entries(games).map(([id, g]) => (
                 <option key={id} value={id}>{g.label}</option>
               ))}
-            </select>
+            </Select>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="btn btn-secondary" onClick={() => setShowProfileModal(false)}>
@@ -463,7 +488,6 @@ function App() {
               </button>
               <button
                 className="btn btn-primary"
-                style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }}
                 onClick={saveNewProfile}
               >
                 Crear Perfil
@@ -471,6 +495,16 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+      <AlertHost />
+      {showProfilesManager && (
+        <ProfilesModal
+          profiles={profilesData}
+          games={games}
+          onRename={renameProfile}
+          onDelete={deleteProfile}
+          onClose={() => setShowProfilesManager(false)}
+        />
       )}
       <LicenseModal
         isOpen={showLicense}

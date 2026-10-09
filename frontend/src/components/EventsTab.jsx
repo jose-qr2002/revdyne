@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Select from './Select';
 import Icon from './Icon';
+import { showAlert } from '../services/dialog';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 
@@ -76,10 +77,10 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   };
 
   const handleSaveEvent = () => {
-    if (!selectedActionId) return alert('Debes seleccionar una acción de tu arsenal.');
-    if (trigger === 'gift' && !condition) return alert('Debes seleccionar un regalo del catálogo.');
-    if (trigger === 'like' && (!condition || isNaN(condition) || condition <= 0)) return alert('Debes ingresar una cantidad válida de likes.');
-    if (trigger === 'share' && frequency === 'cooldown' && !(parseInt(cooldownSeconds, 10) > 0)) return alert('Ingresa un enfriamiento mayor a 0 segundos.');
+    if (!selectedActionId) return void showAlert('Debes seleccionar una acción de tu arsenal.', { title: 'Falta la acción' });
+    if (trigger === 'gift' && !condition) return void showAlert('Debes seleccionar un regalo del catálogo.', { title: 'Falta el regalo' });
+    if (trigger === 'like' && (!condition || isNaN(condition) || condition <= 0)) return void showAlert('Debes ingresar una cantidad válida de likes.', { title: 'Cantidad no válida' });
+    if (trigger === 'share' && frequency === 'cooldown' && !(parseInt(cooldownSeconds, 10) > 0)) return void showAlert('Ingresa un enfriamiento mayor a 0 segundos.', { title: 'Enfriamiento no válido' });
 
     const isCurrentlyEnabled = editingEventId ? allScopeEvents.find(e => e.id === editingEventId)?.enabled : true;
 

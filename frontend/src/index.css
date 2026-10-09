@@ -1427,3 +1427,25 @@ input[type="checkbox"].check:disabled { opacity: .4; cursor: not-allowed; }
 /* Deslizadores (range) en el color de acento: la parte recorrida y el botón salen rojos */
 input[type="range"] { accent-color: var(--accent); cursor: pointer; }
 input[type="range"]:disabled { cursor: not-allowed; opacity: .4; }
+
+/* Gestión de perfiles (ProfilesModal) */
+.prof-list { display: flex; flex-direction: column; gap: 8px; }
+.prof-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.prof-item.active { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.prof-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.prof-name { display: block; font-weight: 600; font-size: 14px; }
+.prof-meta { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.prof-chip { padding: 1px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; }
+.prof-error { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--accent2); }
+.prof-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+
+/* Avisos dentro de la app (AlertHost): sustituyen a los alert() nativos de Windows */
+.alert-backdrop { position: fixed; inset: 0; z-index: 10001; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .72); backdrop-filter: blur(3px); }
+.alert-panel { width: 100%; max-width: 420px; display: grid; grid-template-columns: auto 1fr; gap: 14px 16px; padding: 22px; background: var(--bg2); border: 1px solid #333; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+.alert-icon { width: 42px; height: 42px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(255, 215, 0, .12); color: var(--yellow); }
+.alert-icon.error { background: rgba(255, 0, 80, .15); color: var(--accent2); }
+.alert-icon.info { background: rgba(94, 203, 255, .14); color: #5ecbff; }
+.alert-body { min-width: 0; }
+.alert-body h3 { font-size: 16px; margin-bottom: 6px; }
+.alert-body p { font-size: 13px; line-height: 1.55; color: var(--text2); overflow-wrap: anywhere; white-space: pre-line; }
+.alert-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }

@@ -17,7 +17,7 @@ const plainMessage = (msg) => String(msg || '').replace(/^[\p{Extended_Pictograp
 
 export default function Sidebar({
   status, config, onConnect, onUpdateConfig, isConnecting,
-  activeProfileId, profilesList, onChangeProfile, onCreateProfile,
+  activeProfileId, profilesList, onChangeProfile, onCreateProfile, onManageProfiles,
   license, onOpenLicense, activeTab, onSelectTab
 }) {
   // Borrador local: escribir ya no guarda en disco en cada tecla
@@ -158,6 +158,9 @@ export default function Sidebar({
               </Select>
               <button className="icon-btn" onClick={onCreateProfile} title="Nuevo juego" aria-label="Nuevo juego">
                 <Icon name="plus" size={16} />
+              </button>
+              <button className="icon-btn" onClick={onManageProfiles} title="Gestionar perfiles (renombrar o eliminar)" aria-label="Gestionar perfiles">
+                <Icon name="settings" size={16} />
               </button>
             </div>
           </div>
