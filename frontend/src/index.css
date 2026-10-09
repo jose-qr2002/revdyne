@@ -1342,3 +1342,43 @@ input[type="radio"]:disabled { opacity: .4; cursor: not-allowed; }
 /* Botón de la acción principal (Guardar, Listo...) */
 .btn-primary { background: linear-gradient(135deg, var(--accent), #cc0040); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff2266, #dd0050); transform: translateY(-1px); }
+
+/* Selector desplegable propio (components/Select.jsx). El aspecto está en el botón .sel-trigger; el contenedor .sel solo da el tamaño,
+   así las reglas de ancho que ya existían para .modifier-select siguen valiendo. */
+.sel { position: relative; display: inline-block; vertical-align: middle; min-width: 0; max-width: 100%; }
+.sel.modifier-select { background: none; border: 0; padding: 0; border-radius: 0; box-shadow: none; }
+.sel-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm);
+  padding: 6px 8px 6px 10px; font: inherit; font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0;
+  cursor: pointer; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.sel-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.sel-trigger:focus-visible, .sel-trigger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.sel-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.sel-label { position: relative; flex: 1; min-width: 0; display: block; }
+.sel-current { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-sizer { display: block; height: 0; overflow: hidden; visibility: hidden; white-space: nowrap; pointer-events: none; }
+.sel-sizer > span { display: block; }
+.sel-chevron { flex: 0 0 auto; color: var(--text2); transition: transform .15s, color .15s; }
+.sel-trigger[aria-expanded="true"] .sel-chevron { transform: rotate(180deg); color: var(--accent); }
+
+.sel-panel {
+  position: fixed; z-index: 10050; width: max-content; overflow-y: auto; padding: 6px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55);
+  font-size: 13px; color-scheme: dark; scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
+  animation: selIn .12s ease-out;
+}
+.sel-panel::-webkit-scrollbar { width: 6px; }
+.sel-panel::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+.sel-panel::-webkit-scrollbar-track { background: transparent; }
+.sel-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--text); cursor: pointer; }
+.sel-option-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-option.active { background: rgba(255, 255, 255, .07); }
+.sel-option.selected { background: var(--accent); color: #fff; font-weight: 600; }
+.sel-option.selected.active { background: #ff2266; }
+.sel-option[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+.sel-option svg { flex: 0 0 auto; }
+@keyframes selIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sel-panel { animation: none; } .sel-trigger, .sel-chevron { transition: none; } }
+

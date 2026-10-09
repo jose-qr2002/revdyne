@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from './Select';
 import { useProfilePreview } from '../hooks/useProfilePreview';
 import Icon from './Icon';
 import { apiFetch } from '../services/api';
@@ -150,11 +151,11 @@ export default function Sidebar({
           <div className="profile-box">
             <label className="section-title" htmlFor="active-profile">Perfil activo</label>
             <div className="profile-row">
-              <select id="active-profile" className="modifier-select" value={activeProfileId || ''} onChange={(e) => onChangeProfile(e.target.value)}>
+              <Select id="active-profile" className="modifier-select" value={activeProfileId || ''} onChange={(e) => onChangeProfile(e.target.value)}>
                 {Object.entries(profilesList).map(([id, prof]) => (
                   <option key={id} value={id}>{prof.isGlobal ? 'Global · ' : ''}{prof.name}</option>
                 ))}
-              </select>
+              </Select>
               <button className="icon-btn" onClick={onCreateProfile} title="Nuevo juego" aria-label="Nuevo juego">
                 <Icon name="plus" size={16} />
               </button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import Select from './Select';
 import ModalShell from './ModalShell';
 
 function Field({ label, hint, wide, children }) {
@@ -66,9 +67,9 @@ export default function OverlayCustomizeModal({
         <h4>Texto</h4>
         <div className="pz-grid">
           <Field label="Fuente">
-            <select className="modifier-select" value={s.font} onChange={e => set({ font: e.target.value })}>
+            <Select className="modifier-select" value={s.font} onChange={e => set({ font: e.target.value })}>
               {fonts.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
+            </Select>
           </Field>
           <Field label="Texto tras el %">
             <input className="key-input" type="text" maxLength={30} value={s.finalText} onChange={e => set({ finalText: e.target.value })} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Select from './Select';
 import { apiFetch } from '../services/api';
 import { portQuery, currentAppPort } from './portUtils';
 import OverlayCustomizeModal from './OverlayCustomizeModal';
@@ -221,30 +222,30 @@ export default function GoalCard({ kind, socket, profiles }) {
         </label>
         {copy.modes && (
           <label>Empezar desde
-            <select className="modifier-select" value={likes.countMode} onChange={e => save({ countMode: e.target.value })}>
+            <Select className="modifier-select" value={likes.countMode} onChange={e => save({ countMode: e.target.value })}>
               <option value="total">{copy.modes.total}</option>
               <option value="live">{copy.modes.live}</option>
-            </select>
+            </Select>
           </label>
         )}
         {kind === 'shares' && (
           <label>Compartidas por usuario
-            <select className="modifier-select" value={likes.allowMultiple ? 'many' : 'one'} onChange={e => save({ allowMultiple: e.target.value === 'many' })}>
+            <Select className="modifier-select" value={likes.allowMultiple ? 'many' : 'one'} onChange={e => save({ allowMultiple: e.target.value === 'many' })}>
               <option value="one">Solo una por usuario</option>
               <option value="many">Todas (cada vez que comparte)</option>
-            </select>
+            </Select>
           </label>
         )}
         <label>Al alcanzar la meta
-          <select className="modifier-select" value={likes.onReach} onChange={e => save({ onReach: e.target.value })}>
+          <Select className="modifier-select" value={likes.onReach} onChange={e => save({ onReach: e.target.value })}>
             {ON_REACH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          </Select>
         </label>
         <label>Acción al finalizar
-          <select className="modifier-select" value={likes.actionId} onChange={e => save({ actionId: e.target.value })}>
+          <Select className="modifier-select" value={likes.actionId} onChange={e => save({ actionId: e.target.value })}>
             <option value="">Ninguna</option>
             {actionEntries.map(([id, a]) => <option key={id} value={id}>{a.name || id}</option>)}
-          </select>
+          </Select>
         </label>
       </div>
 

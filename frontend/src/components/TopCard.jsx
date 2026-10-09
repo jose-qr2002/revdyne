@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Select from './Select';
 import { apiFetch } from '../services/api';
 import { portQuery, currentAppPort } from './portUtils';
 
@@ -161,29 +162,29 @@ export default function TopCard({ kind, socket }) {
           <input className="key-input" type="text" maxLength={40} value={cfg.title} onChange={e => save({ title: e.target.value })} />
         </label>
         <label>Estilo
-          <select className="modifier-select" value={cfg.activeStyle} onChange={e => save({ activeStyle: Number(e.target.value) })}>
+          <Select className="modifier-select" value={cfg.activeStyle} onChange={e => save({ activeStyle: Number(e.target.value) })}>
             {Object.entries(STYLES).map(([id, s]) => <option key={id} value={id}>{id}. {s.label}</option>)}
-          </select>
+          </Select>
         </label>
         <label>Fuente
-          <select className="modifier-select" value={cfg.font} onChange={e => save({ font: e.target.value })}>
+          <Select className="modifier-select" value={cfg.font} onChange={e => save({ font: e.target.value })}>
             {fonts.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
+          </Select>
         </label>
         {kind === 'topgift' && (
           <label>Valor a mostrar
-            <select className="modifier-select" value={cfg.valueMode} onChange={e => save({ valueMode: e.target.value })}>
+            <Select className="modifier-select" value={cfg.valueMode} onChange={e => save({ valueMode: e.target.value })}>
               <option value="unit">Valor del regalo (30)</option>
               <option value="coins">Monedas totales</option>
               <option value="both">Cantidad y monedas</option>
-            </select>
+            </Select>
           </label>
         )}
         <label>Usuario
-          <select className="modifier-select" value={cfg.userField} onChange={e => save({ userField: e.target.value })}>
+          <Select className="modifier-select" value={cfg.userField} onChange={e => save({ userField: e.target.value })}>
             <option value="nickname">Nombre visible</option>
             <option value="username">@usuario</option>
-          </select>
+          </Select>
         </label>
         <label>Tamaño del título: {cfg.fontScale}%
           <input type="range" className="pz-range" min="60" max="160" value={cfg.fontScale} onChange={e => save({ fontScale: Number(e.target.value) })} />

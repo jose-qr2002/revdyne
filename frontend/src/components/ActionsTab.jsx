@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Select from './Select';
 import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
@@ -255,7 +256,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
   const renderSoundPicker = () => (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <select
+      <Select
         className="modifier-select"
         value={sound}
         onChange={e => setSound(e.target.value)}
@@ -263,7 +264,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       >
         <option value="">{type === 'sound' ? 'Selecciona un sonido...' : 'Sin sonido'}</option>
         {localSounds.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
+      </Select>
       <input type="file" accept="audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
       <button className="btn btn-secondary" onClick={() => fileInputRef.current.click()} disabled={isUploading} title="Subir audio (.mp3, .wav)" style={{ padding: '0 12px', fontWeight: 'bold' }}>
         {isUploading ? <Icon name="clock" size={15} /> : <><Icon name="plus" size={15} /> Subir</>}
@@ -345,7 +346,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
             <div style={{ minWidth: '180px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Tipo de Acción</label>
-              <select className="modifier-select" value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} disabled={editingActionId !== null}>
+              <Select className="modifier-select" value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} disabled={editingActionId !== null}>
                 {availableTypes.map(t => {
                   const meta = TYPE_META[t] || { label: t };
                   const supported = SUPPORTED_TYPES.includes(t);
@@ -355,7 +356,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                     </option>
                   );
                 })}
-              </select>
+              </Select>
             </div>
           </div>
 

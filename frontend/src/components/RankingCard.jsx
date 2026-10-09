@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Select from './Select';
 import { apiFetch } from '../services/api';
 import { portQuery, currentAppPort } from './portUtils';
 import Icon from './Icon';
@@ -231,15 +232,15 @@ export default function RankingCard({ board, metricLabel, socket }) {
               <input className="key-input" type="text" maxLength={40} value={cfg.title} onChange={e => save({ title: e.target.value })} />
             </label>
             <label>Estilo
-              <select className="modifier-select" value={cfg.activeStyle} onChange={e => save({ activeStyle: Number(e.target.value) })}>
+              <Select className="modifier-select" value={cfg.activeStyle} onChange={e => save({ activeStyle: Number(e.target.value) })}>
                 <option value={1}>1. Clásico</option>
                 <option value={2}>2. Numerado</option>
-              </select>
+              </Select>
             </label>
             <label>Fuente
-              <select className="modifier-select" value={cfg.font} onChange={e => save({ font: e.target.value })}>
+              <Select className="modifier-select" value={cfg.font} onChange={e => save({ font: e.target.value })}>
                 {fonts.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+              </Select>
             </label>
             <label>Puestos a mostrar: {cfg.rows}
               <input type="range" className="pz-range" min="3" max="10" value={cfg.rows} onChange={e => save({ rows: Number(e.target.value) })} />

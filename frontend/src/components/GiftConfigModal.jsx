@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from './Select';
 import Icon from './Icon';
 
 // 🎵 NUEVO 1: Agregamos "availableSounds" a las propiedades que recibe el modal
@@ -48,7 +49,7 @@ export default function GiftConfigModal({ giftId, giftData, availableSounds = []
         {/* 🎵 NUEVO 5: El Selector de Sonidos */}
         <div className="form-group" style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
           <label><Icon name="music" size={15} /> Sonido de alerta (opcional)</label>
-          <select 
+          <Select 
             className="modifier-select" 
             value={selectedSound} 
             onChange={(e) => setSelectedSound(e.target.value)}
@@ -60,7 +61,7 @@ export default function GiftConfigModal({ giftId, giftData, availableSounds = []
                 {soundFile}
               </option>
             ))}
-          </select>
+          </Select>
           <small style={{ color: 'var(--text3)', fontSize: '11px', marginTop: '6px', display: 'block' }}>
             * Coloca tus archivos .mp3 o .wav en la carpeta "sounds" del proyecto.
           </small>

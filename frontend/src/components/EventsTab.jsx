@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import Select from './Select';
 import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
@@ -194,12 +195,12 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
           <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
             <label style={{ display: 'block', fontSize: '13px', color: '#ffeb3b', marginBottom: '8px', fontWeight: 'bold' }}>1. CUANDO OCURRA ESTO...</label>
-            <select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
+            <Select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
               <option value="gift">Recibir un regalo específico</option>
               <option value="like">Alcanzar meta de likes</option>
               <option value="follow">Nuevo seguidor</option>
               <option value="share">Compartir directo</option>
-            </select>
+            </Select>
 
             {trigger === 'gift' && (
               <div
@@ -264,12 +265,12 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                 No tienes acciones creadas en este perfil. Ve a la pestaña "Mis Acciones" primero.
               </div>
             ) : (
-              <select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
+              <Select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
                 <option value="">-- Selecciona una acción --</option>
                 {scopeActionsArray.map(([id, act]) => (
                   <option key={id} value={id}>{act.name} (Tipo: {act.type})</option>
                 ))}
-              </select>
+              </Select>
             )}
           </div>
         </div>

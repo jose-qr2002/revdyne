@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import Select from './Select';
 import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import StickerSettingsModal from './StickerSettingsModal';
@@ -222,13 +223,13 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
           value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
           style={{ flex: 1, minWidth: '180px' }}
         />
-        <select className="modifier-select" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ minWidth: '160px' }}>
+        <Select className="modifier-select" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ minWidth: '160px' }}>
           <option value="all">Todas las categorías</option>
           <option value="tiktok">Emotes de TikTok</option>
           <option value="fanclub">Club de Fans</option>
           <option value="superfan">Super Fan</option>
           <option value="unknown">Sin clasificar</option>
-        </select>
+        </Select>
         <button className="btn btn-sm" onClick={syncStickers} disabled={isSyncing}>
           {isSyncing ? <><Icon name="clock" size={15} /> Sincronizando...</> : <><Icon name="refresh" size={15} /> Sincronizar stickers</>}
         </button>
@@ -290,7 +291,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                    <select
+                    <Select
                       className="modifier-select"
                       value={assignment?.actionId || ''}
                       onChange={(e) => handleAssignAction(item.id, e.target.value)}
@@ -300,7 +301,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                       {Object.entries(scopeActions).map(([actId, act]) => (
                         <option key={actId} value={actId}>{act.name}</option>
                       ))}
-                    </select>
+                    </Select>
 
                     {assignment && (
                       <button className="icon-btn" onClick={() => setSettingsSticker(item)} title="Enfriamiento y repeticiones" aria-label="Ajustes del sticker">

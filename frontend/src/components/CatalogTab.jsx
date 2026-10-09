@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from './Select';
 import GiftTierIcon from './GiftTier';
 import Icon from './Icon';
 import { apiFetch } from '../services/api';
@@ -99,12 +100,12 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
           type="text" className="key-input" placeholder="Buscar por nombre o ID del regalo..."
           value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ flex: 1 }}
         />
-        <select className="modifier-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ minWidth: '180px' }}>
+        <Select className="modifier-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ minWidth: '180px' }}>
           <option value="coinsDesc">Mayor a menor</option>
           <option value="coinsAsc">Menor a mayor</option>
           <option value="nameAsc">A - Z</option>
           <option value="nameDesc">Z - A</option>
-        </select>
+        </Select>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>

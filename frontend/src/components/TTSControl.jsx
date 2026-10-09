@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from './Select';
 import Icon from './Icon';
 import { apiFetch } from '../services/api';
 import { enqueueTTS, setPlaybackRate, setVolume } from '../services/ttsPlayer';
@@ -194,7 +195,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
 
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>¿A quién leemos? <Icon name="eye" size={15} /></label>
-          <select 
+          <Select 
             className="modifier-select" 
             style={{ width: '100%' }} 
             value={tts.filterMode || 'all'} 
@@ -203,7 +204,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
             <option value="all">A Todos</option>
             <option value="followers">Solo Seguidores y Fans</option>
             <option value="fans">Solo Club de Fans</option>
-          </select>
+          </Select>
         </div>
 
         {/* 🌟 NUEVO: Sub-menú de Nivel Mínimo (Solo visible si elige 'fans') */}
@@ -216,7 +217,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
             borderRadius: '0 4px 4px 0'
           }}>
             <label style={{ color: '#ff4d6e', fontWeight: 'bold' }}><Icon name="heart" size={15} /> Nivel Mínimo Exigido:</label>
-            <select 
+            <Select 
               value={config?.tts?.minFanLevel || 1} 
               onChange={(e) => onUpdateConfig({ tts: { ...config.tts, minFanLevel: parseInt(e.target.value, 10) } })}
               className='modifier-select'
@@ -230,7 +231,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                   Nivel {nivel} o superior
                 </option>
               ))}
-            </select>
+            </Select>
             <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '6px' }}>
               Los fans con nivel inferior a este serán ignorados por el bot.
             </div>
@@ -439,18 +440,18 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
         
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>Motor</label>
-          <select className="modifier-select" style={{ width: '100%' }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
+          <Select className="modifier-select" style={{ width: '100%' }} value={tts.engine || 'browser'} onChange={e => updateTTS({ engine: e.target.value })}>
             <option value="browser">Voces del sistema (offline)</option>
             <option value="elevenlabs" disabled={!canUse('elevenlabs')}>ElevenLabs (IA Premium){canUse('elevenlabs') ? '' : ' (Pro)'}</option>
             <option value="tiktok" disabled={!canUse('tiktok')}>TikTok (Voces virales){canUse('tiktok') ? '' : ' (Pro)'}</option>
             <option value="piper" disabled={!canUse('piper')}>Piper (IA local, sin internet){canUse('piper') ? '' : ' (Pro)'}</option>
             <option value="edge" disabled={!canUse('edge')}>Edge TTS (Microsoft, gratis){canUse('edge') ? '' : ' (Pro)'}</option>
-          </select>
+          </Select>
         </div>
 
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <label>Dispositivo de salida</label>
-          <select 
+          <Select 
             className="modifier-select" 
             style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
             value={tts.audioDeviceId || ''} 
@@ -458,7 +459,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           >
             <option value="">Por defecto (Principal)</option>
             {audioDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>)}
-          </select>
+          </Select>
         </div>
 
         {tts.engine === 'elevenlabs' ? (
@@ -470,17 +471,17 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
             <button className="btn btn-secondary" style={{ width: '100%', margin: '8px 0', fontSize: '12px' }} onClick={fetchElevenVoices}><Icon name="refresh" size={15} /> Cargar voces ElevenLabs</button>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz</label>
-              <select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.elevenLabsVoiceId || ''} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
+              <Select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.elevenLabsVoiceId || ''} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
                 <option value="">{elevenVoices.length ? 'Selecciona una voz' : '— carga primero las voces —'}</option>
                 {elevenVoices.map(v => <option key={v.voice_id} value={v.voice_id}>{v.name}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
         ) : tts.engine === 'tiktok' ? (
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz Viral</label>
-              <select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.tiktokVoice || 'es_mx_002'} onChange={e => updateTTS({ tiktokVoice: e.target.value })}>
+              <Select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.tiktokVoice || 'es_mx_002'} onChange={e => updateTTS({ tiktokVoice: e.target.value })}>
                 <option value="es_mx_002">🇲🇽 Hombre (Loquendo)</option>
                 <option value="es_female_f6">🇲🇽 Mujer (Graciosa)</option>
                 <option value="es_female_fp1">🇪🇸 Mujer (España)</option>
@@ -489,7 +490,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                 <option value="en_us_chewbacca">Chewbacca</option>
                 <option value="en_us_stitch">Stitch</option>
                 <option value="en_us_001">🇺🇸 Mujer (Siri Inglés)</option>
-              </select>
+              </Select>
             </div>
           </div>
         ) : tts.engine === 'piper' ? (
@@ -501,7 +502,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                   No hay voces instaladas. Coloca un modelo (.onnx + .onnx.json) en <code>backend/bin/piper/voices/</code> y reinicia la app.
                 </div>
               ) : (
-                <select
+                <Select
                   className="modifier-select"
                   style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                   value={tts.piperVoice || ''}
@@ -509,7 +510,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                 >
                   <option value="">Selecciona una voz</option>
                   {piperVoices.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
+                </Select>
               )}
             </div>
           </div>
@@ -517,7 +518,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz de Edge TTS</label>
-              <select
+              <Select
                 className="modifier-select"
                 style={{ width: '100%' }}
                 value={tts.edgeVoice || ''}
@@ -534,21 +535,21 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                     {voices.map(v => <option key={v.name} value={v.name}>{v.label}</option>)}
                   </optgroup>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         ) : (
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz del sistema</label>
-              <select 
+              <Select 
                 className="modifier-select" 
                 style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
                 value={tts.browserVoiceName || ''} 
                 onChange={e => updateTTS({ browserVoiceName: e.target.value })}
               >
                 {browserVoices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
-              </select>
+              </Select>
             </div>
           </div>
         )}
