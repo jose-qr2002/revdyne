@@ -303,7 +303,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                     </select>
 
                     {assignment && (
-                      <button onClick={() => setSettingsSticker(item)} title="Enfriamiento y repeticiones" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}>
+                      <button className="icon-btn" onClick={() => setSettingsSticker(item)} title="Enfriamiento y repeticiones" aria-label="Ajustes del sticker">
                         <Icon name="settings" size={16} />
                       </button>
                     )}
@@ -313,7 +313,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
                       <span className="slider"></span>
                     </label>
 
-                    <button onClick={() => requestDelete(item.id, item)} title="Eliminar Sticker" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}>
+                    <button className="icon-btn danger" onClick={() => requestDelete(item.id, item)} title="Eliminar sticker" aria-label="Eliminar sticker">
                       <Icon name="trash" size={16} />
                     </button>
                   </div>

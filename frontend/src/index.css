@@ -1315,3 +1315,30 @@ img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 .rk-custom { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .rk-modal { display: flex; flex-direction: column; gap: 14px; }
 .rk-modal .lk-form { padding: 0; background: none; border: 0; }
+
+/* Botones solo-ícono con estilo del tema (antes: botones sin estilo con el ícono en negro) */
+.icon-btn.danger:hover { color: var(--accent2); border-color: var(--accent2); }
+.icon-btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+
+/* Texto de una sola línea que se corta con "…" dentro de un contenedor flex (p. ej. títulos de modal con nombres largos) */
+.ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Botones de opción (radio) con estilo del tema */
+input[type="radio"] {
+  appearance: none; -webkit-appearance: none;
+  display: inline-grid; place-content: center; flex: 0 0 auto;
+  width: 18px; height: 18px; margin: 0;
+  border: 2px solid var(--text3); border-radius: 50%; background: transparent;
+  cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s;
+}
+input[type="radio"]::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; transform: scale(0); transition: transform .15s; }
+input[type="radio"]:hover:not(:disabled) { border-color: var(--accent); }
+input[type="radio"]:checked { border-color: var(--accent); background: var(--accent); }
+input[type="radio"]:checked::before { transform: scale(1); }
+input[type="radio"]:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+input[type="radio"]:disabled { opacity: .4; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { input[type="radio"], input[type="radio"]::before { transition: none; } }
+
+/* Botón de la acción principal (Guardar, Listo...) */
+.btn-primary { background: linear-gradient(135deg, var(--accent), #cc0040); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff2266, #dd0050); transform: translateY(-1px); }

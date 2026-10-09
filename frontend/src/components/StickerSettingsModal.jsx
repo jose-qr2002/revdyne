@@ -23,13 +23,12 @@ export default function StickerSettingsModal({ isOpen, sticker, assignment, acti
         <ModalShell
             isOpen={isOpen}
             onClose={onClose}
-            title={<><Icon name="settings" size={16} /> Ajustes de "{sticker.name}"</>}
+            title={<><Icon name="settings" size={16} /><span className="ellipsis" title={sticker.name}>Ajustes de "{sticker.name}"</span></>}
             footer={
                 <>
                     <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
                     <button
-                        className="btn"
-                        style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }}
+                        className="btn btn-primary"
                         onClick={() => onSave({
                             cooldownSeconds: Math.max(0, parseInt(cooldownSeconds, 10) || 0),
                             repeatMode,

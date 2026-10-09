@@ -19,7 +19,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
         textAlign: 'center'
       }}>
         <h3 style={{ margin: '0 0 12px 0', fontSize: '20px', color: '#ff4d4d' }}>{title}</h3>
-        <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--text2, #aaa)' }}>
+        <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--text2, #aaa)', overflowWrap: 'anywhere' }}>
           {message}
         </p>
         
