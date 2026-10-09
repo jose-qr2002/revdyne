@@ -35,7 +35,9 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
         setNotification({ type: 'error', text: 'Error al descargar: ' + res.error });
       } else {
         onCatalogSynced(res.catalog); // actualiza el estado en App.jsx, sin reiniciar nada
-        setNotification({ type: 'success', text: `${res.nuevos} nuevos, ${res.actualizados} actualizados` });
+        const sala = res.sala;
+        const salaTexto = !sala ? '' : sala.error ? ` (no se pudo consultar la sala de @${sala.usuario})` : ` (+${sala.nuevos} de la sala de @${sala.usuario})`;
+        setNotification({ type: 'success', text: `${res.nuevos} nuevos, ${res.actualizados} actualizados${salaTexto}` });
       }
     } catch (e) {
       setNotification({ type: 'error', text: 'Error de red al intentar sincronizar.' });
@@ -79,6 +81,9 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
           <h3 style={{ margin: 0 }}>Catálogo Oficial de TikTok</h3>
           <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>
             Total en tu base de datos: {Object.keys(catalog || {}).length} regalos mapeados
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+            Actualizar también consulta la sala del último directo al que te conectaste.
           </div>
         </div>
         <button

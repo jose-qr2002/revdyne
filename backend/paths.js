@@ -53,5 +53,6 @@ module.exports = {
   PROFILES_FILE: path.join(ROOT_DIR, 'profiles.json'),
   STICKERS_FILE: path.join(ROOT_DIR, 'stickers.json'),
   OVERLAYS_FILE: path.join(ROOT_DIR, 'overlays.json'),
+  LAST_ROOM_FILE: path.join(ROOT_DIR, 'lastRoom.json'), // última sala a la que se conectó la app (para actualizar sus regalos)
   RANKINGS_FILE: path.join(ROOT_DIR, 'rankings.json'), // tops "del día" (se conservan al cerrar la app)
 };

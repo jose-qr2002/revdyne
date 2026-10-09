@@ -137,6 +137,9 @@ function App() {
   useEffect(() => {
     if (!socket) return;
 
+    // Regalos nuevos de la sala a la que se conectó la app (ver catalogService.syncRoomGifts)
+    socket.on('catalog:updated', (catalog) => setConfig(prev => (prev ? { ...prev, catalog } : prev)));
+
     socket.on('systemError', (errorData) => {
       setSystemError(errorData);
       setTimeout(() => setSystemError(null), 10000);
@@ -157,6 +160,7 @@ function App() {
 
     return () => {
       socket.off('systemError');
+      socket.off('catalog:updated');
       socket.off('play-macro-sound');
       socket.off('play-macro-sound-batch');
     };

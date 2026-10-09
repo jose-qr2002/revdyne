@@ -63,6 +63,14 @@ function saveRankings(data) {
   writeJSON(paths.RANKINGS_FILE, data);
 }
 
+// --- Última sala (lastRoom.json): { roomId, username, idioma, at } ---
+function loadLastRoom() {
+  return readJSON(paths.LAST_ROOM_FILE, null);
+}
+function saveLastRoom(room) {
+  writeJSON(paths.LAST_ROOM_FILE, room);
+}
+
 // --- Perfiles (profiles.json) ---
 // Ya NO migra aquí. bootstrap.js garantiza que el archivo existe
 // antes de que loadProfiles() se llame por primera vez.
@@ -87,6 +95,6 @@ module.exports = {
   loadCatalog, saveCatalog,
   loadStickers, saveStickers,
   loadProfiles, saveProfiles,
-  loadOverlays, saveOverlays, loadRankings, saveRankings,
+  loadOverlays, saveOverlays, loadRankings, saveRankings, loadLastRoom, saveLastRoom,
   loadGames,
 };

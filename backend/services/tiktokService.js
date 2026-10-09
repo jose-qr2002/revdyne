@@ -63,9 +63,12 @@ function init(io, settings) {
   });
 }
 
-// Seguidores desde el perfil público (https://www.tiktok.com/@usuario). Viene REDONDEADO (35.8k -> 35800), por eso solo se usa
-// de respaldo cuando roomInfo no trae el total exacto. Mejor esfuerzo: si falla, devuelve null y la meta espera al primer follow.
-async function fetchProfileFollowers(username) {
+// Datos del perfil público (https://www.tiktok.com/@usuario): seguidores e IDIOMA del streamer. Los seguidores vienen REDONDEADOS
+// (35.8k -> 35800), por eso solo se usan de respaldo cuando roomInfo no trae el total exacto. OJO: la página NO publica la región del
+// streamer; su campo `region` (webapp.app-context) es la de quien visita (la tuya), no la del streamer, así que no se usa. Mejor esfuerzo:
+// si algo falla, esos campos quedan en null (la meta espera al primer follow y el idioma se muestra como desconocido).
+async function fetchProfileInfo(username) {
+  const info = { followers: null, language: null };
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
@@ -73,10 +76,20 @@ async function fetchProfileFollowers(username) {
       signal: ctrl.signal,
       headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', 'accept-language': 'en-US,en;q=0.9' },
     });
-    if (!res.ok) return null;
-    const m = (await res.text()).match(/"followerCount":\s*(\d+)/);
-    return m ? Number(m[1]) || null : null;
-  } catch { return null; } finally { clearTimeout(timer); }
+    if (!res.ok) return info;
+    const html = await res.text();
+    // Lo más fiable es el JSON de la propia página: userInfo.user (idioma) y userInfo.stats (seguidores)
+    const json = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
+    if (json) {
+      try {
+        const detail = JSON.parse(json[1])?.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo;
+        info.language = detail?.user?.language || null;
+        info.followers = Number(detail?.stats?.followerCount) || null;
+      } catch { /* se usan las expresiones de abajo */ }
+    }
+    if (info.followers == null) { const m = html.match(/"followerCount":\s*(\d+)/); if (m) info.followers = Number(m[1]) || null; }
+    return info;
+  } catch { return info; } finally { clearTimeout(timer); }
 }
 
 // ==========================================
@@ -621,15 +634,32 @@ function connect(username) {
     // La meta de seguidores arranca con los que ya tiene el streamer (viene en roomInfo, sin otra petición).
     overlayService.seedFollowers();
     overlayService.seedViewers();
-    if (!followerTotalFrom(tiktokConnection.roomInfo)) {
-      // roomInfo sin total de seguidores (p. ej. status_code 4003110): se usa el del perfil (aproximado) hasta el primer follow
-      logger.warn('overlay', 'roomInfo sin total de seguidores; se usa el del perfil (aproximado)', { usuario: username, status: tiktokConnection.roomInfo?.status_code });
-      fetchProfileFollowers(username).then(n => {
-        if (!n || conn !== tiktokConnection) return; // falló, o ya hay otra conexión
-        overlayService.setFollowerApprox(n);
-        logger.info('overlay', 'Seguidores aproximados del perfil', { usuario: username, seguidores: n });
-      });
-    }
+
+    // Regalos de la sala: la lista general no trae los regalos propios del streamer o de su región. Se hace en segundo plano.
+    catalogService.syncRoomGifts(state.roomId).then(r => {
+      if (conn !== tiktokConnection) return; // ya hay otra conexión
+      logger.info('catalogo', 'Regalos de la sala sincronizados', { usuario: username, nuevos: r.nuevos, total: r.total });
+      if (r.nuevos > 0) ioInstance.emit('catalog:updated', r.catalog);
+    }).catch(err => logger.warn('catalogo', 'No se pudieron traer los regalos de la sala', { usuario: username, error: err.message }));
+    // roomInfo sin total de seguidores (p. ej. status_code 4003110): se usa el del perfil (aproximado) hasta el primer follow
+    const needFollowerFallback = !followerTotalFrom(tiktokConnection.roomInfo);
+    if (needFollowerFallback) logger.warn('overlay', 'roomInfo sin total de seguidores; se usa el del perfil (aproximado)', { usuario: username, status: tiktokConnection.roomInfo?.status_code });
+
+    // Registro de la sala: la URL de regalos con su room_id y, aparte, el idioma del streamer (la región no es pública), para ir recopilándolas. Solo se imprime y se
+    // recuerda la última sala (botón "Actualizar" del catálogo); no se envía a ningún sitio.
+    const roomId = String(state.roomId);
+    const lastRoom = { roomId, username, idioma: null, at: Date.now() };
+    store.saveLastRoom(lastRoom);
+    console.log(`🎁 [REGALOS] URL de regalos de @${username}:\n   ${catalogService.giftListUrl(roomId)}`);
+    fetchProfileInfo(username).then(info => {
+      if (conn !== tiktokConnection) return; // ya hay otra conexión
+      console.log(`🌎 [REGALOS] @${username} | idioma del perfil: ${info.language || 'desconocido'} | sala ${roomId}`);
+      if (info.language) store.saveLastRoom({ ...lastRoom, idioma: info.language });
+      if (needFollowerFallback && info.followers) {
+        overlayService.setFollowerApprox(info.followers);
+        logger.info('overlay', 'Seguidores aproximados del perfil', { usuario: username, seguidores: info.followers });
+      }
+    });
 
     const secUid = await ensureRoomInfoWithRetry(tiktokConnection);
     if (secUid) secUidResolver.saveSecUid(username, secUid);
