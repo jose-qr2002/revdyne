@@ -5,6 +5,8 @@ import { showAlert } from '../services/dialog';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 
+const ACTION_TYPE_LABELS = { keyboard: 'teclado', sound: 'sonido', win: 'Win Game' };
+
 export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [showForm, setShowForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState(null);
@@ -269,7 +271,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
               <Select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
                 <option value="">-- Selecciona una acción --</option>
                 {scopeActionsArray.map(([id, act]) => (
-                  <option key={id} value={id}>{act.name} (Tipo: {act.type})</option>
+                  <option key={id} value={id}>{act.name} (Tipo: {ACTION_TYPE_LABELS[act.type] || act.type})</option>
                 ))}
               </Select>
             )}

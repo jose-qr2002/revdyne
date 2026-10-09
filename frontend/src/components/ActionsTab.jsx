@@ -9,9 +9,10 @@ const TYPE_META = {
   sound: { label: 'Sonido Directo' },
   l4d2_command: { label: 'Comando L4D2' },
   minecraft_command: { label: 'Comando Minecraft' },
+  win: { label: 'Win Game (subir / bajar wins)' },
 };
 
-const SUPPORTED_TYPES = ['keyboard', 'sound'];
+const SUPPORTED_TYPES = ['keyboard', 'sound', 'win'];
 
 const TEST_DELAY_MS = 5000;
 
@@ -31,6 +32,8 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const [delay, setDelay] = useState(80);
   const [soundEveryKey, setSoundEveryKey] = useState(false);
   const [volume, setVolume] = useState(100);
+  const [winMode, setWinMode] = useState('increase'); // Win Game: 'increase' | 'decrease'
+  const [winAmount, setWinAmount] = useState(1);
 
   const [countdowns, setCountdowns] = useState({}); // actionId -> { testId, left }
   const countdownIntervals = useRef({});
@@ -40,7 +43,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [actionToDelete, setActionToDelete] = useState(null);
 
-  const availableTypes = Array.from(new Set([...(allowedActionTypes || ['keyboard']), 'sound']));
+  const availableTypes = Array.from(new Set([...(allowedActionTypes || ['keyboard']), 'sound', 'win']));
 
   useEffect(() => {
     const refreshSounds = async () => {
@@ -194,6 +197,8 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     setDelay(act.delay || 80);
     setVolume(act.volume ?? 100);
     setSoundEveryKey(act.soundEveryKey || false);
+    setWinMode(act.mode === 'decrease' ? 'decrease' : 'increase');
+    setWinAmount(act.amount ?? 1);
     setShowForm(true);
   };
 
@@ -201,6 +206,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     if (!name.trim()) return showToast('error', 'Ponle un nombre a la acción');
     if (type === 'keyboard' && !key.trim()) return showToast('error', 'Ingresa la tecla o macro');
     if (type === 'sound' && !sound) return showToast('error', 'Selecciona un archivo de sonido');
+    if (type === 'win' && !(parseInt(winAmount, 10) >= 1)) return showToast('error', 'La cantidad de wins debe ser 1 o más');
     if (!SUPPORTED_TYPES.includes(type)) return showToast('error', 'Este tipo de acción todavía no está disponible');
 
     const actionId = editingActionId || `act_${Date.now()}`;
@@ -215,6 +221,12 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
         volume: toVolume(volume),
         delay: parseInt(delay) || 80,
         soundEveryKey: isMultiKey ? soundEveryKey : false
+      };
+    } else if (type === 'win') {
+      newAction = {
+        name, type, enabled: isCurrentlyEnabled,
+        mode: winMode === 'decrease' ? 'decrease' : 'increase',
+        amount: Math.min(1000, Math.max(1, parseInt(winAmount, 10) || 1))
       };
     } else {
       newAction = {
@@ -231,7 +243,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
   const resetForm = () => {
     setEditingActionId(null);
-    setName(''); setKey(''); setSound(''); setDelay(80); setSoundEveryKey(false); setVolume(100);
+    setName(''); setKey(''); setSound(''); setDelay(80); setSoundEveryKey(false); setVolume(100); setWinMode('increase'); setWinAmount(1);
     setType(availableTypes.find(t => SUPPORTED_TYPES.includes(t)) || 'keyboard');
     setShowForm(false);
   };
@@ -402,6 +414,28 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
             </div>
           )}
 
+          {type === 'win' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: 2, minWidth: '200px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>¿Qué hace?</label>
+                  <Select className="modifier-select" value={winMode} onChange={e => setWinMode(e.target.value)} style={{ width: '100%' }}>
+                    <option value="increase">Subir wins (+)</option>
+                    <option value="decrease">Bajar wins (−)</option>
+                  </Select>
+                </div>
+                <div style={{ flex: 1, minWidth: '110px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Cantidad</label>
+                  <input type="number" className="key-input" value={winAmount} onChange={e => setWinAmount(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="1" max="1000" />
+                </div>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text2)', margin: 0 }}>
+                Suma o resta al conteo del overlay <strong>Win Game</strong> cada vez que se active. Si lo dispara un regalo con varias unidades
+                (por ejemplo 5 rosas), se aplica una vez por unidad. Vincúlala a un regalo, seguidor, etc. desde la pestaña Eventos.
+              </p>
+            </div>
+          )}
+
           {type === 'sound' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -448,6 +482,14 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                     <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="clock" size={13} /> {act.delay || 80}ms</span>
                     {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.sound} · {act.volume ?? 100}% (1 vez)</span>}
                     {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.sound} · {act.volume ?? 100}% (En cada tecla)</span>}
+                  </div>
+                )}
+
+                {act.type === 'win' && (
+                  <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ background: act.mode === 'decrease' ? 'rgba(255,0,80,0.15)' : 'rgba(76,175,80,0.15)', color: act.mode === 'decrease' ? 'var(--accent2)' : '#4caf50', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
+                      <Icon name="trophy" size={13} /> {act.mode === 'decrease' ? '−' : '+'}{act.amount ?? 1} {(act.amount ?? 1) === 1 ? 'win' : 'wins'}
+                    </span>
                   </div>
                 )}
 

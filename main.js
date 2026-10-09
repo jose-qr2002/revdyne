@@ -206,6 +206,7 @@ function createMainWindow() {
   });
 
   mainWindow.webContents.on('did-finish-load', () => registerShortcuts(mainWindow));
+  require('./backend/services/winService').onShortcutsChanged(() => registerShortcuts(mainWindow));
   mainWindow.on('closed', () => { mainWindow = null; });
 
   mainWindow.loadURL(APP_URL).catch(() => {});
@@ -245,11 +246,12 @@ function registerShortcuts(win) {
     }
   };
 
-  const safeRegister = (key, label, eventName) => {
+  // handler: nombre de un evento para la interfaz (string) o una función que se ejecuta aquí mismo
+  const safeRegister = (key, label, handler) => {
     if (!key) return;
     try {
-      globalShortcut.register(key, () => fire(eventName));
-      console.log(`✅ [HOTKEY] Tecla vinculada: ${key} -> ${label}`);
+      const ok = globalShortcut.register(key, typeof handler === 'function' ? handler : () => fire(handler));
+      console.log(ok ? `✅ [HOTKEY] Tecla vinculada: ${key} -> ${label}` : `⚠️ [HOTKEY] "${key}" ya la usa otro programa o atajo (${label})`);
     } catch (e) {
       console.log(`❌ [HOTKEY ERROR] No se pudo vincular la tecla "${key}". Asegúrate de que es válida.`);
     }
@@ -258,6 +260,12 @@ function registerShortcuts(win) {
   safeRegister(tts.keySkipCurrent, 'Omitir Actual', 'tts-action-skip-current');
   safeRegister(tts.keySkipAll, 'Limpiar Cola', 'tts-action-skip-all');
   safeRegister(tts.keyToggleBot, 'Toggle Bot', 'tts-action-toggle-bot');
+
+  // Win Game: suben o bajan el conteo del overlay directamente (el servidor corre en este mismo proceso, no hace falta la ventana)
+  const winService = require('./backend/services/winService');
+  const winKeys = winService.getShortcuts();
+  safeRegister(winKeys.keyIncrease, 'Win Game +1', () => winService.adjustCount(1));
+  safeRegister(winKeys.keyDecrease, 'Win Game -1', () => winService.adjustCount(-1));
 }
 
 // ==========================================

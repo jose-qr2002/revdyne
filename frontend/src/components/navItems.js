@@ -22,6 +22,7 @@ export const NAV_GROUPS = [
     items: [
       { id: 'overlays', label: 'Overlays', icon: 'layers' },
       { id: 'rankings', label: 'Top 10', icon: 'crown' },
+      { id: 'win', label: 'Win Game', icon: 'trophy' },
       { id: 'log', label: 'Log en vivo', icon: 'list' },
     ],
   },

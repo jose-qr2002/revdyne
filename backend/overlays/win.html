@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Revdyne · Win Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+  /* El recuadro (#card) tiene el tamaño que le dé su contenido y #stage lo escala para que quepa en cualquier ventana, centrado */
+  #stage { position: absolute; left: 50%; top: 50%; width: max-content; transform: translate(-50%, -50%) scale(var(--s, 1)); opacity: 0; transition: opacity .4s; }
+  #stage.ready { opacity: 1; }
+
+  #card { position: relative; display: inline-flex; padding: .55em .8em; border-radius: .5em; overflow: hidden; align-items: center; justify-content: center; gap: .3em .35em; }
+  #card.vertical { flex-direction: column; padding: .6em .8em .7em; gap: .2em; }
+
+  /* Fondo: color fijo, arcoíris animado o imagen / GIF / video */
+  #bg { position: absolute; inset: 0; z-index: 0; background: var(--bg); }
+  #bg.rainbow { overflow: hidden; }
+  #bg.rainbow::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 200%; will-change: transform;
+    background: linear-gradient(90deg, #ff0050, #ff9900, #ffee00, #33dd66, #00bbff, #8844ff, #ff0050, #ff9900, #ffee00, #33dd66, #00bbff, #8844ff, #ff0050);
+    animation: bgSlide 8s linear infinite; }
+  #bg img, #bg video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  @keyframes bgSlide { to { transform: translateX(-50%); } }
+  #card > :not(#bg) { position: relative; z-index: 1; }
+
+  #icon { flex: 0 0 auto; width: 1.7em; height: 1.7em; display: none; filter: drop-shadow(0 3px 5px rgba(0,0,0,.45)); }
+  #icon.on { display: block; }
+  #icon svg { width: 100%; height: 100%; display: block; }
+
+  /* Texto "Win": color fijo o degradados animados (arcoíris, aqua, fuego, oro, hielo) */
+  #title { display: inline-block; line-height: 1.1; white-space: nowrap; padding: 0 .1em; color: var(--tc); filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+  #title:empty { display: none; }
+  #title.fx { color: transparent; -webkit-background-clip: text; background-clip: text; background-size: 250% 250%; animation: fxShift 4s linear infinite; }
+  #title.rainbow { background-image: linear-gradient(90deg, #ff3b3b, #ff9f1a, #ffe135, #3ddc84, #2bc4ff, #7b61ff, #ff4fd8, #ff3b3b); background-size: 300% 100%; animation-name: fxShiftX; animation-duration: 3s; }
+  #title.aqua { background-image: linear-gradient(90deg, #00e5ff, #00ffa3, #2979ff, #00e5ff); background-size: 300% 100%; animation-name: fxShiftX; animation-duration: 4s; }
+  #title.fire { background-image: linear-gradient(0deg, #ff1e00 0%, #ff7a00 45%, #ffe600 100%); background-size: 100% 220%; animation: fireFlick 1.1s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px rgba(255, 110, 0, .85)); }
+  #title.gold { background-image: linear-gradient(90deg, #b8860b, #fff3b0, #ffd700, #b8860b, #ffe680, #b8860b); background-size: 300% 100%; animation-name: fxShiftX; animation-duration: 3.5s; }
+  #title.ice { background-image: linear-gradient(90deg, #7fd8ff, #ffffff, #bfeaff, #7fd8ff); background-size: 300% 100%; animation-name: fxShiftX; animation-duration: 4.5s; }
+  @keyframes fxShiftX { to { background-position: 300% 0; } }
+  @keyframes fireFlick { 0% { background-position: 0 0; transform: translateY(0) scale(1); } 100% { background-position: 0 100%; transform: translateY(-1px) scale(1.03); } }
+
+  /* Contadores: conteo y meta, cada uno en su caja */
+  .counter { min-width: 1.35em; padding: .05em .28em; border-radius: .22em; text-align: center; font-size: var(--cs, 1.5em); line-height: 1.15; font-variant-numeric: tabular-nums; }
+  #count { background: var(--cbg); color: var(--cc); }
+  #count.neg { color: var(--nc); }
+  #goal { background: var(--gbg); color: var(--cc); }
+  .counter.bump { animation: bump .4s ease-out; }
+  #count.reached { box-shadow: 0 0 .5em var(--sc); animation: reached 1.4s ease-in-out infinite alternate; }
+  @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.22); } 100% { transform: scale(1); } }
+  @keyframes reached { to { box-shadow: 0 0 1em var(--sc); } }
+
+  #sep { font-size: var(--cs, 1.5em); line-height: 1; color: var(--sc); }
+  #card.vertical #sep { width: 2.4em; height: .095em; border-radius: .06em; background: var(--sc); color: transparent; overflow: hidden; }
+  #card.vertical #sep span { display: none; }
+
+  @media (prefers-reduced-motion: reduce) { #bg.rainbow::before, #title.fx, .counter.bump, #count.reached { animation: none; } #stage { transition: none; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="card">
+    <div id="bg"></div>
+    <div id="icon"></div>
+    <div id="title"></div>
+    <div id="count" class="counter">0</div>
+    <div id="sep"><span>/</span></div>
+    <div id="goal" class="counter">5</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var card = document.getElementById('card');
+  var bg = document.getElementById('bg');
+  var iconEl = document.getElementById('icon');
+  var titleEl = document.getElementById('title');
+  var countEl = document.getElementById('count');
+  var goalEl = document.getElementById('goal');
+  var isPreview = /[?&]preview=1/.test(location.search);
+  var kind = 'win';
+
+  // Puerto de la app: 47321 por defecto (mismo valor que BASE_PORT en server.js y DEFAULT_PORT en frontend/src/components/portUtils.js).
+  // El enlace puede traer ?port= para otro puerto (desarrollo).
+  var DEFAULT_PORT = 47321;
+  var port = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
+  if (!(port > 0 && port < 65536)) port = DEFAULT_PORT;
+  var appOrigin = 'http://127.0.0.1:' + port;
+  // Servida por la propia app (http en localhost/127.0.0.1): usa su Socket.IO y sus archivos sin importar el puerto.
+  var isLocal = location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]remote=1/.test(location.search); // ?remote=1 fuerza el modo remoto (pruebas)
+
+  var ICONS = {
+    trophy: '<svg viewBox="0 0 64 64"><path d="M18 8h28v14c0 9-6 16-14 16S18 31 18 22z" fill="#ffc400"/><path d="M18 12H8c0 10 4 16 12 18M46 12h10c0 10-4 16-12 18" fill="none" stroke="#ffb000" stroke-width="4" stroke-linecap="round"/><rect x="29" y="38" width="6" height="10" fill="#e09a00"/><rect x="20" y="48" width="24" height="8" rx="3" fill="#ffc400"/><path d="M25 14c0 8 2 14 7 18" stroke="#fff3b0" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/></svg>',
+    crown: '<svg viewBox="0 0 64 64"><path d="M6 46L10 18l14 14 8-18 8 18 14-14 4 28z" fill="#ffc400" stroke="#d99a00" stroke-width="2" stroke-linejoin="round"/><rect x="6" y="46" width="52" height="8" rx="3" fill="#e09a00"/><circle cx="32" cy="30" r="3.5" fill="#ff3b5c"/></svg>',
+    star: '<svg viewBox="0 0 64 64"><path d="M32 5l8.2 17 18.8 2.5-13.8 12.9 3.5 18.6L32 47.2 15.3 56l3.5-18.6L5 24.5 23.8 22z" fill="#ffd54a" stroke="#e0a800" stroke-width="2.5" stroke-linejoin="round"/></svg>',
+    medal: '<svg viewBox="0 0 64 64"><path d="M18 4h12l6 18H24zM46 4H34l-6 18h12z" fill="#e53950"/><circle cx="32" cy="40" r="17" fill="#ffc400" stroke="#d99a00" stroke-width="3"/><path d="M32 30l3 6.5 7 .9-5.2 4.8 1.4 7L32 45.6l-6.2 3.6 1.4-7L22 37.4l7-.9z" fill="#fff3b0"/></svg>',
+    fire: '<svg viewBox="0 0 64 64"><path d="M32 4c2 10 14 16 14 32a14 14 0 0 1-28 0c0-8 4-12 7-16 1 5 3 7 5 8-2-9 0-18 2-24z" fill="#ff6a00"/><path d="M32 30c1 6 8 9 8 17a8 8 0 0 1-16 0c0-5 3-7 5-10 1 2 2 3 3 3z" fill="#ffd54a"/></svg>',
+    gem: '<svg viewBox="0 0 64 64"><path d="M16 8h32l12 16-28 34L4 24z" fill="#35c8ff" stroke="#1b8fc4" stroke-width="2.5" stroke-linejoin="round"/><path d="M4 24h56M24 8l-8 16 16 34M40 8l8 16-16 34" fill="none" stroke="#bff0ff" stroke-width="2" stroke-linejoin="round" opacity=".8"/></svg>',
+    rocket: '<svg viewBox="0 0 64 64"><path d="M32 4c10 6 14 18 12 32H20C18 22 22 10 32 4z" fill="#e8ecf5" stroke="#9aa5bd" stroke-width="2"/><circle cx="32" cy="24" r="6" fill="#35c8ff" stroke="#1b8fc4" stroke-width="2"/><path d="M20 36l-10 10 6 2 4-4zM44 36l10 10-6 2-4-4z" fill="#e53950"/><path d="M26 40h12l-6 18z" fill="#ff9a1a"/></svg>',
+    skull: '<svg viewBox="0 0 64 64"><path d="M32 6c-13 0-22 9-22 21 0 7 3 11 8 14v9h28v-9c5-3 8-7 8-14C54 15 45 6 32 6z" fill="#eef1f7" stroke="#9aa5bd" stroke-width="2"/><circle cx="23" cy="28" r="6" fill="#1b1d24"/><circle cx="41" cy="28" r="6" fill="#1b1d24"/><path d="M32 36l-3 6h6z" fill="#1b1d24"/><path d="M24 50v6M32 50v6M40 50v6" stroke="#9aa5bd" stroke-width="2.5"/></svg>'
+  };
+  // Fuentes de Google: se cargan solas (necesitan internet); si no llegan, se usa la de respaldo
+  var GOOGLE_FONTS = ['Bangers', 'Bebas Neue', 'Permanent Marker', 'Press Start 2P', 'Righteous', 'Pacifico', 'Anton', 'Russo One'];
+  var loadedFonts = {};
+  function ensureFont(name) {
+    if (GOOGLE_FONTS.indexOf(name) < 0 || loadedFonts[name]) return;
+    loadedFonts[name] = true;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + '&display=swap';
+    link.onload = function () { if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit); };
+    document.head.appendChild(link);
+  }
+
+  var last = null;
+  var prevCount = null;
+  var mediaKey = '';
+
+  function mediaUrl(v) { return /^\//.test(v) && !isLocal ? appOrigin + v : v; }
+
+  function renderBackground(s) {
+    var useMedia = s.bgStyle === 'media' && s.bgMedia;
+    var key = s.bgStyle + '|' + (useMedia ? s.bgMedia : s.bgColor);
+    bg.className = s.bgStyle === 'rainbow' ? 'rainbow' : '';
+    bg.style.setProperty('--bg', s.bgStyle === 'color' || (s.bgStyle === 'media' && !s.bgMedia) ? s.bgColor : 'transparent');
+    if (key === mediaKey) return; // no se vuelve a crear el video/imagen en cada cambio del contador
+    mediaKey = key;
+    bg.textContent = '';
+    if (!useMedia) return;
+    var url = mediaUrl(s.bgMedia);
+    var el;
+    if (/\.(mp4|webm)(\?|$)/i.test(url)) {
+      el = document.createElement('video');
+      el.autoplay = true; el.loop = true; el.muted = true; el.playsInline = true; el.setAttribute('muted', '');
+    } else {
+      el = document.createElement('img');
+      el.alt = '';
+    }
+    el.src = url;
+    bg.appendChild(el);
+  }
+
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var nw = card.offsetWidth, nh = card.offsetHeight;
+    if (!(nw > 0 && nh > 0)) return;
+    if (!(w > 0 && h > 0)) { w = nw; h = nh; } // Live Studio a veces carga con 0x0
+    stage.style.setProperty('--s', Math.min(w / nw, h / nh));
+  }
+
+  function render(st) {
+    last = st;
+    var s = st.style;
+    ensureFont(s.font);
+
+    card.className = s.layout === 'vertical' ? 'vertical' : '';
+    card.style.fontSize = s.fontSize + 'px';
+    card.style.fontFamily = '"' + s.font + '", Impact, "Arial Black", sans-serif';
+    card.style.letterSpacing = s.letterSpacing + 'px';
+    var r = card.style;
+    r.setProperty('--tc', s.textColor); r.setProperty('--cbg', s.counterBg); r.setProperty('--gbg', s.goalBg);
+    r.setProperty('--cs', (s.counterFontSize || s.fontSize * 1.5) + 'px'); // tamaño de los números y del slash
+    r.setProperty('--cc', s.counterColor); r.setProperty('--nc', s.negativeColor); r.setProperty('--sc', s.separatorColor);
+
+    renderBackground(s);
+
+    var showIcon = s.iconMode === 'icon' && ICONS[s.icon];
+    iconEl.classList.toggle('on', !!showIcon);
+    iconEl.innerHTML = showIcon ? ICONS[s.icon] : '';
+
+    titleEl.textContent = s.text;
+    titleEl.className = s.textStyle === 'color' ? '' : 'fx ' + s.textStyle;
+
+    countEl.textContent = Number(st.count).toLocaleString('es');
+    goalEl.textContent = Number(st.goal).toLocaleString('es');
+    countEl.classList.toggle('neg', st.count < 0);
+    countEl.classList.toggle('reached', st.goal > 0 && st.count >= st.goal);
+    if (prevCount !== null && prevCount !== st.count) { countEl.classList.remove('bump'); void countEl.offsetWidth; countEl.classList.add('bump'); }
+    prevCount = st.count;
+
+    fit();
+    stage.classList.add('ready');
+  }
+  window.addEventListener('resize', fit);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+
+  // Vista previa sin datos: Live Studio suele abrirse ANTES que Revdyne y, sin esto, el overlay se quedaría invisible hasta que la app
+  // envíe su estado. Se dibuja con el último diseño recibido (guardado en este navegador) o con uno por defecto, y se reemplaza al
+  // llegar el primer estado real. Si la app se cierra después, se conserva lo último mostrado.
+  var CACHE_KEY = 'revdyne.lastState.' + kind;
+  var gotState = false;
+  function saveCache(st) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(st)); } catch (e) { /* sin almacenamiento: se usa el diseño por defecto */ } }
+  function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) { return null; } }
+  function onState(st) { gotState = true; if (!isLocal) saveCache(st); render(st); }
+
+  var DEFAULT_STYLE = {   // copia del estilo 1 de winDefaults en backend/data/defaults.js
+    layout: 'horizontal', bgStyle: 'color', bgColor: '#000000', bgMedia: '', text: 'Win', font: 'Bangers', fontSize: 50, letterSpacing: 0,
+    textStyle: 'color', textColor: '#ffffff', iconMode: 'icon', icon: 'trophy',
+    counterFontSize: 75, counterBg: '#1d1c1c', goalBg: '#1d1c1c', counterColor: '#ffffff', negativeColor: '#cf1313', separatorColor: '#ffffff'
+  };
+  function placeholderState() {
+    var cached = loadCache();
+    if (cached && cached.style) return { kind: kind, goal: cached.goal, count: 0, styleId: cached.styleId, style: cached.style }; // su diseño, con el conteo en 0
+    return { kind: kind, goal: 5, count: 0, styleId: 1, style: DEFAULT_STYLE };
+  }
+
+  function start() {
+    if (!isLocal && !gotState) render(placeholderState());
+    var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
+    socket.on('connect', function () { socket.emit('overlay:join', { name: kind, preview: isPreview }); });
+    socket.on('overlay:' + kind + ':state', onState);
+  }
+
+  var tag = document.createElement('script');
+  tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
+  tag.onload = start;
+  document.head.appendChild(tag);
+})();
+</script>
+</body>
+</html>

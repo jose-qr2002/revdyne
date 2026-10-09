@@ -35,11 +35,14 @@ function engineRootDir(engineId) {
 
 ensureDir(ROOT_DIR);
 ensureDir(SOUNDS_DIR);
+const MEDIA_DIR = path.join(ROOT_DIR, 'media'); // imágenes, GIF y videos de fondo de los overlays (servidos en /media)
+ensureDir(MEDIA_DIR);
 ensureDir(LOGS_DIR);
 
 module.exports = {
   ROOT_DIR,
   SOUNDS_DIR,
+  MEDIA_DIR,
   PIPER_EXECUTABLE,
   PIPER_VOICES_DIR,
   TTS_ENGINES_DIR,

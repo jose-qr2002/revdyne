@@ -21,6 +21,14 @@ function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'seq
       actionQueue.emitSoundBatch(action.sound, { times, playbackStyle, volume });
       return { executed: true, label: action.sound };
     }
+    case 'win': {
+      // Win Game: sube o baja el conteo del overlay. Con "times" (p. ej. un regalo de 5 unidades) se aplica una vez por unidad.
+      const winService = require('./winService');
+      const amount = Math.min(1000, Math.max(1, parseInt(action.amount, 10) || 1));
+      const delta = (action.mode === 'decrease' ? -1 : 1) * amount * times;
+      winService.adjustCount(delta);
+      return { executed: true, label: `Win ${delta > 0 ? '+' : '−'}${Math.abs(delta)}` };
+    }
     default:
       console.warn(`[ACTION] Tipo no soportado todavía: "${action.type}" (acción: "${action.name}")`);
       logger.warn('acciones', 'Tipo de acción no soportado', { tipo: action.type, accion: action.name });

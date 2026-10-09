@@ -10,6 +10,7 @@ import EventsTab from './components/EventsTab';
 import StickersTab from './components/StickersTab';
 import OverlaysTab from './components/OverlaysTab';
 import RankingsTab from './components/RankingsTab';
+import WinCard from './components/WinCard';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import LicenseModal from './components/LicenseModal';
@@ -433,6 +434,7 @@ function App() {
 
           {activeTab === 'overlays' && <OverlaysTab socket={socket} profiles={profilesData} />}
           {activeTab === 'rankings' && <RankingsTab socket={socket} />}
+          {activeTab === 'win' && <div className="lk-wrap"><WinCard socket={socket} /></div>}
         </div>
 
         {systemError && (

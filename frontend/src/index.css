@@ -1449,3 +1449,17 @@ input[type="range"]:disabled { cursor: not-allowed; opacity: .4; }
 .alert-body h3 { font-size: 16px; margin-bottom: 6px; }
 .alert-body p { font-size: 13px; line-height: 1.55; color: var(--text2); overflow-wrap: anywhere; white-space: pre-line; }
 .alert-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+
+/* Win Game (WinCard) */
+.win-panel { display: flex; flex-direction: column; gap: 14px; padding: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+.win-row { display: flex; align-items: center; gap: 10px; }
+.win-row-label { flex: 0 0 76px; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+.win-step { width: 40px; height: 40px; }
+.win-input { width: 110px; text-align: center; font-size: 16px; font-weight: 700; }
+.win-reset { align-self: flex-start; }
+.win-keys { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.win-keys .tts-key-label { flex-basis: 150px; }
+.win-media { display: flex; gap: 8px; align-items: center; }
+.win-media .key-input { flex: 1; min-width: 0; }
+.win-media-current { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text); min-width: 0; }
+.win-media-hint { font-size: 11px; color: var(--text3); }

@@ -145,6 +145,40 @@ const rankingDefaults = ({ title }) => ({
   cardOpacity: 85,          // % de opacidad del fondo de cada fila
 });
 
+// Overlay "Win Game" (contador de victorias): fuentes de Google que la página carga sola, opciones y valores de cada uno de los 5 estilos.
+// Las fuentes de Google necesitan internet en la página del overlay; si no cargan, se usa una de respaldo.
+const WIN_FONTS = ['Bangers', 'Bebas Neue', 'Permanent Marker', 'Press Start 2P', 'Righteous', 'Pacifico', 'Anton', 'Russo One'];
+const WIN_OPTIONS = {
+  layouts: ['horizontal', 'vertical'],
+  bgStyles: ['color', 'transparent', 'rainbow', 'media'], // color fijo | sin fondo | arcoíris animado | imagen, GIF o video
+  textStyles: ['color', 'rainbow', 'aqua', 'fire', 'gold', 'ice'],
+  iconModes: ['icon', 'none'],
+  icons: ['trophy', 'crown', 'star', 'medal', 'fire', 'gem', 'rocket', 'skull'],
+};
+const WIN_STYLE_BASE = {
+  layout: 'horizontal',
+  bgStyle: 'color', bgColor: '#000000', bgMedia: '',
+  text: 'Win', font: 'Bangers', fontSize: 50, letterSpacing: 0,
+  textStyle: 'color', textColor: '#ffffff',
+  iconMode: 'icon', icon: 'trophy',
+  counterFontSize: 75,   // tamaño de los números y del slash (px)
+  counterBg: '#1d1c1c', goalBg: '#1d1c1c', counterColor: '#ffffff', negativeColor: '#cf1313', separatorColor: '#ffffff',
+};
+const winDefaults = () => ({
+  goal: 5,
+  count: 0,
+  activeStyle: 1,
+  keyIncrease: '',   // atajos globales sin asignar: los elige el usuario
+  keyDecrease: '',
+  styles: {
+    1: { ...WIN_STYLE_BASE },
+    2: { ...WIN_STYLE_BASE, layout: 'vertical', bgColor: '#14141c', textStyle: 'gold', icon: 'crown' },
+    3: { ...WIN_STYLE_BASE, bgStyle: 'rainbow', icon: 'star', counterBg: '#111111', goalBg: '#111111' },
+    4: { ...WIN_STYLE_BASE, bgColor: '#05162b', textStyle: 'aqua', icon: 'gem', counterBg: '#0b2a4a', goalBg: '#0b2a4a' },
+    5: { ...WIN_STYLE_BASE, layout: 'vertical', bgColor: '#2b0505', textStyle: 'fire', icon: 'skull', counterBg: '#3d0a0a', goalBg: '#3d0a0a' },
+  },
+});
+
 const DEFAULT_OVERLAYS = {
   schemaVersion: 1,
   likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
@@ -154,6 +188,7 @@ const DEFAULT_OVERLAYS = {
   coins: goalDefaults({ goal: 1000, title: 'Coin Goal', finalText: 'Monedas' }),
   topgift: topDefaults({ title: 'Mejor regalo', valueColor: '#ffd24a' }),
   topcombo: topDefaults({ title: 'Mejor combo', valueColor: '#ff4d6a' }),
+  win: winDefaults(),
   rk_gifters: rankingDefaults({ title: 'Top Gifters' }),
   rk_gifters_day: rankingDefaults({ title: 'Top Daily Gifters' }),
   rk_likes: rankingDefaults({ title: 'Top Likes' }),
@@ -168,4 +203,4 @@ const DEFAULT_OVERLAYS = {
   rk_shares_month: rankingDefaults({ title: 'Top Monthly Shares' }),
 };
 
-module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, OVERLAY_PUBLIC_BASE_URL };
+module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, WIN_FONTS, WIN_OPTIONS, OVERLAY_PUBLIC_BASE_URL };
