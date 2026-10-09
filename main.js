@@ -8,7 +8,7 @@ const APP_ICON = fs.existsSync(ICON_PATH) ? ICON_PATH : undefined;
 // Si usas app.setPath('userData', ...), va AQUÍ, antes del candado.
 
 const isDev = !app.isPackaged;
-const APP_URL = isDev ? 'http://localhost:5173' : 'http://localhost:3000';
+let APP_URL = isDev ? 'http://localhost:5173' : 'http://localhost:47321'; // el puerto real se fija tras arrancar el servidor (puede no ser el 3000)
 const REVEAL_FALLBACK_MS = 25000; // si la interfaz no avisa en este tiempo, se muestra igual
 const MAX_LOAD_RETRIES = 15;
 
@@ -141,7 +141,9 @@ async function boot() {
 
     setSplashStatus('Iniciando el motor…');
     await sleep(60);
-    require('./server.js'); // síncrono y pesado: por eso el splash ya está en pantalla
+    const { ready } = require('./server.js'); // la carga es síncrona y pesada: por eso el splash ya está en pantalla
+    const port = await ready;                 // si el 3000 está ocupado, el servidor usa otro puerto libre
+    if (!isDev) APP_URL = `http://localhost:${port}`;
     console.log(`⏱️ [ARRANQUE] Servidor cargado en ${Date.now() - bootStartedAt} ms`);
 
     setSplashStatus('Cargando la interfaz…');

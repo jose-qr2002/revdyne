@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api';
 import RankingCard from './RankingCard';
+import PortNotice from './PortNotice';
 
 // Sección "Top 10": 4 métricas × (directo | del día | del mes) = 12 overlays
 const METRICS = [
@@ -29,6 +30,7 @@ export default function RankingsTab({ socket }) {
 
   return (
     <div className="lk-wrap">
+      <PortNotice />
       <div className="lk-kinds" role="tablist" aria-label="Métrica del top">
         {METRICS.map(m => (
           <button key={m.id} className={metric === m.id ? 'active' : ''} onClick={() => setMetric(m.id)}>{m.label}</button>

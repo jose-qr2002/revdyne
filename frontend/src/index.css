@@ -1316,3 +1316,6 @@ img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 .rk-modal { display: flex; flex-direction: column; gap: 14px; }
 .rk-modal .lk-form { padding: 0; background: none; border: 0; }
 
+/* Aviso de puerto distinto al 3000 */
+.lk-warn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 14px; font-size: 12px; line-height: 1.6; color: var(--yellow); background: rgba(255, 215, 0, .08); border: 1px solid rgba(255, 215, 0, .25); border-radius: var(--radius-sm); }
+.lk-warn svg { flex: 0 0 auto; margin-top: 3px; }

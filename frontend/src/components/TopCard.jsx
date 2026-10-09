@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '../services/api';
+import { portQuery, currentAppPort } from './portUtils';
 
 // Tamaño del lienzo de cada estilo (el mismo que usa backend/overlays/top.html)
 const STYLES = {
@@ -105,9 +106,9 @@ export default function TopCard({ kind, socket }) {
   };
   // TikTok LIVE Studio rechaza 'localhost'; la IP apunta al mismo servidor. En desarrollo (Vite) se deja el origen.
   const host = import.meta.env.DEV ? window.location.origin : window.location.origin.replace('//localhost', '//127.0.0.1');
-  const appPort = import.meta.env.DEV ? 3000 : (window.location.port || 3000);
+  const appPort = currentAppPort();
   const obsUrl = `${host}/overlays/top/${copy.slug}`;
-  const studioUrl = `${publicBaseUrl}/top/${copy.slug}?port=${appPort}`;
+  const studioUrl = `${publicBaseUrl}/top/${copy.slug}${portQuery(appPort)}`;
   const overlayUrl = target === 'studio' ? studioUrl : obsUrl;
 
   const copyUrl = async () => {

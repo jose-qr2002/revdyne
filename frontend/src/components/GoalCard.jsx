@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '../services/api';
+import { portQuery, currentAppPort } from './portUtils';
 import OverlayCustomizeModal from './OverlayCustomizeModal';
 
 const ON_REACH_OPTIONS = [
@@ -134,8 +135,8 @@ export default function GoalCard({ kind, socket, profiles }) {
   const host = import.meta.env.DEV ? window.location.origin : window.location.origin.replace('//localhost', '//127.0.0.1');
   const obsUrl = `${host}/overlays/goal/${kind}`;
   // Live Studio: la página vive en el dominio propio y se conecta a esta app por el puerto indicado.
-  const appPort = import.meta.env.DEV ? 3000 : (window.location.port || 3000);
-  const studioUrl = `${publicBaseUrl}/goal/${kind}?port=${appPort}`;
+  const appPort = currentAppPort();
+  const studioUrl = `${publicBaseUrl}/goal/${kind}${portQuery(appPort)}`;
   const overlayUrl = target === 'studio' ? studioUrl : obsUrl;
 
   // Acciones disponibles: las globales y las del perfil activo
