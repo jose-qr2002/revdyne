@@ -1295,3 +1295,24 @@ img.logo-mark { background: none; box-shadow: none; object-fit: contain; }
 .gift-tier .icon { vertical-align: 0; }
 .log-ok { color: var(--green); }
 .log-fail { color: var(--accent2); }
+
+/* ===== Top 10 (RankingCard) ===== */
+.lk-wrap > .lk-kinds + .lk-kinds { margin-top: -4px; }
+.rk-period { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--text3); }
+.rk-list { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+.rk-list-head { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; }
+.rk-empty { font-size: 13px; color: var(--text3); padding: 6px 0; }
+.rk-item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.rk-item:nth-of-type(2) { border-color: color-mix(in srgb, #ffcc33 55%, var(--border)); }
+.rk-pos { width: 22px; text-align: center; font-weight: 800; color: var(--text2); }
+.rk-item img, .rk-av { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--bg3); display: inline-flex; align-items: center; justify-content: center; color: var(--text3); flex: 0 0 auto; }
+.rk-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.rk-val { color: var(--yellow); font-variant-numeric: tabular-nums; }
+
+/* Top 10: vista previa a la izquierda y puestos a la derecha (en ventanas estrechas los puestos pasan abajo) */
+.rk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.rk-grid .lk-stage { max-width: none; }
+.rk-custom { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.rk-modal { display: flex; flex-direction: column; gap: 14px; }
+.rk-modal .lk-form { padding: 0; background: none; border: 0; }
+

@@ -11,6 +11,7 @@ const chatFilter = require('./chatFilter');
 const overlayService = require('./overlayService');
 const { createGiftStreakCounter } = require('./giftStreaks');
 const logger = require('./logger');
+const rankingService = require('./rankingService');
 const topService = require('./topService');
 
 // ==========================================
@@ -207,6 +208,7 @@ function handleGift(data) {
 
   // La meta de monedas cuenta todos los regalos, también los que no llegan al mínimo de monedas de las reglas.
   overlayService.addCoins(newCount * coins);
+  rankingService.record('gifters', rankUser(data), newCount * coins);
 
   // Mejor regalo / mejor combo: usan el total acumulado de la ráfaga (no el incremento de este evento)
   topService.record({
@@ -232,6 +234,7 @@ function handleGift(data) {
 function handleShare(data) {
   const username = getUsername(data);
   overlayService.addShare(data);
+  rankingService.record('shares', rankUser(data), 1);
   console.log(`📢 ${username} ha compartido el directo`);
 
   let executed = false;
@@ -271,6 +274,7 @@ function handleFollow(data) {
 
 function handleLike(data) {
   overlayService.addLiveLikes(data);
+  rankingService.record('likes', rankUser(data), data.count || 1);
 
   const count = data.count || 1;
   const username = getUsername(data) === 'alguien' ? 'Comunidad' : getUsername(data);
@@ -304,6 +308,7 @@ function handleLike(data) {
 }
 
 function handleChat(data) {
+  rankingService.record('comments', rankUser(data), 1);
   const badges = (data.user?.badgeList || []).map(b => {
     const iconUrl =
       b.combine?.icon?.urlList?.[0] ||
@@ -561,6 +566,19 @@ function stopMonitors() {
   watchTimer = statsTimer = null;
 }
 
+// Usuario de un evento en el formato de los tops: clave estable (id), nombre visible, @usuario y avatar
+function rankUser(data) {
+  const u = data?.user || {};
+  const key = u.id || u.userId || u.secUid || u.displayId || u.uniqueId;
+  const username = u.displayId || u.uniqueId || '';
+  return {
+    key: key ? String(key) : '',
+    name: u.nickname || username,
+    username,
+    avatar: u.avatarThumb?.urlList?.[0] || u.avatarMedium?.urlList?.[0] || u.avatarLarge?.urlList?.[0] || '',
+  };
+}
+
 // Total de seguidores exacto de roomInfo (null si TikTok no lo entrega)
 const followerTotalFrom = (info) => Number(info?.data?.owner?.follow_info?.follower_count) || null;
 
@@ -575,6 +593,7 @@ function connect(username) {
   eventCooldowns.clear();
   overlayService.resetAll();
   topService.setOwner(username); // no reinicia al reconectar al mismo usuario
+  rankingService.setOwner(username);
   giftStreaks.reset();
   
   if (!username) {

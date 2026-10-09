@@ -21,6 +21,7 @@ export const NAV_GROUPS = [
     label: 'Transmisión',
     items: [
       { id: 'overlays', label: 'Overlays', icon: 'layers' },
+      { id: 'rankings', label: 'Top 10', icon: 'crown' },
       { id: 'log', label: 'Log en vivo', icon: 'list' },
     ],
   },

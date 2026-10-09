@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Revdyne · Top 10</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --font: Arial; --fs: 1; --vs: 1;
+    --title: #fff; --name: #fff; --value: #ffd24a; --card: #14141c; --op: 85%;
+    --gold: #ffcc33; --silver: #8fb4ff; --bronze: #d08a46;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+  /* Lienzo de tamaño fijo (lo calcula el script según estilo y número de filas), escalado para caber en cualquier recuadro */
+  #stage {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(var(--s, 1));
+    font-family: var(--font), sans-serif; color: var(--name);
+    opacity: 0; transition: opacity .4s;
+  }
+  #stage.ready { opacity: 1; }
+
+  #title { height: 46px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: calc(26px * var(--fs)); color: var(--title); text-shadow: 0 2px 6px rgba(0,0,0,.65); white-space: nowrap; }
+  #title.off { display: none; }
+  #list { display: flex; flex-direction: column; gap: 8px; }
+
+  .row { position: relative; height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 14px 0 10px; border-radius: 16px;
+    background: color-mix(in srgb, var(--card) var(--op), transparent); border: 2px solid rgba(255,255,255,.08); box-shadow: 0 6px 16px rgba(0,0,0,.3); }
+  .row.r1 { border-color: var(--gold); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 20%, transparent), transparent 70%), color-mix(in srgb, var(--card) var(--op), transparent); }
+  .row.r2 { border-color: var(--silver); background: linear-gradient(90deg, color-mix(in srgb, var(--silver) 20%, transparent), transparent 70%), color-mix(in srgb, var(--card) var(--op), transparent); }
+  .row.r3 { border-color: var(--bronze); background: linear-gradient(90deg, color-mix(in srgb, var(--bronze) 20%, transparent), transparent 70%), color-mix(in srgb, var(--card) var(--op), transparent); }
+  .row.empty { opacity: .55; }
+
+  /* Sin rectángulos: solo foto, nombre y valor (el texto lleva más sombra para leerse sobre el video) */
+  body[data-cards="0"] .row, body[data-cards="0"] .row.r1, body[data-cards="0"] .row.r2, body[data-cards="0"] .row.r3 { background: none; border-color: transparent; box-shadow: none; }
+  body[data-cards="0"] .name, body[data-cards="0"] .val { text-shadow: 0 2px 4px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.6); }
+
+  /* Nombres con degradado de arcoíris que se desplaza */
+  body[data-rainbow="1"] .row:not(.empty) .name {
+    background: linear-gradient(90deg, #ff3b3b, #ff9f1a, #ffe135, #3ddc84, #2bc4ff, #7b61ff, #ff4fd8, #ff3b3b); background-size: 220px 100%; background-repeat: repeat-x; /* ciclo de 220px: hasta un nombre corto muestra casi todo el arcoíris */
+    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+    text-shadow: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.65)); animation: rainbow 3s linear infinite;
+  }
+  @keyframes rainbow { to { background-position: 220px 0; } }
+
+  .av { position: relative; width: 46px; height: 46px; flex: 0 0 auto; border-radius: 50%; background: #2a2c36; border: 2px solid rgba(255,255,255,.25); overflow: visible; }
+  .av img, .av .ph { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+  .av .ph { padding: 22% 0 0; color: #7b7f8c; }
+  /* Con foto cargada (.loaded) solo se ve la foto; si no hay foto o falla, solo la silueta. (El atributo "hidden" no funciona en SVG.) */
+  .av img { display: none; }
+  .av.loaded img { display: block; }
+  .av.loaded .ph { display: none; }
+  body[data-av="0"] .av { display: none; }
+  .r1 .av { border-color: var(--gold); } .r2 .av { border-color: var(--silver); } .r3 .av { border-color: var(--bronze); }
+
+  .info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .name { font-weight: 800; font-size: calc(20px * var(--fs)); color: var(--name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 5px rgba(0,0,0,.5); line-height: 1.15; }
+  .val { display: flex; align-items: center; gap: 6px; font-weight: 900; font-size: calc(20px * var(--vs)); color: var(--value); line-height: 1; white-space: nowrap; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .val svg { width: .95em; height: .95em; flex: 0 0 auto; }
+  .empty .name { font-weight: 700; }
+  .empty .val { color: color-mix(in srgb, var(--value) 60%, transparent); }
+
+  /* Estilo 2: numerado, con insignia hexagonal y corona en el primer puesto */
+  [data-style="2"] .row { border-radius: 14px; }
+  [data-style="2"] .rank { position: relative; width: 36px; height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px; color: #fff; }
+  [data-style="2"] .rank::before, [data-style="2"] .rank::after { content: ""; position: absolute; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+  [data-style="2"] .rank::before { inset: 0; background: rgba(255,255,255,.35); }
+  [data-style="2"] .rank::after { inset: 2px; background: #33353f; }
+  [data-style="2"] .rank span { position: relative; z-index: 1; }
+  [data-style="2"] .r1 .rank::before { background: var(--gold); } [data-style="2"] .r1 .rank::after { background: color-mix(in srgb, var(--gold) 45%, #2a2310); }
+  [data-style="2"] .r2 .rank::before { background: var(--silver); } [data-style="2"] .r2 .rank::after { background: color-mix(in srgb, var(--silver) 40%, #1c2233); }
+  [data-style="2"] .r3 .rank::before { background: var(--bronze); } [data-style="2"] .r3 .rank::after { background: color-mix(in srgb, var(--bronze) 45%, #2a1a0c); }
+  [data-style="2"] .rank.plain::before, [data-style="2"] .rank.plain::after { display: none; }
+  [data-style="2"] .rank.plain { color: rgba(255,255,255,.85); }
+  [data-style="1"] .rank { display: none; }
+  .crown { position: absolute; left: -7px; top: -25px; width: 46px; height: 38px; transform: rotate(-12deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); z-index: 2; }
+  [data-style="1"] .crown { display: none; }
+  [data-style="2"] .row.r1 { margin-top: 0; }
+
+  .row.bump { animation: bump .5s ease-out; }
+  @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .row.bump { animation: none; } #stage { transition: none; } body[data-rainbow="1"] .row:not(.empty) .name { animation: none; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="title"></div>
+  <div id="list"></div>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var titleEl = document.getElementById('title');
+  var listEl = document.getElementById('list');
+  var isPreview = /[?&]preview=1/.test(location.search);
+
+  // Ruta .../ranking/gifters | gifters-daily | gifters-monthly | likes | ... -> kind del servidor (rk_gifters, rk_gifters_day, rk_gifters_month)
+  var slugMatch = location.pathname.match(/\/ranking\/([a-z]+)(?:-(daily|monthly))?\/?$/) || [];
+  var metric = slugMatch[1] || 'gifters';
+  var kind = 'rk_' + metric + (slugMatch[2] === 'daily' ? '_day' : slugMatch[2] === 'monthly' ? '_month' : '');
+
+  var ICONS = {
+    gifters: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="#ffc400"/><circle cx="32" cy="32" r="20" fill="none" stroke="#ff9d00" stroke-width="5"/><path d="M32 19v26M38 25c0-3-3-5-6-5s-6 2-6 5 3 4 6 5 6 2 6 5-3 5-6 5-6-2-6-5" fill="none" stroke="#ff9d00" stroke-width="4" stroke-linecap="round"/></svg>',
+    likes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff3b5c" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    comments: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#5ecbff" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    shares: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#7bd88f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>'
+  };
+  var PLACEHOLDER = '<svg class="ph" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="12" cy="8" r="4.2"/><path d="M3.5 22a8.5 8.5 0 0 1 17 0z"/></svg>';
+  var CROWN = '<svg class="crown" viewBox="0 0 34 28" aria-hidden="true"><path d="M2 24 L5 8 L12 15 L17 3 L22 15 L29 8 L32 24 Z" fill="#ffcc33" stroke="#b8860b" stroke-width="1.5" stroke-linejoin="round"/><circle cx="17" cy="9" r="2" fill="#e53950"/><rect x="2" y="24" width="30" height="3" rx="1.5" fill="#e0a800"/></svg>';
+
+  var SIZES = { 1: { w: 340, title: 46 }, 2: { w: 360, title: 46, top: 18 } };
+  var ROW = 64, GAP = 8;
+  var prev = {}; // key -> valor anterior, para la animación al subir
+  var loadedAvatars = {}; // url -> true si ya cargó
+  var lastCfg = null;
+
+  var fmt = function (n) { return Number(n).toLocaleString('es'); };
+
+  function applyScale(cfg) {
+    var s = SIZES[cfg.activeStyle] || SIZES[1];
+    var h = (cfg.showTitle ? s.title : 0) + cfg.rows * ROW + (cfg.rows - 1) * GAP + (s.top || 0);
+    var w = window.innerWidth, ih = window.innerHeight;
+    if (!(w > 0 && ih > 0)) { w = s.w; ih = h; } // Live Studio a veces carga con 0x0
+    stage.style.width = s.w + 'px'; stage.style.height = h + 'px';
+    stage.style.paddingTop = (s.top || 0) + 'px';
+    stage.style.setProperty('--s', Math.min(w / s.w, ih / h));
+  }
+
+  // El nombre se achica solo hasta que quepa (mínimo 70% del tamaño); solo entonces lleva "…"
+  function fitName(el) {
+    var base = parseFloat(getComputedStyle(el).fontSize), size = base, min = base * 0.7;
+    while (size > min && el.scrollWidth > el.clientWidth + 1) { size -= 1; el.style.fontSize = size + 'px'; }
+  }
+
+  function rowEl(cfg, r, empty) {
+    var div = document.createElement('div');
+    div.className = 'row' + (r.rank <= 3 && !empty ? ' r' + r.rank : '') + (empty ? ' empty' : '');
+    var rank = document.createElement('div');
+    rank.className = 'rank' + (r.rank > 3 ? ' plain' : '');
+    rank.innerHTML = '<span></span>'; rank.firstChild.textContent = r.rank;
+    div.appendChild(rank);
+
+    var av = document.createElement('div'); av.className = 'av';
+    var img = document.createElement('img'); img.alt = ''; img.referrerPolicy = 'no-referrer';
+    av.appendChild(img);
+    av.insertAdjacentHTML('beforeend', PLACEHOLDER);
+    if (r.avatar && !empty) {
+      // Las filas se redibujan en cada cambio: una foto que ya cargó se muestra de inmediato (sin parpadeo de la silueta)
+      if (loadedAvatars[r.avatar]) av.classList.add('loaded');
+      img.onerror = function () { delete loadedAvatars[r.avatar]; av.classList.remove('loaded'); };
+      img.onload = function () { loadedAvatars[r.avatar] = true; av.classList.add('loaded'); };
+      img.src = r.avatar;
+    }
+    if (r.rank === 1 && !empty) av.insertAdjacentHTML('beforeend', CROWN);
+    div.appendChild(av);
+
+    var info = document.createElement('div'); info.className = 'info';
+    var name = document.createElement('div'); name.className = 'name'; name.textContent = r.name;
+    var val = document.createElement('div'); val.className = 'val';
+    val.innerHTML = ICONS[metric] || ''; var num = document.createElement('span'); num.textContent = fmt(r.value); val.appendChild(num);
+    info.appendChild(name); info.appendChild(val);
+    div.appendChild(info);
+    return div;
+  }
+
+  function render(st) {
+    var cfg = st.config;
+    lastCfg = cfg;
+    document.body.setAttribute('data-style', cfg.activeStyle);
+    document.body.setAttribute('data-av', cfg.showAvatar ? '1' : '0');
+    document.body.setAttribute('data-cards', cfg.showCards ? '1' : '0');
+    document.body.setAttribute('data-rainbow', cfg.rainbowNames ? '1' : '0');
+    var r = document.documentElement.style;
+    r.setProperty('--font', '"' + cfg.font + '"'); r.setProperty('--fs', cfg.fontScale / 100); r.setProperty('--vs', cfg.valueScale / 100);
+    r.setProperty('--title', cfg.titleColor); r.setProperty('--name', cfg.nameColor);
+    r.setProperty('--value', cfg.valueColor); r.setProperty('--card', cfg.cardColor); r.setProperty('--op', cfg.cardOpacity + '%');
+    stage.setAttribute('data-style', cfg.activeStyle);
+
+    titleEl.textContent = cfg.title; titleEl.classList.toggle('off', !cfg.showTitle || !cfg.title);
+
+    listEl.textContent = '';
+    var next = {};
+    st.rows.forEach(function (row) {
+      var el = rowEl(cfg, row, false);
+      next[row.key] = row.value;
+      if (cfg.animate && prev[row.key] !== undefined && row.value > prev[row.key]) el.classList.add('bump');
+      listEl.appendChild(el);
+    });
+    prev = next;
+    if (cfg.showEmpty) {
+      for (var i = st.rows.length + 1; i <= cfg.rows; i++) listEl.appendChild(rowEl(cfg, { rank: i, name: 'Top ' + i, value: 0, avatar: '' }, true));
+    }
+    Array.prototype.forEach.call(listEl.querySelectorAll('.name'), fitName);
+
+    applyScale(cfg);
+    stage.classList.add('ready');
+  }
+
+  window.addEventListener('resize', function () { if (lastCfg) applyScale(lastCfg); });
+
+  // Mismo archivo en dos modos (ver goal.html / top.html): local (lo sirve la app) o remoto (alojado en https; se conecta a 127.0.0.1:PUERTO)
+  var port = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
+  if (!(port > 0 && port < 65536)) port = 3000;
+  var appOrigin = 'http://127.0.0.1:' + port;
+  var isLocal = location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+
+  function start() {
+    var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
+    socket.on('connect', function () { socket.emit('overlay:join', { name: kind, preview: isPreview }); });
+    socket.on('overlay:' + kind + ':state', render);
+  }
+  var tag = document.createElement('script');
+  tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
+  tag.onload = start;
+  document.head.appendChild(tag);
+})();
+</script>
+</body>
+</html>

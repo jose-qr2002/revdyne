@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProfilePreview } from '../hooks/useProfilePreview';
 import Icon from './Icon';
+import { apiFetch } from '../services/api';
 import { NAV_GROUPS } from './navItems';
 
 const SUBLINES = {
@@ -33,6 +34,13 @@ export default function Sidebar({
   const commitUsername = () => {
     if (cleanDraft !== (config.username || '')) onUpdateConfig({ username: cleanDraft });
   };
+
+  // Al terminar de escribir otro usuario (sin conectar) los tops del panel pasan a los de esa cuenta si tiene datos guardados
+  useEffect(() => {
+    if (status.connected || isConnecting || !cleanDraft) return;
+    const t = setTimeout(() => apiFetch('/api/overlays/ranking/owner', 'POST', { username: cleanDraft }), 700);
+    return () => clearTimeout(t);
+  }, [cleanDraft, status.connected, isConnecting]);
 
   const handleConnectClick = () => { commitUsername(); onConnect(cleanDraft); };
 

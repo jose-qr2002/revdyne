@@ -55,6 +55,14 @@ function saveOverlays(overlays) {
   writeJSON(paths.OVERLAYS_FILE, overlays);
 }
 
+// --- Tops del día (rankings.json) ---
+function loadRankings() {
+  return readJSON(paths.RANKINGS_FILE, {});
+}
+function saveRankings(data) {
+  writeJSON(paths.RANKINGS_FILE, data);
+}
+
 // --- Perfiles (profiles.json) ---
 // Ya NO migra aquí. bootstrap.js garantiza que el archivo existe
 // antes de que loadProfiles() se llame por primera vez.
@@ -79,6 +87,6 @@ module.exports = {
   loadCatalog, saveCatalog,
   loadStickers, saveStickers,
   loadProfiles, saveProfiles,
-  loadOverlays, saveOverlays,
+  loadOverlays, saveOverlays, loadRankings, saveRankings,
   loadGames,
 };

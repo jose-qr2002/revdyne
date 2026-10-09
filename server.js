@@ -32,7 +32,9 @@ const licenseRoutes = require('./backend/routes/license');
 const logsRoutes = require('./backend/routes/logs');
 const overlaysRoutes = require('./backend/routes/overlays');
 const topOverlaysRoutes = require('./backend/routes/topOverlays');
+const rankingOverlaysRoutes = require('./backend/routes/rankingOverlays');
 const topService = require('./backend/services/topService');
+const rankingService = require('./backend/services/rankingService');
 const overlayService = require('./backend/services/overlayService');
 
 const app = express();
@@ -48,6 +50,8 @@ server.prependListener('request', (req, res) => {
 actionQueue.setSocketIo(io);
 overlayService.init(io);
 topService.init(io);
+rankingService.init(io);
+process.on('exit', () => rankingService.flush()); // guarda los tops del día pendientes al cerrar
 const settings = store.loadSettings();
 logger.setDebug(settings.logDebug);
 logger.info('app', 'Inicio de Revdyne', {
@@ -69,6 +73,7 @@ app.use('/api/tts', ttsRoutes(settings));
 app.use('/api/actions', actionsRoutes());
 app.use('/api/license', licenseRoutes());
 app.use('/api/logs', logsRoutes(settings));
+app.use('/api/overlays/ranking', rankingOverlaysRoutes(() => tiktokService.isConnected()));
 app.use('/api/overlays/top', topOverlaysRoutes()); // antes que /api/overlays, que tiene rutas genéricas /:kind
 app.use('/api/overlays', overlaysRoutes());
 app.use('/api', apiRoutes(settings, io, tiktokService));
@@ -77,6 +82,9 @@ app.use('/sounds', express.static(paths.SOUNDS_DIR));
 // Página que OBS carga como Browser Source (HTML autónomo, sin React)
 app.get('/overlays/top/:kind(gift|combo)', (req, res) => {
   res.sendFile(path.join(__dirname, 'backend/overlays/top.html'));
+});
+app.get('/overlays/ranking/:slug(gifters|gifters-daily|gifters-monthly|likes|likes-daily|likes-monthly|comments|comments-daily|comments-monthly|shares|shares-daily|shares-monthly)', (req, res) => {
+  res.sendFile(path.join(__dirname, 'backend/overlays/ranking.html'));
 });
 app.get('/overlays/goal/:kind(likes|followers|shares|viewers|coins)', (req, res) => {
   res.sendFile(path.join(__dirname, 'backend/overlays/goal.html'));

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
+export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Sí, Eliminar' }) {
   if (!isOpen) return null;
 
   return (
@@ -34,7 +34,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
             onClick={onConfirm}
             style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#ff4d4d', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            Sí, Eliminar
+            {confirmLabel}
           </button>
         </div>
       </div>

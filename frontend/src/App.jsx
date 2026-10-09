@@ -9,6 +9,7 @@ import ActionsTab from './components/ActionsTab';
 import EventsTab from './components/EventsTab';
 import StickersTab from './components/StickersTab';
 import OverlaysTab from './components/OverlaysTab';
+import RankingsTab from './components/RankingsTab';
 import { useSocket } from './hooks/useSocket';
 import { apiFetch } from './services/api';
 import LicenseModal from './components/LicenseModal';
@@ -402,6 +403,7 @@ function App() {
           {activeTab === 'engines' && <EngineManagerTab />}
 
           {activeTab === 'overlays' && <OverlaysTab socket={socket} profiles={profilesData} />}
+          {activeTab === 'rankings' && <RankingsTab socket={socket} />}
         </div>
 
         {systemError && (

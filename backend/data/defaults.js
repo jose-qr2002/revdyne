@@ -120,6 +120,27 @@ const topDefaults = ({ title, valueColor }) => ({
   animate: true,
 });
 
+// Overlays "Top 10" (donadores, likes, comentarios, compartidas; del directo o del día).
+const rankingDefaults = ({ title }) => ({
+  activeStyle: 1,           // 1 clásico (filas con borde de oro/plata/bronce) | 2 numerado (insignia hexagonal y corona)
+  title,
+  font: 'Arial',
+  fontScale: 100,           // % del tamaño del título y de los nombres
+  valueScale: 100,          // % del tamaño del valor
+  rows: 10,                 // cuántos puestos se muestran (3 a 10)
+  showTitle: true,
+  showAvatar: true,
+  showCards: true,          // rectángulos de cada fila; sin ellos solo quedan foto, nombre y valor
+  rainbowNames: false,      // nombres con degradado de arcoíris animado
+  showEmpty: true,          // puestos vacíos como "Top 7 / 0"
+  animate: true,
+  titleColor: '#ffffff',
+  nameColor: '#ffffff',
+  valueColor: '#ffd24a',
+  cardColor: '#14141c',
+  cardOpacity: 85,          // % de opacidad del fondo de cada fila
+});
+
 const DEFAULT_OVERLAYS = {
   schemaVersion: 1,
   likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
@@ -129,6 +150,18 @@ const DEFAULT_OVERLAYS = {
   coins: goalDefaults({ goal: 1000, title: 'Coin Goal', finalText: 'Monedas' }),
   topgift: topDefaults({ title: 'Mejor regalo', valueColor: '#ffd24a' }),
   topcombo: topDefaults({ title: 'Mejor combo', valueColor: '#ff4d6a' }),
+  rk_gifters: rankingDefaults({ title: 'Top Gifters' }),
+  rk_gifters_day: rankingDefaults({ title: 'Top Daily Gifters' }),
+  rk_likes: rankingDefaults({ title: 'Top Likes' }),
+  rk_likes_day: rankingDefaults({ title: 'Top Daily Likes' }),
+  rk_comments: rankingDefaults({ title: 'Top Comments' }),
+  rk_comments_day: rankingDefaults({ title: 'Top Daily Comments' }),
+  rk_shares: rankingDefaults({ title: 'Top Shares' }),
+  rk_shares_day: rankingDefaults({ title: 'Top Daily Shares' }),
+  rk_gifters_month: rankingDefaults({ title: 'Top Monthly Gifters' }),
+  rk_likes_month: rankingDefaults({ title: 'Top Monthly Likes' }),
+  rk_comments_month: rankingDefaults({ title: 'Top Monthly Comments' }),
+  rk_shares_month: rankingDefaults({ title: 'Top Monthly Shares' }),
 };
 
 module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, OVERLAY_PUBLIC_BASE_URL };
