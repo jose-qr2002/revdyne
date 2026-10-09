@@ -7,6 +7,11 @@ const edgeTtsService = require('../services/edgeTtsService');
 const chatFilter = require('../services/chatFilter');
 const entitlements = require('../services/entitlements');
 
+// Voz opcional por petición (la aleatorización de voz elige una distinta en cada mensaje). Se valida: nunca se usa un texto
+// arbitrario como ruta o identificador.
+const safeName = (v) => (typeof v === 'string' && /^[\w.\-]{1,120}$/.test(v) ? v : null);
+const safeElevenId = (v) => (typeof v === 'string' && /^[A-Za-z0-9]{10,40}$/.test(v) ? v : null);
+
 module.exports = function ttsRoutes(settings) {
   const router = express.Router();
 
@@ -36,9 +41,10 @@ module.exports = function ttsRoutes(settings) {
   router.post('/synthesize', entitlements.requireTtsEngine('elevenlabs'), async (req, res) => {
     const { text } = req.body;
     const tts = settings.tts || {};
-    if (!tts.elevenLabsKey || !tts.elevenLabsVoiceId) return res.status(400).json({ error: 'Configura API key y voz' });
+    const voiceId = safeElevenId(req.body.voiceId) || tts.elevenLabsVoiceId;
+    if (!tts.elevenLabsKey || !voiceId) return res.status(400).json({ error: 'Configura API key y voz' });
     try {
-      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${tts.elevenLabsVoiceId}`, {
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: 'POST',
         headers: { 'xi-api-key': tts.elevenLabsKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
         body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.75 } })
@@ -79,7 +85,9 @@ module.exports = function ttsRoutes(settings) {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Falta texto' });
 
-    const voiceModel = settings.tts?.piperVoice;
+    // `voice` opcional: solo vale si es una de las voces instaladas
+    const requested = safeName(req.body.voice);
+    const voiceModel = requested && ttsEngineManager.listVoices('piper').includes(requested) ? requested : settings.tts?.piperVoice;
     if (!voiceModel) return res.status(400).json({ error: 'No hay una voz de Piper configurada' });
 
     try {
@@ -104,7 +112,7 @@ module.exports = function ttsRoutes(settings) {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Falta texto' });
 
-    const voiceName = settings.tts?.edgeVoice;
+    const voiceName = safeName(req.body.voice) || settings.tts?.edgeVoice;
     if (!voiceName) return res.status(400).json({ error: 'No hay una voz de Edge TTS configurada' });
 
     try {

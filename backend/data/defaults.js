@@ -6,11 +6,15 @@ const DEFAULT_SETTINGS = {
   tts: {
     enabled: false,
     filterMode: 'all',
-    keySkipCurrent: 'num1',
-    keySkipAll: 'num2',
-    keyToggleBot: 'num3',
+    keySkipCurrent: '',       // atajos globales sin asignar: los configura el usuario (Bot TTS > Atajos de teclado)
+    keySkipAll: '',
+    keyToggleBot: '',
     onlyLatin: true,
     speed: 1.2,
+    pitch: 0,                 // tono de la voz en semitonos (-12 a +12); 0 = normal
+    randomSpeed: false,       // velocidad distinta en cada mensaje (ttsPlayer: RANDOM_SPEED_RANGE)
+    randomPitch: false,       // tono distinto en cada mensaje (RANDOM_PITCH_RANGE)
+    randomVoice: false,       // voz distinta en cada mensaje, entre las del motor seleccionado
     engine: 'tiktok',
     sayUsername: false,
     tiktokVoice: 'es_male_m3',

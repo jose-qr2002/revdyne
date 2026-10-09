@@ -384,7 +384,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                   <input
                     type="range" min="0" max="100" value={volume}
                     onChange={e => setVolume(parseInt(e.target.value, 10))}
-                    style={{ width: '100%', accentColor: '#00bcd4' }}
+                    style={{ width: '100%' }}
                   />
                 </div>
               )}
@@ -424,7 +424,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
                 <input
                   type="range" min="0" max="100" value={volume}
                   onChange={e => setVolume(parseInt(e.target.value, 10))}
-                  style={{ width: '100%', accentColor: '#00bcd4' }}
+                  style={{ width: '100%' }}
                 />
               </div>
             </div>

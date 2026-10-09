@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Select from './Select';
 import Icon from './Icon';
+import TTSAntispamModal from './TTSAntispamModal';
+import TTSShortcutsModal from './TTSShortcutsModal';
 import { apiFetch } from '../services/api';
-import { enqueueTTS, setPlaybackRate, setVolume } from '../services/ttsPlayer';
+import { enqueueTTS, setPlaybackRate, setVolume, RANDOM_SPEED_RANGE, RANDOM_PITCH_RANGE } from '../services/ttsPlayer';
+import { TIKTOK_VOICES } from '../services/ttsVoices';
 
 export default function TTSControl({ config, onUpdateConfig, ttsEvents, license }) {
   const tts = config.tts || {};
@@ -12,37 +15,24 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
   const [browserVoices, setBrowserVoices] = useState([]);
   const [elevenVoices, setElevenVoices] = useState([]);
   const [audioDevices, setAudioDevices] = useState([]);
-  const [listeningFor, setListeningFor] = useState(null);
   const [piperVoices, setPiperVoices] = useState([]);
   const [edgeVoices, setEdgeVoices] = useState([]);
 
   // Estado local para la velocidad visual
   const [speed, setSpeed] = useState(tts.speed || 1.0);
+  // Tono en semitonos (-12 a +12, 0 = normal); se guarda al soltar el control
+  const [pitch, setPitch] = useState(tts.pitch ?? 0);
+  const pitchLabel = pitch === 0 ? 'Normal' : pitch > 0 ? `+${pitch} (más agudo)` : `${pitch} (más grave)`;
 
   const [volume, setVolumeUI] = useState(tts.volume ?? 100);
-  const [blockedTermsText, setBlockedTermsText] = useState((tts.blockedTerms || []).join('\n'));
-  const [filterTestText, setFilterTestText] = useState('');
-  const [filterTestResult, setFilterTestResult] = useState(null);
-
-  const SUGGESTED_TERMS = ['puta', 'puto', 'mierda', 'maricon', 'pendejo', 'cabron', 'pinga', 'verga', 'conchatumadre', 'malparido'];
-
-  const parseTerms = (text) => [...new Set(text.split(/[\n,]/).map(t => t.trim()).filter(Boolean))];
-  const saveBlockedTerms = (text = blockedTermsText) => updateTTS({ blockedTerms: parseTerms(text) });
-
-  const addSuggestedTerms = () => {
-    const merged = [...new Set([...parseTerms(blockedTermsText), ...SUGGESTED_TERMS])].join('\n');
-    setBlockedTermsText(merged);
-    saveBlockedTerms(merged);
-  };
-
-  const runFilterTest = async () => {
-    const res = await apiFetch('/api/tts/filter-test', 'POST', { text: filterTestText, terms: parseTerms(blockedTermsText) });
-    setFilterTestResult(res);
-  };
-
   const updateTTS = (updates) => {
     onUpdateConfig({ tts: { ...tts, ...updates } });
   };
+
+  // Modal abierto ('antispam' | 'shortcuts' | null) y resumen para los botones
+  const [modal, setModal] = useState(null);
+  const activeFilters = [tts.onlyLatin, tts.blockDuplicates, tts.slowModeEnabled, tts.profanityFilter].filter(Boolean).length;
+  const assignedShortcuts = [tts.keySkipCurrent, tts.keySkipAll, tts.keyToggleBot].filter(Boolean).length;
 
   // Sincronizar la velocidad con el reproductor nativo
   useEffect(() => {
@@ -50,97 +40,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
       setPlaybackRate(tts.speed);
     }
   }, [tts.speed]);
-
-  // 🛡️ BLINDAJE MEJORADO: Soporte para combinaciones seguras (Ctrl+Tecla, Shift+Tecla)
-  const getElectronKey = (e) => {
-    const code = e.code;
-    const key = e.key;
-
-    // 1. Ignorar si el usuario solo presionó el modificador (esperamos a que presione la tecla final)
-    if (['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return null;
-
-    // 2. Construir la cadena de modificadores
-    const modifiers = [];
-    if (e.ctrlKey || e.metaKey) modifiers.push('CommandOrControl'); // MetaKey es 'Cmd' en Mac
-    if (e.altKey) modifiers.push('Alt');
-    if (e.shiftKey) modifiers.push('Shift');
-
-    // 3. Obtener la tecla principal presionada
-    let mainKey = null;
-
-    if (code.startsWith('Numpad')) {
-      const num = code.replace('Numpad', '');
-      if (!isNaN(num)) {
-        mainKey = `num${num}`; 
-      } else {
-        const numMap = { 'Add': 'numadd', 'Subtract': 'numsub', 'Multiply': 'nummult', 'Divide': 'numdiv', 'Decimal': 'numdec', 'Enter': 'Enter' };
-        mainKey = numMap[num] || key;
-      }
-    } else {
-      const specialMap = {
-        ' ': 'Space', 'Tab': 'Tab', 'CapsLock': 'Capslock', 
-        'PageUp': 'PageUp', 'PageDown': 'PageDown', 
-        'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
-        'Escape': 'Esc', 'Enter': 'Enter', 'Backspace': 'Backspace', 
-        'Delete': 'Delete', 'Insert': 'Insert', 'Home': 'Home', 'End': 'End',
-        '+': 'Plus', '-': 'Minus'
-      };
-
-      if (specialMap[key]) {
-        mainKey = specialMap[key];
-      } else if (/^[a-zA-Z0-9]$/.test(key)) {
-        mainKey = key.toUpperCase();
-      } else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) {
-        mainKey = key;
-      }
-    }
-
-    // 4. Si la tecla principal no es válida, abortamos
-    if (!mainKey) return null;
-
-    // 5. Unir los modificadores con la tecla principal usando el formato de Electron (Ej: "CommandOrControl+Shift+A")
-    if (modifiers.length > 0) {
-      return `${modifiers.join('+')}+${mainKey}`;
-    }
-
-    
-    // Si no hay modificadores, devuelve solo la tecla (aunque ahora tú como usuario presionarás combinaciones)
-    return mainKey;
-  };
-
-  useEffect(() => {
-    const handleGlobalClick = () => {
-      if (listeningFor) setListeningFor(null);
-    };
-
-    if (listeningFor) {
-      setTimeout(() => window.addEventListener('click', handleGlobalClick), 50);
-    }
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, [listeningFor]);
-
-  useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
-      if (!listeningFor) return;
-      e.preventDefault();
-      
-      if (e.repeat) return; 
-
-      const electronKey = getElectronKey(e);
-      if (!electronKey) {
-        console.warn("Esta tecla no está soportada por Electron para atajos globales.");
-        return; // Ignora teclas inválidas
-      }
-
-      updateTTS({ [listeningFor]: electronKey });
-      setListeningFor(null); 
-    };
-
-    if (listeningFor) {
-      window.addEventListener('keydown', handleGlobalKeyDown);
-    }
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [listeningFor, tts]); 
 
   useEffect(() => {
     const loadDevices = async () => {
@@ -174,11 +73,6 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
   }, []);
 
   const testAudio = () => enqueueTTS('Prueba de sonido. Bot activado.');
-
-  const formatShortcutDisplay = (shortcutString) => {
-    if (!shortcutString) return 'Clic para asignar atajo';
-    return shortcutString.replace(/CommandOrControl/g, 'Ctrl');
-  };
 
   return (
     <div className="tts-layout">
@@ -247,43 +141,65 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           </label>
         </div>
 
-        <div className="tts-row" style={{ marginTop: '8px' }}>
-          <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span><Icon name="shield" size={15} /> Filtro Anti-Spam (Idiomas)</span>
-            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Bloquea ruso, georgiano, árabe, etc.</span>
-          </label>
-          <label className="switch">
-            <input type="checkbox" checked={tts.onlyLatin || false} onChange={e => updateTTS({ onlyLatin: e.target.checked })} />
-            <span className="slider"></span>
-          </label>
-        </div>
         {/* 🌟 NUEVO: CONTROL DE VELOCIDAD */}
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
             <label><Icon name="bolt" size={15} /> Velocidad del Bot</label>
-            <span style={{ color: '#00bcd4', fontWeight: 'bold' }}>{speed}x</span>
+            <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{tts.randomSpeed ? 'Aleatoria' : `${speed}x`}</span>
           </div>
           <input 
             type="range" min="0.5" max="2.0" step="0.1" 
             value={speed} 
             onChange={e => setSpeed(parseFloat(e.target.value))}
             onMouseUp={() => updateTTS({ speed: speed })} // Guarda en disco al soltar
-            style={{ width: '100%', accentColor: '#00bcd4', cursor: 'pointer' }}
+            disabled={!!tts.randomSpeed}
+            style={{ width: '100%', cursor: tts.randomSpeed ? 'not-allowed' : 'pointer', opacity: tts.randomSpeed ? 0.4 : 1 }}
           />
+          <label className="tts-check">
+            <input type="checkbox" className="check" checked={!!tts.randomSpeed} onChange={e => updateTTS({ randomSpeed: e.target.checked })} />
+            <span>Velocidad aleatoria <small>Cada mensaje se lee entre {RANDOM_SPEED_RANGE[0]}x y {RANDOM_SPEED_RANGE[1]}x</small></span>
+          </label>
+        </div>
+
+        {/* Tono de la voz: más grave o más agudo, sin cambiar la velocidad */}
+        <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+            <label><Icon name="music" size={15} /> Tono de la voz</label>
+            <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{tts.randomPitch ? 'Aleatorio' : pitchLabel}</span>
+          </div>
+          <input
+            type="range" min="-12" max="12" step="1" value={pitch}
+            onChange={e => setPitch(parseInt(e.target.value, 10))}
+            onMouseUp={() => updateTTS({ pitch })}
+            onKeyUp={() => updateTTS({ pitch })}
+            onTouchEnd={() => updateTTS({ pitch })}
+            disabled={!!tts.randomPitch}
+            style={{ width: '100%', cursor: tts.randomPitch ? 'not-allowed' : 'pointer', opacity: tts.randomPitch ? 0.4 : 1 }}
+            aria-label="Tono de la voz en semitonos"
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text2)' }}>
+            <span>Más grave</span>
+            {pitch !== 0 && !tts.randomPitch && <button className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => { setPitch(0); updateTTS({ pitch: 0 }); }}>Restablecer</button>}
+            <span>Más agudo</span>
+          </div>
+          <label className="tts-check">
+            <input type="checkbox" className="check" checked={!!tts.randomPitch} onChange={e => updateTTS({ randomPitch: e.target.checked })} />
+            <span>Tono aleatorio <small>Cada mensaje se lee entre {RANDOM_PITCH_RANGE[0]} y +{RANDOM_PITCH_RANGE[1]} semitonos</small></span>
+          </label>
         </div>
 
         {/* 🌟 NUEVO: FILTRO DE VOLUMEN */}
         <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px', marginTop: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
             <label><Icon name="volume" size={15} /> Volumen del Bot</label>
-            <span style={{ color: '#00bcd4', fontWeight: 'bold' }}>{volume}%</span>
+            <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{volume}%</span>
           </div>
           <input
             type="range" min="0" max="100" step="5" value={volume}
             onChange={e => { const v = parseInt(e.target.value, 10); setVolumeUI(v); setVolume(v); }}
             onMouseUp={() => updateTTS({ volume })}
             onKeyUp={() => updateTTS({ volume })}
-            style={{ width: '100%', accentColor: '#00bcd4', cursor: 'pointer' }}
+            style={{ width: '100%', cursor: 'pointer' }}
           />
         </div>
 
@@ -308,131 +224,15 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           </div>
         )}
 
-        {/* 🌟 NUEVO: FILTRO ANTI SPAM */}
-        <div className="tts-section-title" style={{ marginTop: '16px' }}><Icon name="shield" size={15} /> Antispam y Filtros</div>
-        <div className="tts-row">
-          <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span><Icon name="repeat" size={15} /> Ignorar mensajes repetidos</span>
-            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Si un usuario repite lo mismo, solo se lee la primera vez</span>
-          </label>
-          <label className="switch">
-            <input type="checkbox" checked={tts.blockDuplicates || false} onChange={e => updateTTS({ blockDuplicates: e.target.checked })} />
-            <span className="slider"></span>
-          </label>
-        </div>
-        {tts.blockDuplicates && (
-          <div className="tts-row" style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
-            <label style={{ fontSize: '12px' }}>Ignorar el mismo texto durante</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input type="number" min="1" className="key-input" style={{ width: '80px' }}
-                defaultValue={tts.duplicateWindowSec ?? 30}
-                onBlur={e => updateTTS({ duplicateWindowSec: Math.max(1, parseInt(e.target.value, 10) || 30) })} />
-              <span style={{ fontSize: '12px', color: 'var(--text2)' }}>segundos</span>
-            </div>
-          </div>
-        )}
-
-        <div className="tts-row" style={{ marginTop: '8px' }}>
-          <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span><Icon name="clock" size={15} /> Modo lento por usuario</span>
-            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>Tiempo mínimo entre dos mensajes leídos del mismo usuario</span>
-          </label>
-          <label className="switch">
-            <input type="checkbox" checked={tts.slowModeEnabled || false} onChange={e => updateTTS({ slowModeEnabled: e.target.checked })} />
-            <span className="slider"></span>
-          </label>
-        </div>
-        {tts.slowModeEnabled && (
-          <div className="tts-row" style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
-            <label style={{ fontSize: '12px' }}>Esperar</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input type="number" min="0" step="100" className="key-input" style={{ width: '90px' }}
-                defaultValue={tts.slowModeMs ?? 3000}
-                onBlur={e => updateTTS({ slowModeMs: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
-              <span style={{ fontSize: '12px', color: 'var(--text2)' }}>ms</span>
-            </div>
-          </div>
-        )}
-
-        <div className="tts-row" style={{ marginTop: '8px' }}>
-          <label style={{ display: 'flex', flexDirection: 'column' }}>
-            <span><Icon name="ban" size={15} /> Bloquear palabras soeces</span>
-            <span style={{ fontSize: '10px', color: 'var(--text2)' }}>El mensaje completo se omite, no se lee</span>
-          </label>
-          <label className="switch">
-            <input type="checkbox" checked={tts.profanityFilter || false} onChange={e => updateTTS({ profanityFilter: e.target.checked })} />
-            <span className="slider"></span>
-          </label>
-        </div>
-        {tts.profanityFilter && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '6px' }}>
-            <label style={{ fontSize: '12px', color: 'var(--text2)' }}>Palabras a bloquear (una por línea)</label>
-            <textarea
-              className="key-input" rows={6}
-              value={blockedTermsText}
-              onChange={e => setBlockedTermsText(e.target.value)}
-              onBlur={() => saveBlockedTerms()}
-              placeholder={'puta\npinga\nmariquicon'}
-              style={{ width: '100%', fontFamily: 'monospace', resize: 'vertical' }}
-            />
-            <div style={{ fontSize: '11px', color: 'var(--text2)' }}>
-              <Icon name="info" size={15} /> Escribe la palabra normal. El filtro ya detecta mayúsculas, acentos, letras repetidas,
-              espacios entre letras ("p u t a"), números por letras ("pu7a") y la h muda ("putha").
-              Si usan sílabas partidas (ej. "mari qui con"), agrega esa variante: <code>mariquicon</code>.
-            </div>
-            <button className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addSuggestedTerms}>
-              <Icon name="plus" size={15} /> Agregar lista sugerida
-            </button>
-
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              <input type="text" className="key-input" placeholder="Prueba una frase..." value={filterTestText}
-                onChange={e => { setFilterTestText(e.target.value); setFilterTestResult(null); }} style={{ flex: 1 }} />
-              <button className="btn btn-secondary btn-sm" onClick={runFilterTest}>Probar</button>
-            </div>
-            {filterTestResult && (
-              <div style={{ fontSize: '12px', color: filterTestResult.blocked ? '#ff4d4d' : '#4caf50' }}>
-                {filterTestResult.blocked ? <><Icon name="ban" size={15} /> Se bloquearía (coincide con "{filterTestResult.term}")</> : <><Icon name="check" size={15} /> Se leería normal</>}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="tts-section-title" style={{ marginTop: '16px' }}><Icon name="keyboard" size={15} /> Atajos de Teclado (Globales)</div>
-        
-        <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '12px' }}>
-          <Icon name="info" size={15} /> <strong>Recomendación:</strong> Usa combinaciones con <strong>Ctrl</strong> o <strong>Alt</strong> + Tecla (Ej: Ctrl+S). Evita usar teclas sueltas para no apagar el bot accidentalmente mientras juegas.
-        </div>
-
-        <div className="tts-row">
-          <label><Icon name="arrowRight" size={15} /> Omitir actual</label>
-          <button 
-            className="btn"
-            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipCurrent' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
-            onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipCurrent' ? setListeningFor(null) : setListeningFor('keySkipCurrent'); }}
-          >
-            {listeningFor === 'keySkipCurrent' ? <><Icon name="clock" size={15} /> Presiona atajo...</> : formatShortcutDisplay(tts.keySkipCurrent)}
+        <div className="tts-section-title" style={{ marginTop: '16px' }}><Icon name="shield" size={15} /> Filtros y atajos</div>
+        <div className="tts-modal-buttons">
+          <button className="btn btn-secondary" onClick={() => setModal('antispam')}>
+            <Icon name="shield" size={15} /> Anti spam
+            {activeFilters > 0 && <span className="tts-count" title="Filtros activos">{activeFilters}</span>}
           </button>
-        </div>
-
-        <div className="tts-row">
-          <label><Icon name="trash" size={15} /> Limpiar cola</label>
-          <button 
-            className="btn"
-            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keySkipAll' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
-            onClick={(e) => { e.stopPropagation(); listeningFor === 'keySkipAll' ? setListeningFor(null) : setListeningFor('keySkipAll'); }}
-          >
-            {listeningFor === 'keySkipAll' ? <><Icon name="clock" size={15} /> Presiona atajo...</> : formatShortcutDisplay(tts.keySkipAll)}
-          </button>
-        </div>
-
-        <div className="tts-row">
-          <label><Icon name="stop" size={15} /> Apagar Bot</label>
-          <button 
-            className="btn"
-            style={{ flex: 1, marginLeft: '10px', background: listeningFor === 'keyToggleBot' ? '#ff9800' : 'var(--bg3)', color: 'white' }}
-            onClick={(e) => { e.stopPropagation(); listeningFor === 'keyToggleBot' ? setListeningFor(null) : setListeningFor('keyToggleBot'); }}
-          >
-            {listeningFor === 'keyToggleBot' ? <><Icon name="clock" size={15} /> Presiona atajo...</> : formatShortcutDisplay(tts.keyToggleBot)}
+          <button className="btn btn-secondary" onClick={() => setModal('shortcuts')}>
+            <Icon name="keyboard" size={15} /> Atajos de teclado
+            {assignedShortcuts > 0 && <span className="tts-count" title="Atajos asignados">{assignedShortcuts}</span>}
           </button>
         </div>
 
@@ -471,7 +271,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
             <button className="btn btn-secondary" style={{ width: '100%', margin: '8px 0', fontSize: '12px' }} onClick={fetchElevenVoices}><Icon name="refresh" size={15} /> Cargar voces ElevenLabs</button>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz</label>
-              <Select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.elevenLabsVoiceId || ''} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
+              <Select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.elevenLabsVoiceId || ''} disabled={!!tts.randomVoice} onChange={e => updateTTS({ elevenLabsVoiceId: e.target.value })}>
                 <option value="">{elevenVoices.length ? 'Selecciona una voz' : '— carga primero las voces —'}</option>
                 {elevenVoices.map(v => <option key={v.voice_id} value={v.voice_id}>{v.name}</option>)}
               </Select>
@@ -481,15 +281,8 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
             <div className="tts-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
               <label>Voz Viral</label>
-              <Select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.tiktokVoice || 'es_mx_002'} onChange={e => updateTTS({ tiktokVoice: e.target.value })}>
-                <option value="es_mx_002">🇲🇽 Hombre (Loquendo)</option>
-                <option value="es_female_f6">🇲🇽 Mujer (Graciosa)</option>
-                <option value="es_female_fp1">🇪🇸 Mujer (España)</option>
-                <option value="es_male_m3">🇪🇸 Hombre (España)</option>
-                <option value="en_us_ghostface">Ghostface (Scream)</option>
-                <option value="en_us_chewbacca">Chewbacca</option>
-                <option value="en_us_stitch">Stitch</option>
-                <option value="en_us_001">🇺🇸 Mujer (Siri Inglés)</option>
+              <Select className="modifier-select" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} value={tts.tiktokVoice || 'es_mx_002'} disabled={!!tts.randomVoice} onChange={e => updateTTS({ tiktokVoice: e.target.value })}>
+                {TIKTOK_VOICES.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
               </Select>
             </div>
           </div>
@@ -506,6 +299,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                   className="modifier-select"
                   style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                   value={tts.piperVoice || ''}
+                  disabled={!!tts.randomVoice}
                   onChange={e => updateTTS({ piperVoice: e.target.value })}
                 >
                   <option value="">Selecciona una voz</option>
@@ -522,6 +316,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                 className="modifier-select"
                 style={{ width: '100%' }}
                 value={tts.edgeVoice || ''}
+                disabled={!!tts.randomVoice}
                 onChange={e => updateTTS({ edgeVoice: e.target.value })}
               >
                 <option value="">Selecciona una voz</option>
@@ -546,6 +341,7 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
                 className="modifier-select" 
                 style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
                 value={tts.browserVoiceName || ''} 
+                disabled={!!tts.randomVoice}
                 onChange={e => updateTTS({ browserVoiceName: e.target.value })}
               >
                 {browserVoices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
@@ -553,6 +349,19 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
             </div>
           </div>
         )}
+
+        <label className="tts-check" style={{ marginTop: '10px' }}>
+          <input type="checkbox" className="check" checked={!!tts.randomVoice} onChange={e => updateTTS({ randomVoice: e.target.checked })} />
+          <span>
+            Aleatorización de voz
+            <small>
+              {tts.engine === 'browser' || tts.engine === 'edge' || !tts.engine
+                ? 'Cada mensaje usa una voz distinta de este motor, del mismo idioma que la voz elegida'
+                : tts.engine === 'elevenlabs' ? 'Cada mensaje usa una voz distinta de tu cuenta de ElevenLabs (necesita la API Key)'
+                : 'Cada mensaje usa una voz distinta de este motor'}
+            </small>
+          </span>
+        </label>
 
         <button className="btn btn-test" style={{ marginTop: '12px', width: '100%' }} onClick={testAudio}><Icon name="play" size={15} /> Probar Audio</button>
       </div>
@@ -595,6 +404,9 @@ export default function TTSControl({ config, onUpdateConfig, ttsEvents, license 
           )}
         </div>
       </div>
+
+      {modal === 'antispam' && <TTSAntispamModal tts={tts} onChange={updateTTS} onClose={() => setModal(null)} />}
+      {modal === 'shortcuts' && <TTSShortcutsModal tts={tts} onChange={updateTTS} onClose={() => setModal(null)} />}
     </div>
   );
 }

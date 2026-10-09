@@ -1382,3 +1382,48 @@ input[type="radio"]:disabled { opacity: .4; cursor: not-allowed; }
 @keyframes selIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .sel-panel { animation: none; } .sel-trigger, .sel-chevron { transition: none; } }
 
+/* Bot TTS: botones que abren los modales de Anti spam y Atajos de teclado */
+.tts-modal-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+.tts-modal-buttons .btn { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 150px; justify-content: center; }
+.tts-count { min-width: 20px; height: 20px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; }
+
+/* Modal Anti spam */
+.tts-anti { display: flex; flex-direction: column; gap: 10px; }
+.tts-anti-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 12px; }
+.tts-anti-sub { background: rgba(0, 0, 0, .18); padding: 10px; border-radius: 6px; margin: 2px 0 10px; }
+
+/* Modal Atajos de teclado */
+.tts-keys { display: flex; flex-direction: column; gap: 10px; }
+.tts-key-row { display: flex; align-items: center; gap: 10px; }
+.tts-key-label { flex: 0 0 130px; font-size: 13px; }
+.tts-key-btn { flex: 1; min-width: 0; padding: 9px 12px; background: var(--bg3); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s; }
+.tts-key-btn:hover { border-color: var(--accent); }
+.tts-key-btn.empty { color: var(--text3); font-weight: 400; font-style: italic; }
+.tts-key-btn.listening { background: color-mix(in srgb, var(--accent) 18%, var(--bg3)); border-color: var(--accent); color: #fff; font-style: normal; }
+.icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+.icon-btn:disabled:hover { color: var(--text2); border-color: var(--border); }
+.tts-key-warn { margin-top: 12px; padding: 9px 12px; font-size: 12px; color: var(--yellow); background: rgba(255, 215, 0, .08); border: 1px solid rgba(255, 215, 0, .25); border-radius: var(--radius-sm); }
+
+/* Casillas de verificación (checkbox) con estilo del tema. Los interruptores .switch tienen el suyo. */
+input[type="checkbox"].check {
+  appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 18px; height: 18px; margin: 0; cursor: pointer;
+  display: inline-grid; place-content: center; border: 2px solid var(--text3); border-radius: 5px; background: transparent;
+  transition: border-color .15s, background .15s;
+}
+input[type="checkbox"].check::before {
+  content: ""; width: 10px; height: 10px; transform: scale(0); transition: transform .12s;
+  background: #fff; clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%);
+}
+input[type="checkbox"].check:hover:not(:disabled) { border-color: var(--accent); }
+input[type="checkbox"].check:checked { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"].check:checked::before { transform: scale(1); }
+input[type="checkbox"].check:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+input[type="checkbox"].check:disabled { opacity: .4; cursor: not-allowed; }
+.tts-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--text); cursor: pointer; line-height: 1.35; }
+.tts-check small { display: block; font-size: 10px; color: var(--text2); margin-top: 2px; }
+.tts-row input[type="range"]:disabled { cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { input[type="checkbox"].check, input[type="checkbox"].check::before { transition: none; } }
+
+/* Deslizadores (range) en el color de acento: la parte recorrida y el botón salen rojos */
+input[type="range"] { accent-color: var(--accent); cursor: pointer; }
+input[type="range"]:disabled { cursor: not-allowed; opacity: .4; }
