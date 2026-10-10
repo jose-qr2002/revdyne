@@ -2,6 +2,7 @@ const express = require('express');
 const store = require('../data/store');
 const actionDispatcher = require('../services/actionDispatcher');
 const actionQueue = require('../services/actionQueue');
+const { hasStep } = require('../services/actionSteps');
 
 const MAX_TEST_DELAY_MS = 30000;
 const pending = new Map(); // testId -> timer
@@ -33,7 +34,7 @@ module.exports = function actionsRoutes() {
     const action = findAction(actionId);
     if (!action) return res.status(404).json({ error: 'La acción no existe' });
 
-    const simulated = action.type === 'keyboard' && !actionQueue.isRobotAvailable();
+    const simulated = hasStep(action, 'keyboard') && !actionQueue.isRobotAvailable();
 
     if (delayMs === 0) {
       const result = runTest(action);

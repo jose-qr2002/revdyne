@@ -4,8 +4,33 @@ import Icon from './Icon';
 import { showAlert } from '../services/dialog';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
+import { stepsSummary } from '../services/actionSteps';
 
-const ACTION_TYPE_LABELS = { keyboard: 'teclado', sound: 'sonido', win: 'Win Game' };
+// Acciones de un evento: `actionIds` (todas a la vez) y `randomActionIds` (una al azar). Los eventos antiguos traen un solo `actionId`.
+// Misma lectura que eventActionIds en backend/services/eventEngine.js.
+const eventActionIds = (evt) => ({
+  all: Array.isArray(evt.actionIds) ? evt.actionIds : (evt.actionId ? [evt.actionId] : []),
+  random: Array.isArray(evt.randomActionIds) ? evt.randomActionIds : [],
+});
+
+// Lista de acciones con casillas. `blocked` = las elegidas en la otra lista (una acción no puede estar en las dos)
+function ActionChecklist({ actions, selected, blocked, onToggle, blockedHint }) {
+  return (
+    <div className="evt-checklist">
+      {actions.map(([id, act]) => {
+        const isBlocked = blocked.includes(id);
+        return (
+          <label key={id} className={`evt-check${isBlocked ? ' blocked' : ''}`} title={isBlocked ? blockedHint : undefined}>
+            <input type="checkbox" className="check" checked={selected.includes(id)} disabled={isBlocked} onChange={() => onToggle(id)} />
+            <span className="evt-check-name ellipsis">{act.name}</span>
+            <span className="evt-check-sub">{act.enabled === false ? 'desactivada' : stepsSummary(act)}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 
 export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [showForm, setShowForm] = useState(false);
@@ -13,7 +38,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
   const [trigger, setTrigger] = useState('gift');
   const [condition, setCondition] = useState('');
-  const [selectedActionId, setSelectedActionId] = useState('');
+  const [selectedActionIds, setSelectedActionIds] = useState([]); // se ejecutan todas
+  const [randomActionIds, setRandomActionIds] = useState([]); // se ejecuta una al azar
   const [frequency, setFrequency] = useState('once');
   const [cooldownSeconds, setCooldownSeconds] = useState(30);
 
@@ -72,14 +98,20 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     setEditingEventId(evt.id);
     setTrigger(evt.trigger);
     setCondition(evt.condition === 'any' ? '' : evt.condition);
-    setSelectedActionId(evt.actionId);
+    const ids = eventActionIds(evt);
+    setSelectedActionIds(ids.all);
+    setRandomActionIds(ids.random);
     setShowForm(true);
     setFrequency(evt.frequency || 'once');
     setCooldownSeconds(evt.cooldownSeconds ?? 30);
   };
 
   const handleSaveEvent = () => {
-    if (!selectedActionId) return void showAlert('Debes seleccionar una acción de tu arsenal.', { title: 'Falta la acción' });
+    // Solo cuentan las acciones que siguen existiendo
+    const all = selectedActionIds.filter(id => scopeProfile.actions?.[id]);
+    const random = randomActionIds.filter(id => scopeProfile.actions?.[id] && !all.includes(id));
+    if (!all.length && !random.length) return void showAlert('Elige al menos una acción de tu arsenal.', { title: 'Falta la acción' });
+    if (random.length === 1) return void showAlert('Para elegir una al azar marca al menos 2 acciones en "Y una al azar de estas" (con una sola, ponla en "Todas estas a la vez").', { title: 'Acciones al azar' });
     if (trigger === 'gift' && !condition) return void showAlert('Debes seleccionar un regalo del catálogo.', { title: 'Falta el regalo' });
     if (trigger === 'like' && (!condition || isNaN(condition) || condition <= 0)) return void showAlert('Debes ingresar una cantidad válida de likes.', { title: 'Cantidad no válida' });
     if (trigger === 'share' && frequency === 'cooldown' && !(parseInt(cooldownSeconds, 10) > 0)) return void showAlert('Ingresa un enfriamiento mayor a 0 segundos.', { title: 'Enfriamiento no válido' });
@@ -90,7 +122,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
       id: editingEventId || `evt_${Date.now()}`,
       trigger,
       condition: (trigger === 'gift' || trigger === 'like') ? condition : 'any',
-      actionId: selectedActionId,
+      actionIds: all,
+      randomActionIds: random,
       enabled: isCurrentlyEnabled !== undefined ? isCurrentlyEnabled : true,
       ...(trigger === 'share' && {
         frequency,
@@ -109,7 +142,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const resetForm = () => {
     setEditingEventId(null);
     setCondition('');
-    setSelectedActionId('');
+    setSelectedActionIds([]);
+    setRandomActionIds([]);
     setShowForm(false);
     setIsGiftModalOpen(false);
     setGiftSearch('');
@@ -188,7 +222,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
         footer={
           <>
             <button className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
-            <button className="btn" style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }} onClick={handleSaveEvent}>
+            <button className="btn btn-primary" onClick={handleSaveEvent}>
               {editingEventId ? 'Actualizar Regla' : 'Guardar Regla'}
             </button>
           </>
@@ -262,18 +296,31 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           </div>
 
           <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-            <label style={{ display: 'block', fontSize: '13px', color: '#4caf50', marginBottom: '8px', fontWeight: 'bold' }}>2. EJECUTAR ESTA ACCIÓN...</label>
+            <label style={{ display: 'block', fontSize: '13px', color: '#4caf50', marginBottom: '8px', fontWeight: 'bold' }}>2. EJECUTAR...</label>
             {scopeActionsArray.length === 0 ? (
               <div style={{ fontSize: '12px', color: '#ff4d4d' }}>
-                No tienes acciones creadas en este perfil. Ve a la pestaña "Mis Acciones" primero.
+                No tienes acciones creadas en este perfil. Ve a la pestaña "Acciones" primero.
               </div>
             ) : (
-              <Select className="modifier-select" value={selectedActionId} onChange={e => setSelectedActionId(e.target.value)} style={{ width: '100%' }}>
-                <option value="">-- Selecciona una acción --</option>
-                {scopeActionsArray.map(([id, act]) => (
-                  <option key={id} value={id}>{act.name} (Tipo: {ACTION_TYPE_LABELS[act.type] || act.type})</option>
-                ))}
-              </Select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <div className="evt-list-head"><Icon name="layers" size={14} /> Todas estas a la vez <span>{selectedActionIds.length || ''}</span></div>
+                  <ActionChecklist
+                    actions={scopeActionsArray} selected={selectedActionIds} blocked={randomActionIds}
+                    blockedHint="Ya está en Y una al azar de estas"
+                    onToggle={id => setSelectedActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                  />
+                </div>
+                <div>
+                  <div className="evt-list-head"><Icon name="repeat" size={14} /> Y una al azar de estas <span>{randomActionIds.length || ''}</span></div>
+                  <ActionChecklist
+                    actions={scopeActionsArray} selected={randomActionIds} blocked={selectedActionIds}
+                    blockedHint="Ya está en Todas estas a la vez"
+                    onToggle={id => setRandomActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                  />
+                  <p className="evt-hint">Opcional. Cada vez que ocurra se elige una (con un regalo de varias unidades, una por unidad). Las desactivadas no entran al sorteo.</p>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -335,7 +382,9 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           <div className="log-empty">No has vinculado ningún evento en este alcance. ¡Crea tu primera regla arriba!</div>
         ) : (
           displayEvents.map(evt => {
-            const actionData = scopeProfile.actions?.[evt.actionId];
+            const ids = eventActionIds(evt);
+            const nameOf = id => scopeProfile.actions?.[id]?.name;
+            const missing = [...ids.all, ...ids.random].filter(id => !nameOf(id)).length;
             return (
               <div key={evt.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -344,9 +393,13 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                   </div>
                   <span style={{ fontSize: '18px' }}><Icon name="bolt" size={18} /></span>
                   <div style={{ padding: '8px 12px', background: 'rgba(76,175,80,0.1)', borderLeft: '3px solid #4caf50', borderRadius: '0 4px 4px 0' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                      {actionData ? actionData.name : <span style={{ color: 'red' }}>Acción eliminada</span>}
-                    </div>
+                    {ids.all.some(nameOf) && <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ids.all.map(nameOf).filter(Boolean).join(' + ')}</div>}
+                    {ids.random.some(nameOf) && (
+                      <div style={{ fontSize: '13px', marginTop: ids.all.some(nameOf) ? '4px' : 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Icon name="repeat" size={13} /> <span style={{ color: 'var(--text2)' }}>Al azar:</span> <strong>{ids.random.map(nameOf).filter(Boolean).join(' / ')}</strong>
+                      </div>
+                    )}
+                    {missing > 0 && <div style={{ color: 'red', fontSize: '12px', marginTop: '2px' }}>{missing === 1 ? '1 acción eliminada' : `${missing} acciones eliminadas`}</div>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

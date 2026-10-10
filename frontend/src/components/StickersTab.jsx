@@ -3,6 +3,7 @@ import Select from './Select';
 import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import StickerSettingsModal from './StickerSettingsModal';
+import { isSoundOnly } from '../services/actionSteps';
 
 const CATEGORY_LABELS = {
   tiktok: 'Emotes de TikTok',
@@ -199,7 +200,7 @@ export default function StickersTab({ profiles, onUpdateProfiles, activeProfileI
         isOpen={!!settingsSticker}
         sticker={settingsSticker}
         assignment={settingsSticker ? findAssignment(settingsSticker.id) : null}
-        actionType={settingsSticker ? scopeActions[findAssignment(settingsSticker.id)?.actionId]?.type : null}
+        soundOnly={settingsSticker ? isSoundOnly(scopeActions[findAssignment(settingsSticker.id)?.actionId]) : false}
         onClose={() => setSettingsSticker(null)}
         onSave={handleSaveSettings}
       />

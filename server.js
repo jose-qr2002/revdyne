@@ -35,9 +35,11 @@ const overlaysRoutes = require('./backend/routes/overlays');
 const topOverlaysRoutes = require('./backend/routes/topOverlays');
 const rankingOverlaysRoutes = require('./backend/routes/rankingOverlays');
 const winOverlayRoutes = require('./backend/routes/winOverlay');
+const videoOverlayRoutes = require('./backend/routes/videoOverlays');
 const topService = require('./backend/services/topService');
 const rankingService = require('./backend/services/rankingService');
 const winService = require('./backend/services/winService');
+const videoService = require('./backend/services/videoService');
 const overlayService = require('./backend/services/overlayService');
 
 const app = express();
@@ -55,6 +57,7 @@ overlayService.init(io);
 topService.init(io);
 rankingService.init(io);
 winService.init(io);
+videoService.init(io);
 process.on('exit', () => { rankingService.flush(); winService.flush(); }); // guarda los tops del día pendientes al cerrar
 const settings = store.loadSettings();
 logger.setDebug(settings.logDebug);
@@ -77,6 +80,8 @@ app.use('/api/tts', ttsRoutes(settings));
 app.use('/api/actions', actionsRoutes());
 app.use('/api/license', licenseRoutes());
 app.use('/api/logs', logsRoutes(settings));
+app.use('/api/overlays/video', videoOverlayRoutes.screensRoutes());
+app.use('/api/videos', videoOverlayRoutes.libraryRoutes());
 app.use('/api/overlays/win', winOverlayRoutes());
 app.use('/api/overlays/ranking', rankingOverlaysRoutes(() => tiktokService.isConnected()));
 app.use('/api/overlays/top', topOverlaysRoutes()); // antes que /api/overlays, que tiene rutas genéricas /:kind
@@ -84,6 +89,7 @@ app.use('/api/overlays', overlaysRoutes());
 app.use('/api', apiRoutes(settings, io, tiktokService));
 
 app.use('/sounds', express.static(paths.SOUNDS_DIR));
+app.use('/videos', express.static(paths.VIDEOS_DIR, { setHeaders: (res) => res.set('Access-Control-Allow-Origin', '*') })); // biblioteca de videos (también la pide la página alojada en el VPS)
 app.use('/media', express.static(paths.MEDIA_DIR, { setHeaders: (res) => res.set('Access-Control-Allow-Origin', '*') })); // fondos de overlays (también los pide la página alojada en el VPS)
 // Página que OBS carga como Browser Source (HTML autónomo, sin React)
 app.get('/overlays/top/:kind(gift|combo)', (req, res) => {
@@ -91,6 +97,9 @@ app.get('/overlays/top/:kind(gift|combo)', (req, res) => {
 });
 app.get('/overlays/ranking/:slug(gifters|gifters-daily|gifters-monthly|likes|likes-daily|likes-monthly|comments|comments-daily|comments-monthly|shares|shares-daily|shares-monthly)', (req, res) => {
   res.sendFile(path.join(__dirname, 'backend/overlays/ranking.html'));
+});
+app.get('/overlays/screen/:n([1-9])', (req, res) => {
+  res.sendFile(path.join(__dirname, 'backend/overlays/screen.html'));
 });
 app.get('/overlays/win', (req, res) => {
   res.sendFile(path.join(__dirname, 'backend/overlays/win.html'));

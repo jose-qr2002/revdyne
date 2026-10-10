@@ -2,7 +2,6 @@ const { TikTokLiveConnection } = require('tiktok-live-connector');
 const stickersManager = require('./stickersManager');
 const catalogService = require('./catalogService');
 const eventEngine = require('./eventEngine');
-const actionDispatcher = require('./actionDispatcher');
 const stickerCatalogService = require('./stickerCatalogService');
 const store = require('../data/store');
 const { findSecUidDeep } = require('./secUidUtils');
@@ -99,22 +98,20 @@ function executeEventActions(triggerType, conditionValue, times = 1) {
   const matches = eventEngine.findMatchingEvents(triggerType, conditionValue);
 
   let actionExecuted = false;
-  let keyExecuted = null;
+  const labels = [];
 
   matches.forEach(({ evt, actions }) => {
-    const action = actions[evt.actionId];
-    const result = actionDispatcher.dispatch(action, {
+    const result = eventEngine.runEvent(evt, actions, {
       times,
-      io: ioInstance,
       defaultDelayMs: settingsRef?.keyDelayMs || 80,
     });
     if (result.executed) {
       actionExecuted = true;
-      keyExecuted = result.label;
+      if (result.label) labels.push(result.label);
     }
   });
 
-  return { actionExecuted, keyExecuted };
+  return { actionExecuted, keyExecuted: labels.join(' + ') || null };
 }
 
 function recordStickerUser(userKey) {
@@ -256,11 +253,11 @@ function handleShare(data) {
   // La frecuencia se decide por regla, no globalmente
   eventEngine.findMatchingEvents('share', 'any').forEach(({ evt, actions }) => {
     if (!passesFrequency(evt, username)) return;
-    const result = actionDispatcher.dispatch(actions[evt.actionId], {
+    const result = eventEngine.runEvent(evt, actions, {
       times: 1,
       defaultDelayMs: settingsRef?.keyDelayMs || 80,
     });
-    if (result.executed) { executed = true; label = result.label; }
+    if (result.executed) { executed = true; label = label ? `${label} + ${result.label}` : result.label; }
   });
 
   ioInstance.emit('giftReceived', {
@@ -305,10 +302,8 @@ function handleLike(data) {
       const timesToTrigger = Math.floor(likeAccumulators[evt.id] / threshold);
       likeAccumulators[evt.id] %= threshold;
 
-      const action = actions[evt.actionId];
-      const result = actionDispatcher.dispatch(action, {
+      const result = eventEngine.runEvent(evt, actions, {
         times: timesToTrigger,
-        io: ioInstance,
         defaultDelayMs: settingsRef?.keyDelayMs || 80,
       });
 
@@ -396,7 +391,6 @@ function handleChat(data) {
         const countInMessage = occurrenceCount[emoteId];
 
         matches.forEach(({ evt, actions }) => {
-          const action = actions[evt.actionId];
           const repeatMode = evt.repeatMode || 'once';
 
           let timesToTrigger = 1;
@@ -410,20 +404,20 @@ function handleChat(data) {
           }
 
           const cooldownSeconds = evt.cooldownSeconds || 0;
-          if (cooldownSeconds > 0 && action?.type !== 'sound') {
+          if (cooldownSeconds > 0 && !eventEngine.eventIsSoundOnly(evt, actions)) {
             const cooldownKey = `${evt.id}_${senderId}`;
             const last = stickerCooldowns.get(cooldownKey);
             if (last && (Date.now() - last) < cooldownSeconds * 1000) return;
             recordCooldown(cooldownKey);
           }
 
-          const result = actionDispatcher.dispatch(action, {
+          const result = eventEngine.runEvent(evt, actions, {
             times: timesToTrigger,
             defaultDelayMs: settingsRef?.keyDelayMs || 80,
             playbackStyle,
           });
           if (result.executed) {
-            console.log(`🎯 [STICKER] "${action.name}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);
+            console.log(`🎯 [STICKER] "${result.label}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);
           }
         });
       });

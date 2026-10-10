@@ -179,6 +179,15 @@ const winDefaults = () => ({
   },
 });
 
+// Pantallas de video (9): ajuste del video dentro de la pantalla y qué hacer si llega otro mientras suena uno
+const VIDEO_OPTIONS = {
+  fits: ['contain', 'cover'],      // entero dentro del recuadro | llenando el recuadro (recorta)
+  onBusy: ['queue', 'replace'],    // esperar su turno | cortar el actual
+};
+const videoDefaults = () => ({
+  screens: Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [n, { fit: 'contain', onBusy: 'queue' }])),
+});
+
 const DEFAULT_OVERLAYS = {
   schemaVersion: 1,
   likes: goalDefaults({ goal: 5000, title: 'Like Goal', finalText: 'Likes' }),
@@ -189,6 +198,7 @@ const DEFAULT_OVERLAYS = {
   topgift: topDefaults({ title: 'Mejor regalo', valueColor: '#ffd24a' }),
   topcombo: topDefaults({ title: 'Mejor combo', valueColor: '#ff4d6a' }),
   win: winDefaults(),
+  video: videoDefaults(),
   rk_gifters: rankingDefaults({ title: 'Top Gifters' }),
   rk_gifters_day: rankingDefaults({ title: 'Top Daily Gifters' }),
   rk_likes: rankingDefaults({ title: 'Top Likes' }),
@@ -203,4 +213,4 @@ const DEFAULT_OVERLAYS = {
   rk_shares_month: rankingDefaults({ title: 'Top Monthly Shares' }),
 };
 
-module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, WIN_FONTS, WIN_OPTIONS, OVERLAY_PUBLIC_BASE_URL };
+module.exports = { DEFAULT_SETTINGS, EMPTY_PROFILES, EMPTY_CATALOG, EMPTY_STICKERS, DEFAULT_OVERLAYS, DEFAULT_OVERLAY_STYLE, OVERLAY_FONTS, WIN_FONTS, WIN_OPTIONS, VIDEO_OPTIONS, OVERLAY_PUBLIC_BASE_URL };

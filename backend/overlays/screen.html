@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Revdyne · Pantalla</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+  /* Un solo <video> que ocupa todo el recuadro. Sin nada reproduciéndose está invisible (la fuente queda transparente en el directo). */
+  #v { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #v.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #v { transition: none; } }
+  #msg { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 10px; font: 12px/1.4 sans-serif; color: #fff; background: rgba(200,30,60,.9); border-radius: 6px; display: none; }
+</style>
+</head>
+<body>
+<video id="v" playsinline preload="auto"></video>
+<div id="msg"></div>
+
+<script>
+(function () {
+  var v = document.getElementById('v');
+  var isPreview = /[?&]preview=1/.test(location.search);
+
+  // Pantalla (1-9): la última cifra de la ruta, tanto en /overlays/screen/3 (la app) como en /screen/3 (el VPS)
+  var screen = parseInt((location.pathname.match(/\/screen\/([1-9])\/?$/) || [])[1], 10) || 1;
+  var kind = 'video';
+
+  // Puerto de la app: 47321 por defecto (mismo valor que BASE_PORT en server.js y DEFAULT_PORT en frontend/src/components/portUtils.js).
+  // El enlace puede traer ?port= para otro puerto (desarrollo).
+  var DEFAULT_PORT = 47321;
+  var port = parseInt((location.search.match(/[?&]port=(\d+)/) || [])[1], 10);
+  if (!(port > 0 && port < 65536)) port = DEFAULT_PORT;
+  var appOrigin = 'http://127.0.0.1:' + port;
+  // Servida por la propia app (http en localhost/127.0.0.1): usa su Socket.IO y sus archivos sin importar el puerto.
+  var isLocal = location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]remote=1/.test(location.search); // ?remote=1 fuerza el modo remoto (pruebas)
+  var mediaUrl = function (u) { return isLocal ? u : appOrigin + u; }; // la página alojada en el VPS pide los videos a la app (127.0.0.1)
+
+  var settings = { fit: 'contain', onBusy: 'queue' };
+  var MAX_QUEUE = 20;
+  var queue = [];
+  var playing = false;
+
+  function show() { v.classList.add('on'); }
+  function hide() { v.classList.remove('on'); }
+
+  function stopCurrent() {
+    v.pause();
+    v.removeAttribute('src');
+    v.load();
+    playing = false;
+    hide();
+  }
+
+  function next() {
+    var item = queue.shift();
+    if (!item) { playing = false; hide(); return; }
+    playing = true;
+    v.style.objectFit = settings.fit;
+    v.src = mediaUrl(item.url);
+    v.volume = item.volume;
+    v.muted = false;
+    show();
+    var p = v.play();
+    if (p && p.catch) {
+      // Algunos navegadores no dejan reproducir con sonido sin un clic previo: se reproduce en silencio antes que no mostrar nada
+      p.catch(function () { v.muted = true; v.play().catch(finish); });
+    }
+  }
+  function finish() { playing = false; next(); }
+  v.addEventListener('ended', finish);
+  var msg = document.getElementById('msg');
+  var socketRef = null;
+  v.addEventListener('error', function () {
+    if (!playing) return;
+    // Un video que no carga no bloquea la cola; en la vista previa se explica por qué (códec no admitido, archivo no encontrado...)
+    var code = v.error ? v.error.code : 0;
+    var why = code === 4 ? 'formato o códec no admitido (usa MP4 H.264 o WEBM), o archivo no encontrado' : code === 3 ? 'archivo dañado' : code === 2 ? 'error de red al pedir el archivo' : 'no se pudo cargar';
+    if (isPreview) { msg.textContent = 'No se pudo reproducir: ' + why; msg.style.display = 'block'; setTimeout(function () { msg.style.display = 'none'; }, 6000); }
+    if (socketRef) socketRef.emit('overlay:error', { name: kind, screen: screen, reason: why, file: (v.currentSrc || '').split('/').pop() });
+    finish();
+  });
+
+  function onPlay(item) {
+    if (settings.onBusy === 'replace') { queue.length = 0; if (playing) stopCurrent(); }
+    queue.push(item);
+    if (queue.length > MAX_QUEUE) queue.shift();
+    if (!playing) next();
+  }
+  function onStop() { queue.length = 0; stopCurrent(); }
+
+  function start() {
+    var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
+    socketRef = socket;
+    socket.on('connect', function () { socket.emit('overlay:join', { name: kind, screen: screen, preview: isPreview }); });
+    socket.on('overlay:' + kind + ':' + screen + ':state', function (st) { settings = { fit: st.fit, onBusy: st.onBusy }; v.style.objectFit = settings.fit; });
+    socket.on('overlay:' + kind + ':' + screen + ':play', onPlay);
+    socket.on('overlay:' + kind + ':' + screen + ':stop', onStop);
+  }
+
+  var tag = document.createElement('script');
+  tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
+  tag.onload = start;
+  document.head.appendChild(tag);
+})();
+</script>
+</body>
+</html>

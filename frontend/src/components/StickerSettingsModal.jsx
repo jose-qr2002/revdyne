@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Icon from './Icon';
 import ModalShell from './ModalShell';
 
-export default function StickerSettingsModal({ isOpen, sticker, assignment, actionType, onClose, onSave }) {
+export default function StickerSettingsModal({ isOpen, sticker, assignment, soundOnly, onClose, onSave }) {
     const [cooldownSeconds, setCooldownSeconds] = useState(0);
     const [repeatMode, setRepeatMode] = useState('once');
     const [repeatLimit, setRepeatLimit] = useState(1);
@@ -42,7 +42,7 @@ export default function StickerSettingsModal({ isOpen, sticker, assignment, acti
             }
         >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                {actionType !== 'sound' && (
+                {!soundOnly && ( // una acción que solo suena un audio no lleva enfriamiento (igual que en tiktokService)
                     <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}><Icon name="clock" size={15} /> Enfriamiento por usuario</label>
                         <p style={{ fontSize: '12px', color: 'var(--text2)', margin: '0 0 8px' }}>

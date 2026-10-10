@@ -35,6 +35,14 @@ export default defineConfig({
         target: backend,
         changeOrigin: true
       },
+      '/videos': {
+        target: backend,
+        changeOrigin: true
+      },
+      '/media': {
+        target: backend,
+        changeOrigin: true
+      },
       '/sounds': {
         target: backend,
         changeOrigin: true

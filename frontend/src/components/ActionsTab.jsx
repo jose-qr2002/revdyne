@@ -1,18 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Select from './Select';
 import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
-
-const TYPE_META = {
-  keyboard: { label: 'Macro de Teclado' },
-  sound: { label: 'Sonido Directo' },
-  l4d2_command: { label: 'Comando L4D2' },
-  minecraft_command: { label: 'Comando Minecraft' },
-  win: { label: 'Win Game (subir / bajar wins)' },
-};
-
-const SUPPORTED_TYPES = ['keyboard', 'sound', 'win'];
+import ActionStepEditor from './ActionStepEditor';
+import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, MAX_WAIT_MS } from '../services/actionSteps';
 
 const TEST_DELAY_MS = 5000;
 
@@ -20,52 +11,115 @@ const toVolume = (v) => {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 100; // 0 es un valor válido (silencio)
 };
+const toWait = (v) => Math.min(MAX_WAIT_MS, Math.max(0, parseInt(v, 10) || 0));
+
+const isMultiKeyMacro = (macroStr) => {
+  if (!macroStr) return false;
+  if (!macroStr.includes('{')) return macroStr.length > 1;
+  const matches = macroStr.match(/\{[^}]+\}/g);
+  return !!matches && matches.length > 1;
+};
+
+// Paso tal como se guarda (sin el `uid` de la UI y con los valores normalizados)
+function cleanStep(step) {
+  // eslint-disable-next-line no-unused-vars
+  const { uid, ...rest } = step;
+  const wait = toWait(rest.wait);
+  switch (rest.type) {
+    case 'keyboard':
+      return { type: 'keyboard', key: (rest.key || '').toLowerCase(), delay: parseInt(rest.delay, 10) || 80, sound: rest.sound || null, volume: toVolume(rest.volume), soundEveryKey: !!rest.sound && isMultiKeyMacro(rest.key) && !!rest.soundEveryKey, wait };
+    case 'sound':
+      return { type: 'sound', sound: rest.sound, volume: toVolume(rest.volume), wait };
+    case 'video':
+      return { type: 'video', video: rest.video, screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)), volume: toVolume(rest.volume), wait };
+    case 'win':
+      return { type: 'win', mode: rest.mode === 'decrease' ? 'decrease' : 'increase', amount: Math.min(1000, Math.max(1, parseInt(rest.amount, 10) || 1)), wait };
+    default:
+      return { ...rest, wait }; // tipo que todavía no existe: se conserva
+  }
+}
+
+function stepError(step) {
+  if (step.type === 'keyboard' && !(step.key || '').trim()) return 'Escribe la tecla o macro del paso de teclado';
+  if (step.type === 'sound' && !step.sound) return 'Elige el archivo del paso de sonido';
+  if (step.type === 'video' && !step.video) return 'Elige el video del paso de video';
+  if (step.type === 'win' && !(parseInt(step.amount, 10) >= 1)) return 'La cantidad de wins debe ser 1 o más';
+  return null;
+}
+
+const CHIP = { padding: '4px 8px', borderRadius: '4px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' };
+const waitChip = (s) => (s.wait > 0 ? <span style={{ ...CHIP, background: 'rgba(255,152,0,0.2)', color: '#ff9800' }}><Icon name="clock" size={12} /> a los {(s.wait / 1000).toString()}s</span> : null);
+
+// Resumen de los pasos en la lista de acciones
+function StepChips({ steps }) {
+  if (!steps.length) return <div className="step-chips"><span style={{ ...CHIP, color: 'var(--text3)' }}>Sin pasos</span></div>;
+  return (
+    <div className="step-chips">
+      {steps.map((s, i) => (
+        <span key={i} className="step-chip-group">
+          {i > 0 && <span className="step-plus">+</span>}
+          {s.type === 'keyboard' && <>
+            <span style={{ ...CHIP, background: 'rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: '13px' }}><Icon name="keyboard" size={13} /> {s.key}</span>
+            {s.sound && <span style={{ ...CHIP, color: s.soundEveryKey ? '#ffeb3b' : '#4caf50' }}><Icon name="volume" size={12} /> {s.sound} · {s.volume ?? 100}%{s.soundEveryKey ? ' (cada tecla)' : ''}</span>}
+          </>}
+          {s.type === 'sound' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="music" size={13} /> {s.sound} · {s.volume ?? 100}%</span>}
+          {s.type === 'video' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="film" size={13} /> {s.video} · P{s.screen || 1} · {s.volume ?? 100}%</span>}
+          {s.type === 'win' && (
+            <span style={{ ...CHIP, fontWeight: 'bold', background: s.mode === 'decrease' ? 'rgba(255,0,80,0.15)' : 'rgba(76,175,80,0.15)', color: s.mode === 'decrease' ? 'var(--accent2)' : '#4caf50' }}>
+              <Icon name="trophy" size={13} /> {s.mode === 'decrease' ? '−' : '+'}{s.amount ?? 1} {(s.amount ?? 1) == 1 ? 'win' : 'wins'}
+            </span>
+          )}
+          {!['keyboard', 'sound', 'video', 'win'].includes(s.type) && <span style={{ ...CHIP, color: 'var(--text3)' }}>{STEP_TYPES[s.type]?.label || s.type} (no disponible)</span>}
+          {waitChip(s)}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'], onUpdateConfig }) {
   const [showForm, setShowForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState(null);
-
   const [name, setName] = useState('');
-  const [type, setType] = useState('keyboard');
-  const [key, setKey] = useState('');
-  const [sound, setSound] = useState('');
-  const [delay, setDelay] = useState(80);
-  const [soundEveryKey, setSoundEveryKey] = useState(false);
-  const [volume, setVolume] = useState(100);
-  const [winMode, setWinMode] = useState('increase'); // Win Game: 'increase' | 'decrease'
-  const [winAmount, setWinAmount] = useState(1);
+  const [steps, setSteps] = useState([]); // [{ uid, type, ... }]
+  const uidRef = useRef(0);
 
   const [countdowns, setCountdowns] = useState({}); // actionId -> { testId, left }
   const countdownIntervals = useRef({});
 
   const [localSounds, setLocalSounds] = useState([]);
+  const [videoList, setVideoList] = useState([]);
+  const [uploadingSound, setUploadingSound] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const soundInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const uploadTargetRef = useRef(null); // uid del paso que recibe el archivo subido
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [actionToDelete, setActionToDelete] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
-  const availableTypes = Array.from(new Set([...(allowedActionTypes || ['keyboard']), 'sound', 'win']));
+  // Tipos de paso que se pueden añadir: los del juego del perfil + los que valen en cualquier juego, en el orden de STEP_TYPES
+  const allowed = new Set([...(allowedActionTypes || ['keyboard']), ...ALWAYS_AVAILABLE]);
+  const addableTypes = Object.keys(STEP_TYPES).filter(t => allowed.has(t));
 
   useEffect(() => {
-    const refreshSounds = async () => {
-      try {
-        const res = await fetch('/api/sounds/list');
-        if (!res.ok) return;
-        setLocalSounds(await res.json());
-      } catch (e) {
-        console.error("Error al obtener sonidos");
-      }
-    };
-    refreshSounds();
+    fetch('/api/sounds/list').then(r => (r.ok ? r.json() : [])).then(setLocalSounds).catch(() => console.error('Error al obtener sonidos'));
+    fetch('/api/videos/list').then(r => (r.ok ? r.json() : [])).then(list => setVideoList(list.map(v => v.name))).catch(() => console.error('Error al obtener videos'));
   }, []);
-
-  useEffect(() => {
-    if (!editingActionId && !showForm && !availableTypes.includes(type)) {
-      setType(availableTypes.find(t => SUPPORTED_TYPES.includes(t)) || 'keyboard');
-    }
-  }, [allowedActionTypes]);
 
   useEffect(() => () => Object.values(countdownIntervals.current).forEach(clearInterval), []);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => setNotification(null), 4000);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
+  const showToast = (type, text) => setNotification({ type, text });
+
+  // ---- Probar ----
   const stopCountdown = (actionId) => {
     clearInterval(countdownIntervals.current[actionId]);
     delete countdownIntervals.current[actionId];
@@ -113,65 +167,37 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     }
   };
 
-  const fileInputRef = useRef(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [notification, setNotification] = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState(null);
+  // ---- Pasos ----
+  const withUid = (step) => ({ ...step, uid: ++uidRef.current });
+  const updateStep = (uid, patch) => setSteps(prev => prev.map(s => (s.uid === uid ? { ...s, ...patch } : s)));
+  const removeStep = (uid) => setSteps(prev => prev.filter(s => s.uid !== uid));
+  const addStep = (type) => setSteps(prev => [...prev, withUid(newStep(type))]);
 
-  const isMultiKeyMacro = (macroStr) => {
-    if (!macroStr) return false;
-    if (!macroStr.includes('{')) return macroStr.length > 1;
-    const matches = macroStr.match(/\{[^}]+\}/g);
-    return matches && matches.length > 1;
-  };
+  // ---- Subidas ----
+  const pickSound = (uid) => { uploadTargetRef.current = uid; soundInputRef.current.click(); };
+  const pickVideo = (uid) => { uploadTargetRef.current = uid; videoInputRef.current.click(); };
 
-  const isMultiKey = isMultiKeyMacro(key);
-
-  useEffect(() => {
-    if (!isMultiKey && soundEveryKey) setSoundEveryKey(false);
-  }, [isMultiKey, soundEveryKey]);
-
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  const showToast = (type, text) => setNotification({ type, text });
-
-  const handleFileUpload = (e) => {
+  const handleSoundFile = (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-
-    if (!file.type.startsWith('audio/')) {
-      showToast('error', 'Solo se permiten archivos de audio (.mp3, .wav).');
-      e.target.value = '';
-      return;
-    }
+    const target = uploadTargetRef.current;
+    if (!file.type.startsWith('audio/')) return showToast('error', 'Solo se permiten archivos de audio (.mp3, .wav).');
 
     const tempUrl = URL.createObjectURL(file);
     const audio = new Audio(tempUrl);
-
     audio.onloadedmetadata = () => {
       URL.revokeObjectURL(tempUrl);
-      if (audio.duration > 10) {
-        setConfirmDialog({ file, duration: audio.duration });
-        e.target.value = '';
-        return;
-      }
-      executeUpload(file);
-      e.target.value = '';
+      if (audio.duration > 10) setConfirmDialog({ file, duration: audio.duration, target });
+      else uploadSound(file, target);
     };
   };
 
-  const executeUpload = async (file) => {
-    setIsUploading(true);
+  const uploadSound = async (file, target) => {
+    setUploadingSound(true);
     setConfirmDialog(null);
-
     const formData = new FormData();
     formData.append('sound', file);
-
     try {
       const res = await fetch('/api/sounds/upload', { method: 'POST', body: formData });
       const data = await res.json();
@@ -180,74 +206,75 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       } else {
         showToast('success', '¡Sonido subido con éxito!');
         setLocalSounds(prev => prev.includes(data.filename) ? prev : [...prev, data.filename]);
-        setSound(data.filename);
+        updateStep(target, { sound: data.filename });
       }
-    } catch (err) {
+    } catch {
       showToast('error', 'Error de red al intentar subir el archivo.');
     }
-    setIsUploading(false);
+    setUploadingSound(false);
+  };
+
+  const handleVideoFile = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const target = uploadTargetRef.current;
+    setUploadingVideo(true);
+    const formData = new FormData();
+    formData.append('video', file);
+    try {
+      const res = await fetch('/api/videos/upload', { method: 'POST', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) {
+        showToast('error', data.error || 'No se pudo subir el video');
+      } else {
+        showToast('success', '¡Video subido con éxito!');
+        setVideoList(prev => prev.includes(data.filename) ? prev : [data.filename, ...prev]);
+        updateStep(target, { video: data.filename });
+      }
+    } catch {
+      showToast('error', 'Error de red al intentar subir el video.');
+    }
+    setUploadingVideo(false);
+  };
+
+  // ---- Crear / editar ----
+  const openNew = () => {
+    setEditingActionId(null);
+    setName('');
+    setSteps([]);
+    setShowForm(true);
   };
 
   const handleEditAction = (id, act) => {
     setEditingActionId(id);
     setName(act.name);
-    setType(act.type);
-    setKey(act.key || '');
-    setSound(act.sound || '');
-    setDelay(act.delay || 80);
-    setVolume(act.volume ?? 100);
-    setSoundEveryKey(act.soundEveryKey || false);
-    setWinMode(act.mode === 'decrease' ? 'decrease' : 'increase');
-    setWinAmount(act.amount ?? 1);
+    setSteps(getSteps(act).map(s => withUid({ wait: 0, ...s })));
     setShowForm(true);
+  };
+
+  const resetForm = () => {
+    setEditingActionId(null);
+    setName('');
+    setSteps([]);
+    setShowForm(false);
   };
 
   const handleSaveAction = () => {
     if (!name.trim()) return showToast('error', 'Ponle un nombre a la acción');
-    if (type === 'keyboard' && !key.trim()) return showToast('error', 'Ingresa la tecla o macro');
-    if (type === 'sound' && !sound) return showToast('error', 'Selecciona un archivo de sonido');
-    if (type === 'win' && !(parseInt(winAmount, 10) >= 1)) return showToast('error', 'La cantidad de wins debe ser 1 o más');
-    if (!SUPPORTED_TYPES.includes(type)) return showToast('error', 'Este tipo de acción todavía no está disponible');
+    if (!steps.length) return showToast('error', 'Añade al menos un paso (tecla, sonido, video...)');
+    const error = steps.map(stepError).find(Boolean);
+    if (error) return showToast('error', error);
 
     const actionId = editingActionId || `act_${Date.now()}`;
     const isCurrentlyEnabled = editingActionId && actions[editingActionId] ? actions[editingActionId].enabled : true;
-
-    let newAction;
-    if (type === 'keyboard') {
-      newAction = {
-        name, type, enabled: isCurrentlyEnabled,
-        key: key.toLowerCase(),
-        sound: sound || null,
-        volume: toVolume(volume),
-        delay: parseInt(delay) || 80,
-        soundEveryKey: isMultiKey ? soundEveryKey : false
-      };
-    } else if (type === 'win') {
-      newAction = {
-        name, type, enabled: isCurrentlyEnabled,
-        mode: winMode === 'decrease' ? 'decrease' : 'increase',
-        amount: Math.min(1000, Math.max(1, parseInt(winAmount, 10) || 1))
-      };
-    } else {
-      newAction = {
-        name, type, enabled: isCurrentlyEnabled,
-        sound,
-        delay: parseInt(delay) || 0,
-        volume: toVolume(volume)
-      };
-    }
+    const newAction = { name, enabled: isCurrentlyEnabled, steps: steps.map(cleanStep) };
 
     onUpdateConfig({ actions: { ...actions, [actionId]: newAction } });
     resetForm();
   };
 
-  const resetForm = () => {
-    setEditingActionId(null);
-    setName(''); setKey(''); setSound(''); setDelay(80); setSoundEveryKey(false); setVolume(100); setWinMode('increase'); setWinAmount(1);
-    setType(availableTypes.find(t => SUPPORTED_TYPES.includes(t)) || 'keyboard');
-    setShowForm(false);
-  };
-
+  // ---- Lista ----
   const requestDeleteAction = (id) => {
     setActionToDelete(id);
     setIsDeleteModalOpen(true);
@@ -266,24 +293,6 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     onUpdateConfig({ actions: { ...actions, [id]: { ...actions[id], enabled: !currentStatus } } });
   };
 
-  const renderSoundPicker = () => (
-    <div style={{ display: 'flex', gap: '8px' }}>
-      <Select
-        className="modifier-select"
-        value={sound}
-        onChange={e => setSound(e.target.value)}
-        style={{ flex: 1, minWidth: 0, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-      >
-        <option value="">{type === 'sound' ? 'Selecciona un sonido...' : 'Sin sonido'}</option>
-        {localSounds.map(s => <option key={s} value={s}>{s}</option>)}
-      </Select>
-      <input type="file" accept="audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
-      <button className="btn btn-secondary" onClick={() => fileInputRef.current.click()} disabled={isUploading} title="Subir audio (.mp3, .wav)" style={{ padding: '0 12px', fontWeight: 'bold' }}>
-        {isUploading ? <Icon name="clock" size={15} /> : <><Icon name="plus" size={15} /> Subir</>}
-      </button>
-    </div>
-  );
-
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
 
@@ -300,7 +309,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
           position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
           background: notification.type === 'error' ? '#f44336' : '#4caf50',
           color: 'white', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', alignItems: 'center', gap: '10px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 10001, display: 'flex', alignItems: 'center', gap: '10px',
           animation: 'fadeInDown 0.3s ease-out'
         }}>
           <span><Icon name={notification.type === 'error' ? 'x' : 'check'} size={16} /></span>
@@ -320,149 +329,74 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
             </p>
             <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setConfirmDialog(null)}>Cancelar</button>
-              <button className="btn" style={{ flex: 1, background: '#ff9800', color: 'white' }} onClick={() => executeUpload(confirmDialog.file)}>Subir de todos modos</button>
+              <button className="btn" style={{ flex: 1, background: '#ff9800', color: 'white' }} onClick={() => uploadSound(confirmDialog.file, confirmDialog.target)}>Subir de todos modos</button>
             </div>
           </div>
         </div>
       )}
 
+      <input type="file" accept="audio/*" ref={soundInputRef} style={{ display: 'none' }} onChange={handleSoundFile} />
+      <input type="file" accept="video/mp4,video/webm,.mp4,.webm" ref={videoInputRef} style={{ display: 'none' }} onChange={handleVideoFile} />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Arsenal de Acciones Disponibles</h3>
-        <button className="btn" onClick={() => setShowForm(true)}>+ Crear Nueva Acción</button>
+        <button className="btn" onClick={openNew}>+ Crear Nueva Acción</button>
       </div>
 
       <ModalShell
         isOpen={showForm}
         onClose={resetForm}
         title={editingActionId ? <><Icon name="edit" size={16} /> Editando acción</> : <><Icon name="sparkles" size={16} /> Nueva acción</>}
-        width="600px"
+        width="640px"
         footer={
           <>
             <button className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
-            <button
-              className="btn"
-              style={{ background: '#00bcd4', color: '#000', fontWeight: 'bold' }}
-              onClick={handleSaveAction}
-            >
+            <button className="btn btn-primary" onClick={handleSaveAction}>
               {editingActionId ? 'Actualizar Acción' : 'Guardar Acción'}
             </button>
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Nombre de la Acción</label>
-              <input type="text" className="key-input" placeholder="Ej: Combo Sanación..." value={name} onChange={e => setName(e.target.value)} style={{ width: '100%' }} />
-            </div>
-
-            <div style={{ minWidth: '180px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Tipo de Acción</label>
-              <Select className="modifier-select" value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} disabled={editingActionId !== null}>
-                {availableTypes.map(t => {
-                  const meta = TYPE_META[t] || { label: t };
-                  const supported = SUPPORTED_TYPES.includes(t);
-                  return (
-                    <option key={t} value={t} disabled={!supported}>
-                      {meta.label}{!supported ? ' (próximamente)' : ''}
-                    </option>
-                  );
-                })}
-              </Select>
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Nombre de la Acción</label>
+            <input type="text" className="key-input" placeholder="Ej: Combo Sanación..." value={name} onChange={e => setName(e.target.value)} style={{ width: '100%' }} />
           </div>
 
-          {type === 'keyboard' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <div style={{ flex: 2, minWidth: '180px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Secuencia / Tecla</label>
-                  <input type="text" className="key-input" placeholder="Ej: r, o {shift+w}{space}" value={key} onChange={e => setKey(e.target.value)} style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: '90px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms)</label>
-                  <input type="number" className="key-input" value={delay} onChange={e => setDelay(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="10" max="5000" />
-                </div>
-                <div style={{ flex: 2, minWidth: '220px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Sonido de Alerta (opcional)</label>
-                  {renderSoundPicker()}
-                </div>
-              </div>
-              {sound && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>
-                    <Icon name="volume" size={15} /> Volumen del sonido: {volume}%
-                  </label>
-                  <input
-                    type="range" min="0" max="100" value={volume}
-                    onChange={e => setVolume(parseInt(e.target.value, 10))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              )}
-              {sound && isMultiKey && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px', padding: '8px', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '6px', borderLeft: '3px solid #ff9800' }}>
-                  <label style={{ fontSize: '12px', color: '#ffeb3b', margin: 0, cursor: 'pointer' }}>
-                    <Icon name="volume" size={15} /> ¿Reproducir sonido en <strong>cada</strong> tecla del combo?
-                  </label>
-                  <label className="switch">
-                    <input type="checkbox" checked={soundEveryKey} onChange={e => setSoundEveryKey(e.target.checked)} />
-                    <span className="slider"></span>
-                  </label>
-                </div>
-              )}
-            </div>
+          <div className="step-section-head">
+            <span>Qué hace</span>
+            <small>Todos los pasos se disparan a la vez; usa "Empieza a los" para escalonarlos.</small>
+          </div>
+
+          {steps.length === 0 && (
+            <div className="step-empty">Añade uno o varios pasos: por ejemplo un video con su sonido, o una tecla junto a un Win.</div>
           )}
 
-          {type === 'win' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div style={{ flex: 2, minWidth: '200px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>¿Qué hace?</label>
-                  <Select className="modifier-select" value={winMode} onChange={e => setWinMode(e.target.value)} style={{ width: '100%' }}>
-                    <option value="increase">Subir wins (+)</option>
-                    <option value="decrease">Bajar wins (−)</option>
-                  </Select>
-                </div>
-                <div style={{ flex: 1, minWidth: '110px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Cantidad</label>
-                  <input type="number" className="key-input" value={winAmount} onChange={e => setWinAmount(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="1" max="1000" />
-                </div>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text2)', margin: 0 }}>
-                Suma o resta al conteo del overlay <strong>Win Game</strong> cada vez que se active. Si lo dispara un regalo con varias unidades
-                (por ejemplo 5 rosas), se aplica una vez por unidad. Vincúlala a un regalo, seguidor, etc. desde la pestaña Eventos.
-              </p>
-            </div>
-          )}
+          {steps.map(step => (
+            <ActionStepEditor
+              key={step.uid}
+              step={step}
+              onChange={patch => updateStep(step.uid, patch)}
+              onRemove={() => removeStep(step.uid)}
+              sounds={localSounds}
+              videos={videoList}
+              onUploadSound={() => pickSound(step.uid)}
+              onUploadVideo={() => pickVideo(step.uid)}
+              uploadingSound={uploadingSound}
+              uploadingVideo={uploadingVideo}
+            />
+          ))}
 
-          {type === 'sound' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div style={{ flex: 2, minWidth: '220px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Archivo de sonido</label>
-                  {renderSoundPicker()}
-                </div>
-                <div style={{ flex: 1, minWidth: '90px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>Retraso (ms)</label>
-                  <input type="number" className="key-input" value={delay} onChange={e => setDelay(e.target.value)} style={{ width: '100%', textAlign: 'center' }} min="0" max="5000" />
-                </div>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text2)', margin: 0 }}>
-                Este tipo dispara solo el sonido, sin presionar ninguna tecla.
-              </p>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '4px' }}>
-                  <Icon name="volume" size={15} /> Volumen: {volume}%
-                </label>
-                <input
-                  type="range" min="0" max="100" value={volume}
-                  onChange={e => setVolume(parseInt(e.target.value, 10))}
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </div>
-          )}
+          <div className="step-add">
+            {addableTypes.map(t => {
+              const meta = STEP_TYPES[t];
+              return (
+                <button key={t} className="btn btn-secondary btn-sm" onClick={() => addStep(t)} disabled={meta.soon} title={meta.soon ? 'Próximamente' : `Añadir: ${meta.label}`}>
+                  <Icon name="plus" size={13} /> {meta.label}{meta.soon ? ' (pronto)' : ''}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </ModalShell>
 
@@ -471,38 +405,14 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
           <div className="log-empty">No has creado ninguna acción todavía. ¡Crea una arriba!</div>
         ) : (
           Object.entries(actions).map(([id, act]) => (
-            <div key={id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
+            <div key={id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{act.name}</div>
                 <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>ID: {id}</div>
-
-                {act.type === 'keyboard' && (
-                  <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>{act.key}</span>
-                    <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="clock" size={13} /> {act.delay || 80}ms</span>
-                    {act.sound && !act.soundEveryKey && <span style={{ color: '#4caf50', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.sound} · {act.volume ?? 100}% (1 vez)</span>}
-                    {act.sound && act.soundEveryKey && <span style={{ color: '#ffeb3b', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.sound} · {act.volume ?? 100}% (En cada tecla)</span>}
-                  </div>
-                )}
-
-                {act.type === 'win' && (
-                  <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ background: act.mode === 'decrease' ? 'rgba(255,0,80,0.15)' : 'rgba(76,175,80,0.15)', color: act.mode === 'decrease' ? 'var(--accent2)' : '#4caf50', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
-                      <Icon name="trophy" size={13} /> {act.mode === 'decrease' ? '−' : '+'}{act.amount ?? 1} {(act.amount ?? 1) === 1 ? 'win' : 'wins'}
-                    </span>
-                  </div>
-                )}
-
-                {act.type === 'sound' && (
-                  <div style={{ fontSize: '13px', marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ background: 'rgba(76,175,80,0.15)', color: '#4caf50', padding: '4px 8px', borderRadius: '4px' }}><Icon name="music" size={13} /> {act.sound}</span>
-                    <span style={{ background: 'rgba(255,152,0,0.2)', color: '#ff9800', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="clock" size={13} /> {act.delay || 0}ms</span>
-                    <span style={{ background: 'rgba(0,188,212,0.15)', color: '#00bcd4', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}><Icon name="volume" size={13} /> {act.volume ?? 100}%</span>
-                  </div>
-                )}
+                <StepChips steps={getSteps(act)} />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 {countdowns[id] ? (
                   <button
                     className="btn btn-secondary btn-sm"

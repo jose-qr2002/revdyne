@@ -23,6 +23,7 @@ export const NAV_GROUPS = [
       { id: 'overlays', label: 'Overlays', icon: 'layers' },
       { id: 'rankings', label: 'Top 10', icon: 'crown' },
       { id: 'win', label: 'Win Game', icon: 'trophy' },
+      { id: 'videos', label: 'Pantallas', icon: 'film' },
       { id: 'log', label: 'Log en vivo', icon: 'list' },
     ],
   },

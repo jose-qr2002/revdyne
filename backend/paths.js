@@ -37,12 +37,15 @@ ensureDir(ROOT_DIR);
 ensureDir(SOUNDS_DIR);
 const MEDIA_DIR = path.join(ROOT_DIR, 'media'); // imágenes, GIF y videos de fondo de los overlays (servidos en /media)
 ensureDir(MEDIA_DIR);
+const VIDEOS_DIR = path.join(ROOT_DIR, 'videos'); // biblioteca de videos de las pantallas de video (servidos en /videos). En AppData, nunca en Documentos
+ensureDir(VIDEOS_DIR);
 ensureDir(LOGS_DIR);
 
 module.exports = {
   ROOT_DIR,
   SOUNDS_DIR,
   MEDIA_DIR,
+  VIDEOS_DIR,
   PIPER_EXECUTABLE,
   PIPER_VOICES_DIR,
   TTS_ENGINES_DIR,
