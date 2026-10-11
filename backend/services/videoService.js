@@ -1,10 +1,13 @@
 // backend/services/videoService.js
-// Pantallas de video para OBS / TikTok LIVE Studio: 9 pantallas (cada una es un enlace distinto que se añade como fuente) donde
-// las acciones de tipo "video" reproducen un video. El usuario elige en qué pantalla va cada acción y copia el enlace de esa pantalla.
+// Pantallas para OBS / TikTok LIVE Studio: 9 pantallas (cada una es un enlace distinto que se añade como fuente) donde las acciones de
+// tipo "video" e "imagen" (también GIF) muestran su contenido. El usuario elige en qué pantalla va cada paso y copia el enlace de esa pantalla.
+// (Se llama videoService y la sala `overlay:video:<n>` por historia: las pantallas nacieron solo para videos.)
 //
-// Los videos se suben a la carpeta `videos` de AppData (paths.VIDEOS_DIR, nunca a Documentos) y se sirven en /videos.
-// Cada página de pantalla (backend/overlays/screen.html) se une a la sala `overlay:video:<n>` y recibe `overlay:video:<n>:play`.
-// Los ajustes de cada pantalla (ajuste del video y qué hacer si llega otro mientras suena uno) viven en overlays.json, clave `video`.
+// Los videos van a la carpeta `videos` de AppData (paths.VIDEOS_DIR) y se sirven en /videos; las imágenes y GIF a `images` (paths.IMAGES_DIR,
+// en /images). Nunca a Documentos. Videos e imágenes comparten la MISMA cola de cada pantalla.
+// Cada página de pantalla (backend/overlays/screen.html) se une a la sala `overlay:video:<n>` y recibe `overlay:video:<n>:play` con
+// { kind: 'video' | 'image', file, url, volume (video) | durationMs (imagen) }.
+// Los ajustes de cada pantalla (ajuste dentro del recuadro y qué hacer si llega otro contenido mientras hay uno) viven en overlays.json, clave `video`.
 const fs = require('fs');
 const path = require('path');
 const store = require('../data/store');
@@ -15,6 +18,10 @@ const { DEFAULT_OVERLAYS, VIDEO_OPTIONS } = require('../data/defaults');
 const KIND = 'video';
 const SCREENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const VIDEO_EXTENSIONS = ['.mp4', '.webm'];
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+const IMAGE_MIN_SECONDS = 1;
+const IMAGE_MAX_SECONDS = 60;
+const IMAGE_DEFAULT_SECONDS = 5;
 
 let io = null;
 
@@ -53,25 +60,45 @@ const previewRoom = (n) => `overlay-preview:${KIND}:${n}`;
 const clientCount = (n) => io?.sockets.adapter.rooms.get(room(n))?.size || 0;
 const counts = () => Object.fromEntries(SCREENS.map(n => [n, clientCount(n)]));
 
-// ---------- Videos ----------
-// Nombre de archivo válido dentro de VIDEOS_DIR (sin rutas) y que existe
-function resolveVideo(file) {
+// ---------- Archivos de las bibliotecas ----------
+// Nombre de archivo válido dentro de `dir` (sin rutas), con una extensión permitida y que existe
+function resolveFile(dir, extensions, file) {
   if (typeof file !== 'string' || !/^[\w.\- ]{1,150}$/.test(file) || file.includes('..')) return null;
-  if (!VIDEO_EXTENSIONS.includes(path.extname(file).toLowerCase())) return null;
-  const full = path.join(paths.VIDEOS_DIR, file);
-  return fs.existsSync(full) ? file : null;
+  if (!extensions.includes(path.extname(file).toLowerCase())) return null;
+  return fs.existsSync(path.join(dir, file)) ? file : null;
 }
 
-function listVideos() {
+function listFiles(dir, extensions) {
   try {
-    return fs.readdirSync(paths.VIDEOS_DIR)
-      .filter(f => VIDEO_EXTENSIONS.includes(path.extname(f).toLowerCase()))
-      .map(f => { const st = fs.statSync(path.join(paths.VIDEOS_DIR, f)); return { name: f, size: st.size, mtime: st.mtimeMs }; })
+    return fs.readdirSync(dir)
+      .filter(f => extensions.includes(path.extname(f).toLowerCase()))
+      .map(f => { const st = fs.statSync(path.join(dir, f)); return { name: f, size: st.size, mtime: st.mtimeMs }; })
       .sort((a, b) => b.mtime - a.mtime);
   } catch { return []; }
 }
 
-// Reproduce un video en una pantalla (lo usa la acción "video" y el botón de probar)
+function deleteFile(dir, extensions, file) {
+  const name = resolveFile(dir, extensions, file);
+  if (!name) return false;
+  fs.unlinkSync(path.join(dir, name));
+  return true;
+}
+
+const resolveVideo = (file) => resolveFile(paths.VIDEOS_DIR, VIDEO_EXTENSIONS, file);
+const resolveImage = (file) => resolveFile(paths.IMAGES_DIR, IMAGE_EXTENSIONS, file);
+const listVideos = () => listFiles(paths.VIDEOS_DIR, VIDEO_EXTENSIONS);
+const listImages = () => listFiles(paths.IMAGES_DIR, IMAGE_EXTENSIONS);
+const deleteVideo = (file) => deleteFile(paths.VIDEOS_DIR, VIDEO_EXTENSIONS, file);
+const deleteImage = (file) => deleteFile(paths.IMAGES_DIR, IMAGE_EXTENSIONS, file);
+
+// ---------- Reproducir ----------
+function emitPlay(n, payload, labelText) {
+  io?.to(room(n)).to(previewRoom(n)).emit(`overlay:${KIND}:${n}:play`, payload);
+  const linked = clientCount(n) > 0;
+  return { executed: true, label: `${labelText} P${n}${linked ? '' : ' (sin enlazar)'}` };
+}
+
+// Reproduce un video en una pantalla (lo usa el paso "video" y el botón de probar)
 function play(screen, { file, volume = 100 } = {}) {
   const n = parseInt(screen, 10);
   if (!SCREENS.includes(n)) return { executed: false };
@@ -81,22 +108,25 @@ function play(screen, { file, volume = 100 } = {}) {
     return { executed: false };
   }
   const vol = Math.min(1, Math.max(0, (Number(volume) || 0) / 100));
-  const payload = { file: name, url: `/videos/${encodeURIComponent(name)}`, volume: vol };
-  io?.to(room(n)).to(previewRoom(n)).emit(`overlay:${KIND}:${n}:play`, payload);
-  const linked = clientCount(n) > 0;
-  return { executed: true, label: `Video P${n}${linked ? '' : ' (sin enlazar)'}` };
+  return emitPlay(n, { kind: 'video', file: name, url: `/videos/${encodeURIComponent(name)}`, volume: vol }, 'Video');
+}
+
+// Muestra una imagen o GIF en una pantalla durante `duration` segundos (lo usa el paso "imagen" y el botón de probar)
+function playImage(screen, { file, duration = IMAGE_DEFAULT_SECONDS } = {}) {
+  const n = parseInt(screen, 10);
+  if (!SCREENS.includes(n)) return { executed: false };
+  const name = resolveImage(file);
+  if (!name) {
+    logger.warn('acciones', 'La imagen de la acción no existe en la biblioteca', { imagen: String(file).slice(0, 80), pantalla: n });
+    return { executed: false };
+  }
+  const seconds = Math.min(IMAGE_MAX_SECONDS, Math.max(IMAGE_MIN_SECONDS, Number(duration) || IMAGE_DEFAULT_SECONDS));
+  return emitPlay(n, { kind: 'image', file: name, url: `/images/${encodeURIComponent(name)}`, durationMs: Math.round(seconds * 1000) }, 'Imagen');
 }
 
 function stop(screen) {
   const n = parseInt(screen, 10);
   if (SCREENS.includes(n)) io?.to(room(n)).to(previewRoom(n)).emit(`overlay:${KIND}:${n}:stop`);
-}
-
-function deleteVideo(file) {
-  const name = resolveVideo(file);
-  if (!name) return false;
-  fs.unlinkSync(path.join(paths.VIDEOS_DIR, name));
-  return true;
 }
 
 // ---------- Sockets ----------
@@ -108,7 +138,7 @@ function init(ioInstance) {
     for (const n of SCREENS) {
       const c = clientCount(n);
       if ((last[n] || 0) !== c) {
-        logger.info('overlay', `Pantalla de video ${n}: ${(last[n] || 0) === 0 ? 'enlazada' : c === 0 ? 'sin enlace (se desconectó)' : `${c} conexiones`}`, { conexiones: c });
+        logger.info('overlay', `Pantalla ${n}: ${(last[n] || 0) === 0 ? 'enlazada' : c === 0 ? 'sin enlace (se desconectó)' : `${c} conexiones`}`, { conexiones: c });
         last[n] = c;
       }
     }
@@ -122,9 +152,9 @@ function init(ioInstance) {
       if (!preview) broadcast();
       socket.emit(`overlay:${KIND}:${n}:state`, screenState(n));
     });
-    socket.on('overlay:error', ({ name, screen, reason, file } = {}) => {
+    socket.on('overlay:error', ({ name, screen, reason, file, kind } = {}) => {
       if (name !== KIND) return;
-      logger.warn('overlay', `Pantalla ${parseInt(screen, 10) || '?'}: no se pudo reproducir el video`, { motivo: String(reason).slice(0, 80), archivo: String(file).slice(0, 80) });
+      logger.warn('overlay', `Pantalla ${parseInt(screen, 10) || '?'}: no se pudo mostrar ${kind === 'image' ? 'la imagen' : 'el video'}`, { motivo: String(reason).slice(0, 80), archivo: String(file).slice(0, 80) });
     });
     socket.on('disconnect', broadcast);
     socket.emit(`overlay:${KIND}:clients`, counts());
@@ -132,8 +162,10 @@ function init(ioInstance) {
 }
 
 module.exports = {
-  init, KIND, SCREENS, VIDEO_EXTENSIONS,
+  init, KIND, SCREENS, VIDEO_EXTENSIONS, IMAGE_EXTENSIONS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS,
   getConfig, updateScreen, counts, clientCount,
-  play, stop, listVideos, deleteVideo, resolveVideo,
+  play, playImage, stop,
+  listVideos, deleteVideo, resolveVideo,
+  listImages, deleteImage, resolveImage,
   options: VIDEO_OPTIONS,
 };

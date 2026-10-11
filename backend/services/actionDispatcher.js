@@ -10,6 +10,7 @@ function isValidStep(step) {
     case 'keyboard': return normalizeKeys(step).length > 0;
     case 'sound': return !!step.sound;
     case 'video': return !!step.video;
+    case 'image': return !!step.image;
     case 'win': return true;
     default: return false;
   }
@@ -54,6 +55,13 @@ function runStep(step, opts, action, perPress) {
       for (let i = 0; i < Math.min(times, 10); i++) result = videoService.play(step.screen, { file: step.video, volume: step.volume ?? 100 });
       return result;
     }
+    case 'image': {
+      // Pantallas: muestra una imagen o GIF durante `duration` segundos; comparte cola con los videos. Con "times" se repite una vez por unidad (máx. 10)
+      const videoService = require('./videoService');
+      let result = { executed: false };
+      for (let i = 0; i < Math.min(times, 10); i++) result = videoService.playImage(step.screen, { file: step.image, duration: step.duration });
+      return result;
+    }
     case 'win': {
       // Win Game: sube o baja el conteo del overlay. Con "times" se aplica una vez por unidad.
       const winService = require('./winService');
@@ -69,7 +77,7 @@ function runStep(step, opts, action, perPress) {
   }
 }
 
-const delayedLabel = (step) => (step.type === 'keyboard' ? keysLabel(step) : step.type === 'win' ? 'Win' : step.sound || step.video || step.type);
+const delayedLabel = (step) => (step.type === 'keyboard' ? keysLabel(step) : step.type === 'win' ? 'Win' : step.sound || step.video || step.image || step.type);
 
 function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'sequential' } = {}) {
   if (!action || !action.enabled) return { executed: false };

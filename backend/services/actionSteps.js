@@ -6,6 +6,7 @@
 //                                                            después de CADA pulsación; repeat = veces que se pulsa (1-100)
 //   sound    { sound, volume, everyKey? }                    everyKey: suena en cada pulsación de las teclas de la acción (si las hay)
 //   video    { video, screen 1-9, volume }
+//   image    { image, screen 1-9, duration (segundos, 1-60) }   imagen o GIF; comparte pantalla y cola con los videos
 //   win      { mode: 'increase' | 'decrease', amount }
 // `wait` (ms, opcional) retrasa ese paso respecto al momento en que se dispara la acción.
 //

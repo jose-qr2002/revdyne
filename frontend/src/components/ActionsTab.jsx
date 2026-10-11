@@ -3,7 +3,7 @@ import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import ActionStepEditor from './ActionStepEditor';
-import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, totalPresses, comboLabel, MAX_WAIT_MS, MAX_REPEAT, MIN_KEY_DELAY_MS } from '../services/actionSteps';
+import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, totalPresses, comboLabel, MAX_WAIT_MS, MAX_REPEAT, MIN_KEY_DELAY_MS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS } from '../services/actionSteps';
 
 const TEST_DELAY_MS = 5000;
 
@@ -33,6 +33,8 @@ function cleanStep(step) {
       return { type: 'sound', sound: rest.sound, volume: toVolume(rest.volume), everyKey: !!rest.everyKey, wait };
     case 'video':
       return { type: 'video', video: rest.video, screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)), volume: toVolume(rest.volume), wait };
+    case 'image':
+      return { type: 'image', image: rest.image, screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)), duration: Math.min(IMAGE_MAX_SECONDS, Math.max(IMAGE_MIN_SECONDS, parseFloat(rest.duration) || IMAGE_DEFAULT_SECONDS)), wait };
     case 'win':
       return { type: 'win', mode: rest.mode === 'decrease' ? 'decrease' : 'increase', amount: Math.min(1000, Math.max(1, parseInt(rest.amount, 10) || 1)), wait };
     default:
@@ -44,6 +46,7 @@ function stepError(step) {
   if (step.type === 'keyboard' && !(step.keys || []).some(k => k && k.key)) return 'Añade al menos una tecla al paso de teclas (botón "Añadir tecla")';
   if (step.type === 'sound' && !step.sound) return 'Elige el archivo del paso de sonido';
   if (step.type === 'video' && !step.video) return 'Elige el video del paso de video';
+  if (step.type === 'image' && !step.image) return 'Elige la imagen o GIF del paso de imagen';
   if (step.type === 'win' && !(parseInt(step.amount, 10) >= 1)) return 'La cantidad de wins debe ser 1 o más';
   return null;
 }
@@ -66,12 +69,13 @@ function StepChips({ steps }) {
           ))}
           {s.type === 'sound' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: s.everyKey ? '#ffeb3b' : '#4caf50' }}><Icon name="music" size={13} /> {s.sound} · {s.volume ?? 100}%{s.everyKey ? ' (en cada tecla)' : ''}</span>}
           {s.type === 'video' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="film" size={13} /> {s.video} · P{s.screen || 1} · {s.volume ?? 100}%</span>}
+          {s.type === 'image' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="image" size={13} /> {s.image} · P{s.screen || 1} · {s.duration ?? 5}s</span>}
           {s.type === 'win' && (
             <span style={{ ...CHIP, fontWeight: 'bold', background: s.mode === 'decrease' ? 'rgba(255,0,80,0.15)' : 'rgba(76,175,80,0.15)', color: s.mode === 'decrease' ? 'var(--accent2)' : '#4caf50' }}>
               <Icon name="trophy" size={13} /> {s.mode === 'decrease' ? '−' : '+'}{s.amount ?? 1} {(s.amount ?? 1) == 1 ? 'win' : 'wins'}
             </span>
           )}
-          {!['keyboard', 'sound', 'video', 'win'].includes(s.type) && <span style={{ ...CHIP, color: 'var(--text3)' }}>{STEP_TYPES[s.type]?.label || s.type} (no disponible)</span>}
+          {!['keyboard', 'sound', 'video', 'image', 'win'].includes(s.type) && <span style={{ ...CHIP, color: 'var(--text3)' }}>{STEP_TYPES[s.type]?.label || s.type} (no disponible)</span>}
           {waitChip(s)}
         </span>
       ))}
@@ -91,6 +95,9 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
   const [localSounds, setLocalSounds] = useState([]);
   const [videoList, setVideoList] = useState([]);
+  const [imageList, setImageList] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef(null);
   const [uploadingSound, setUploadingSound] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const soundInputRef = useRef(null);
@@ -111,6 +118,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     refreshSounds();
     // Al volver a la app (p. ej. tras copiar audios a la carpeta desde el Explorador) se relee la lista
     window.addEventListener('focus', refreshSounds);
+    fetch('/api/images/list').then(r => (r.ok ? r.json() : [])).then(list => setImageList(list.map(v => v.name))).catch(() => console.error('Error al obtener imágenes'));
     fetch('/api/videos/list').then(r => (r.ok ? r.json() : [])).then(list => setVideoList(list.map(v => v.name))).catch(() => console.error('Error al obtener videos'));
     return () => window.removeEventListener('focus', refreshSounds);
   }, []);
@@ -182,6 +190,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   // ---- Subidas ----
   const pickSound = (uid) => { uploadTargetRef.current = uid; soundInputRef.current.click(); };
   const pickVideo = (uid) => { uploadTargetRef.current = uid; videoInputRef.current.click(); };
+  const pickImage = (uid) => { uploadTargetRef.current = uid; imageInputRef.current.click(); };
 
   const handleSoundFile = (e) => {
     const file = e.target.files[0];
@@ -218,6 +227,30 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       showToast('error', 'Error de red al intentar subir el archivo.');
     }
     setUploadingSound(false);
+  };
+
+  const handleImageFile = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const target = uploadTargetRef.current;
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await fetch('/api/images/upload', { method: 'POST', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) {
+        showToast('error', data.error || 'No se pudo subir la imagen');
+      } else {
+        showToast('success', '¡Imagen subida con éxito!');
+        setImageList(prev => prev.includes(data.filename) ? prev : [data.filename, ...prev]);
+        updateStep(target, { image: data.filename });
+      }
+    } catch {
+      showToast('error', 'Error de red al intentar subir la imagen.');
+    }
+    setUploadingImage(false);
   };
 
   const handleVideoFile = async (e) => {
@@ -358,6 +391,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       )}
 
       <input type="file" accept="audio/*" ref={soundInputRef} style={{ display: 'none' }} onChange={handleSoundFile} />
+      <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp" ref={imageInputRef} style={{ display: 'none' }} onChange={handleImageFile} />
       <input type="file" accept="video/mp4,video/webm,.mp4,.webm" ref={videoInputRef} style={{ display: 'none' }} onChange={handleVideoFile} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -402,10 +436,13 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               onRemove={() => removeStep(step.uid)}
               sounds={localSounds}
               videos={videoList}
+              images={imageList}
               onUploadSound={() => pickSound(step.uid)}
               onUploadVideo={() => pickVideo(step.uid)}
+              onUploadImage={() => pickImage(step.uid)}
               uploadingSound={uploadingSound}
               uploadingVideo={uploadingVideo}
+              uploadingImage={uploadingImage}
               onOpenSoundsFolder={openSoundsFolder}
               hasMultiPress={presses > 1}
               everyKeyTaken={everyKeyOwner !== null && everyKeyOwner !== step.uid}

@@ -5,16 +5,20 @@ export const STEP_TYPES = {
   keyboard: { label: 'Teclas', icon: 'keyboard' },
   sound: { label: 'Sonido', icon: 'music' },
   video: { label: 'Video en pantalla', icon: 'film' },
+  image: { label: 'Imagen / GIF en pantalla', icon: 'image' },
   win: { label: 'Win Game', icon: 'trophy' },
   l4d2_command: { label: 'Comando L4D2', icon: 'gamepad', soon: true },
   minecraft_command: { label: 'Comando Minecraft', icon: 'gamepad', soon: true },
 };
 
 // Tipos siempre disponibles en cualquier juego (además de los que permite el juego del perfil)
-export const ALWAYS_AVAILABLE = ['sound', 'video', 'win'];
+export const ALWAYS_AVAILABLE = ['sound', 'video', 'image', 'win'];
 
 export const MAX_WAIT_MS = 60000;
 export const MAX_REPEAT = 100;
+export const IMAGE_MIN_SECONDS = 1;
+export const IMAGE_MAX_SECONDS = 60;
+export const IMAGE_DEFAULT_SECONDS = 5;
 export const MIN_KEY_DELAY_MS = 30; // la cola de teclas no baja de esto entre pulsaciones (actionQueue.MIN_DELAY_MS)
 
 export function getSteps(action) {
@@ -36,6 +40,7 @@ export function newStep(type) {
     case 'keyboard': return { type, keys: [], wait: 0 };
     case 'sound': return { type, sound: '', volume: 100, everyKey: false, wait: 0 };
     case 'video': return { type, video: '', screen: 1, volume: 100, wait: 0 };
+    case 'image': return { type, image: '', screen: 1, duration: IMAGE_DEFAULT_SECONDS, wait: 0 };
     case 'win': return { type, mode: 'increase', amount: 1, wait: 0 };
     default: return { type, wait: 0 };
   }

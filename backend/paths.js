@@ -40,6 +40,8 @@ const MEDIA_DIR = path.join(ROOT_DIR, 'media'); // imágenes, GIF y videos de fo
 ensureDir(MEDIA_DIR);
 const VIDEOS_DIR = path.join(ROOT_DIR, 'videos'); // biblioteca de videos de las pantallas de video (servidos en /videos). En AppData, nunca en Documentos
 ensureDir(VIDEOS_DIR);
+const IMAGES_DIR = path.join(ROOT_DIR, 'images'); // biblioteca de imágenes y GIF de las pantallas (servidas en /images). En AppData, nunca en Documentos
+ensureDir(IMAGES_DIR);
 ensureDir(LOGS_DIR);
 
 module.exports = {
@@ -49,6 +51,7 @@ module.exports = {
   LEGACY_SOUNDS_DIR,
   MEDIA_DIR,
   VIDEOS_DIR,
+  IMAGES_DIR,
   PIPER_EXECUTABLE,
   PIPER_VOICES_DIR,
   TTS_ENGINES_DIR,

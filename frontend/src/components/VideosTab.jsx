@@ -5,10 +5,17 @@ import ConfirmModal from './ConfirmModal';
 import { apiFetch } from '../services/api';
 import { showAlert } from '../services/dialog';
 import { portQuery, currentAppPort } from './portUtils';
+import { IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS } from '../services/actionSteps';
 
 const TARGET_KEY = 'overlayTarget';
 const SCREENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const PREVIEW = { w: 640, h: 360 };
+
+// Bibliotecas: videos (/api/videos) e imágenes/GIF (/api/images). Los dos van a las mismas pantallas.
+const LIBS = {
+  video: { api: '/api/videos', field: 'video', accept: 'video/mp4,video/webm,.mp4,.webm', tab: 'Videos', one: 'video', icon: 'film', empty: 'Aún no hay videos. Sube un MP4 o WEBM (hasta 300 MB).', upload: 'Subir video' },
+  image: { api: '/api/images', field: 'image', accept: 'image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp', tab: 'Imágenes y GIF', one: 'imagen', icon: 'image', empty: 'Aún no hay imágenes. Sube un PNG, JPG, GIF o WEBP (hasta 50 MB).', upload: 'Subir imagen o GIF' },
+};
 
 const readTarget = () => {
   try { return localStorage.getItem(TARGET_KEY) === 'obs' ? 'obs' : 'studio'; } catch { return 'studio'; }
@@ -18,22 +25,24 @@ const formatSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${
 export default function VideosTab({ socket }) {
   const [data, setData] = useState(null);
   const [counts, setCounts] = useState({});
-  const [videos, setVideos] = useState([]);
+  const [files, setFiles] = useState({ video: [], image: [] });
+  const [libTab, setLibTab] = useState('video');
   const [screen, setScreen] = useState(1);
   const [target, setTarget] = useState(readTarget);
   const [copied, setCopied] = useState(false);
-  const [testVideo, setTestVideo] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [toDelete, setToDelete] = useState(null);
+  const [testItem, setTestItem] = useState(''); // "video:archivo.mp4" | "image:archivo.gif"
+  const [imageSeconds, setImageSeconds] = useState(IMAGE_DEFAULT_SECONDS);
+  const [uploading, setUploading] = useState(null); // 'video' | 'image' | null
+  const [toDelete, setToDelete] = useState(null); // { kind, name }
   const [scale, setScale] = useState(1);
 
   const fileRef = useRef(null);
   const previewRef = useRef(null);
 
-  const loadVideos = async () => {
+  const loadFiles = async (kind) => {
     try {
-      const res = await fetch('/api/videos/list');
-      if (res.ok) setVideos(await res.json());
+      const res = await fetch(`${LIBS[kind].api}/list`);
+      if (res.ok) { const list = await res.json(); setFiles(f => ({ ...f, [kind]: list })); }
     } catch { /* sin conexión con el servidor: la lista queda como estaba */ }
   };
 
@@ -43,7 +52,9 @@ export default function VideosTab({ socket }) {
       setData({ screens: res.screens, options: res.options, publicBaseUrl: res.publicBaseUrl });
       setCounts(res.counts || {});
     });
-    fetch('/api/videos/list').then(r => (r.ok ? r.json() : [])).then(setVideos).catch(() => {});
+    for (const kind of Object.keys(LIBS)) {
+      fetch(`${LIBS[kind].api}/list`).then(r => (r.ok ? r.json() : [])).then(list => setFiles(f => ({ ...f, [kind]: list }))).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -61,7 +72,11 @@ export default function VideosTab({ socket }) {
     return () => ro.disconnect();
   }, [data]);
 
-  const selectedVideo = videos.some(v => v.name === testVideo) ? testVideo : ''; // si se borró el elegido, no queda seleccionado
+  // Elemento elegido para probar (si se borró, no queda seleccionado)
+  const [testKind, testFile] = testItem.split(/:(.+)/);
+  const selectedKind = LIBS[testKind] && files[testKind].some(f => f.name === testFile) ? testKind : '';
+  const selectedFile = selectedKind ? testFile : '';
+  const totalFiles = files.video.length + files.image.length;
 
   if (!data) return <div className="empty-state"><p>Cargando pantallas…</p></div>;
 
@@ -90,34 +105,41 @@ export default function VideosTab({ socket }) {
 
   const upload = async (file) => {
     if (!file) return;
-    setUploading(true);
+    const kind = libTab;
+    const lib = LIBS[kind];
+    setUploading(kind);
     const form = new FormData();
-    form.append('video', file);
+    form.append(lib.field, file);
     try {
-      const res = await fetch('/api/videos/upload', { method: 'POST', body: form });
+      const res = await fetch(`${lib.api}/upload`, { method: 'POST', body: form });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) showAlert(json.error || 'No se pudo subir el video.', { title: 'Subir video', type: 'error' });
-      else { await loadVideos(); setTestVideo(json.filename); }
+      if (!res.ok) showAlert(json.error || `No se pudo subir la ${lib.one}.`, { title: `Subir ${lib.one}`, type: 'error' });
+      else { await loadFiles(kind); setTestItem(`${kind}:${json.filename}`); }
     } catch {
-      showAlert('Error de red al subir el video.', { title: 'Subir video', type: 'error' });
+      showAlert(`Error de red al subir la ${lib.one}.`, { title: `Subir ${lib.one}`, type: 'error' });
     }
-    setUploading(false);
+    setUploading(null);
   };
 
   const test = async () => {
-    const res = await apiFetch(`/api/overlays/video/${screen}/test`, 'POST', { file: selectedVideo, volume: 100 });
-    if (res?.error) showAlert(res.error, { title: 'Probar video', type: 'error' });
+    const body = selectedKind === 'image'
+      ? { kind: 'image', file: selectedFile, duration: Math.min(IMAGE_MAX_SECONDS, Math.max(IMAGE_MIN_SECONDS, parseFloat(imageSeconds) || IMAGE_DEFAULT_SECONDS)) }
+      : { kind: 'video', file: selectedFile, volume: 100 };
+    const res = await apiFetch(`/api/overlays/video/${screen}/test`, 'POST', body);
+    if (res?.error) showAlert(res.error, { title: 'Probar en la pantalla', type: 'error' });
   };
   const stop = () => apiFetch(`/api/overlays/video/${screen}/stop`, 'POST');
 
   const remove = async () => {
-    const name = toDelete;
+    const { kind, name } = toDelete;
     setToDelete(null);
-    await apiFetch(`/api/videos/${encodeURIComponent(name)}`, 'DELETE');
-    loadVideos();
+    await apiFetch(`${LIBS[kind].api}/${encodeURIComponent(name)}`, 'DELETE');
+    loadFiles(kind);
   };
 
   const linked = (counts[screen] || 0) > 0;
+  const lib = LIBS[libTab];
+  const list = files[libTab];
 
   return (
     <section className="lk vid-card">
@@ -164,14 +186,14 @@ export default function VideosTab({ socket }) {
 
         <div className="win-panel">
           <label className="vid-field">
-            <span>Ajuste del video</span>
+            <span>Ajuste dentro del recuadro</span>
             <Select className="modifier-select" value={cfg.fit} onChange={e => saveScreen({ fit: e.target.value })}>
               <option value="contain">Entero dentro del recuadro</option>
               <option value="cover">Llenar el recuadro (recorta)</option>
             </Select>
           </label>
           <label className="vid-field">
-            <span>Si llega otro video mientras suena uno</span>
+            <span>Si llega otro contenido mientras hay uno</span>
             <Select className="modifier-select" value={cfg.onBusy} onChange={e => saveScreen({ onBusy: e.target.value })}>
               <option value="queue">Esperar su turno</option>
               <option value="replace">Cortar el actual</option>
@@ -180,12 +202,19 @@ export default function VideosTab({ socket }) {
 
           <div className="win-keys">
             <div className="rk-list-head"><Icon name="play" size={14} /> Probar en esta pantalla</div>
-            <Select className="modifier-select" value={selectedVideo} onChange={e => setTestVideo(e.target.value)} disabled={!videos.length}>
-              <option value="">{videos.length ? 'Elige un video…' : 'Sube un video primero'}</option>
-              {videos.map(v => <option key={v.name} value={v.name}>{v.name}</option>)}
+            <Select className="modifier-select" value={selectedKind ? testItem : ''} onChange={e => setTestItem(e.target.value)} disabled={!totalFiles}>
+              <option value="">{totalFiles ? 'Elige un video, imagen o GIF…' : 'Sube un video o una imagen primero'}</option>
+              {files.video.map(f => <option key={`v${f.name}`} value={`video:${f.name}`}>Video · {f.name}</option>)}
+              {files.image.map(f => <option key={`i${f.name}`} value={`image:${f.name}`}>Imagen · {f.name}</option>)}
             </Select>
+            {selectedKind === 'image' && (
+              <label className="vid-secs">
+                Mostrar durante
+                <input type="number" className="key-input" min={IMAGE_MIN_SECONDS} max={IMAGE_MAX_SECONDS} step="0.5" value={imageSeconds} onChange={e => setImageSeconds(e.target.value)} /> s
+              </label>
+            )}
             <div className="vid-actions">
-              <button className="btn btn-sm btn-primary" onClick={test} disabled={!selectedVideo}><Icon name="play" size={14} /> Reproducir</button>
+              <button className="btn btn-sm btn-primary" onClick={test} disabled={!selectedFile}><Icon name="play" size={14} /> {selectedKind === 'image' ? 'Mostrar' : 'Reproducir'}</button>
               <button className="btn btn-sm btn-secondary" onClick={stop}><Icon name="stop" size={14} /> Detener</button>
             </div>
           </div>
@@ -193,22 +222,30 @@ export default function VideosTab({ socket }) {
       </div>
 
       <div className="vid-lib">
+        <div className="lk-kinds" role="tablist" aria-label="Biblioteca">
+          {Object.entries(LIBS).map(([kind, l]) => (
+            <button key={kind} className={libTab === kind ? 'active' : ''} onClick={() => setLibTab(kind)} role="tab" aria-selected={libTab === kind}>
+              <Icon name={l.icon} size={14} /> {l.tab} ({files[kind].length})
+            </button>
+          ))}
+        </div>
         <div className="vid-lib-head">
-          <div className="rk-list-head"><Icon name="film" size={14} /> Biblioteca de videos ({videos.length})</div>
-          <input type="file" accept="video/mp4,video/webm,.mp4,.webm" ref={fileRef} style={{ display: 'none' }} onChange={e => { upload(e.target.files[0]); e.target.value = ''; }} />
-          <button className="btn btn-sm btn-secondary" onClick={() => fileRef.current.click()} disabled={uploading}>
-            {uploading ? <><Icon name="clock" size={14} /> Subiendo…</> : <><Icon name="plus" size={14} /> Subir video</>}
+          <div className="rk-list-head"><Icon name={lib.icon} size={14} /> Biblioteca de {lib.tab.toLowerCase()} ({list.length})</div>
+          <input type="file" accept={lib.accept} ref={fileRef} style={{ display: 'none' }} onChange={e => { upload(e.target.files[0]); e.target.value = ''; }} />
+          <button className="btn btn-sm btn-secondary" onClick={() => fileRef.current.click()} disabled={!!uploading}>
+            {uploading === libTab ? <><Icon name="clock" size={14} /> Subiendo…</> : <><Icon name="plus" size={14} /> {lib.upload}</>}
           </button>
         </div>
-        {videos.length === 0 ? (
-          <div className="log-empty">Aún no hay videos. Sube un MP4 o WEBM (hasta 300 MB).</div>
+        {list.length === 0 ? (
+          <div className="log-empty">{lib.empty}</div>
         ) : (
           <ul className="vid-list">
-            {videos.map(v => (
-              <li key={v.name}>
-                <span className="vid-name ellipsis" title={v.name}>{v.name}</span>
-                <span className="vid-size">{formatSize(v.size)}</span>
-                <button className="icon-btn danger" aria-label={`Eliminar ${v.name}`} title="Eliminar" onClick={() => setToDelete(v.name)}><Icon name="trash" size={15} /></button>
+            {list.map(f => (
+              <li key={f.name}>
+                {libTab === 'image' && <span className="vid-thumb"><img src={`/images/${encodeURIComponent(f.name)}`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} /></span>}
+                <span className="vid-name ellipsis" title={f.name}>{f.name}</span>
+                <span className="vid-size">{formatSize(f.size)}</span>
+                <button className="icon-btn danger" aria-label={`Eliminar ${f.name}`} title="Eliminar" onClick={() => setToDelete({ kind: libTab, name: f.name })}><Icon name="trash" size={15} /></button>
               </li>
             ))}
           </ul>
@@ -216,19 +253,19 @@ export default function VideosTab({ socket }) {
       </div>
 
       <p className="lk-hint">
-        Cada pantalla es un enlace distinto: añade el de la pantalla que quieras como fuente y, en <strong>Acciones</strong>, crea una acción de tipo
-        Video eligiendo esa pantalla (así puedes poner varios videos en distintos lugares de tu directo). Los videos se guardan en la carpeta de datos de
-        Revdyne (AppData), no en Documentos. Formatos: MP4 (H.264) o WEBM.{' '}
+        Cada pantalla es un enlace distinto: añade el de la pantalla que quieras como fuente y, en <strong>Acciones</strong>, crea una acción con un paso de
+        Video o de Imagen / GIF eligiendo esa pantalla (así puedes poner varios contenidos en distintos lugares de tu directo; videos e imágenes de una misma
+        pantalla comparten su cola). Todo se guarda en la carpeta de datos de Revdyne (AppData), no en Documentos. Videos: MP4 (H.264) o WEBM. Imágenes: PNG, JPG, GIF o WEBP.{' '}
         {target === 'studio'
           ? <>En Live Studio añade una fuente <strong>Enlace</strong> con esa URL y el tamaño que quieras para la pantalla.</>
           : <>En OBS añade una fuente <strong>Navegador</strong> con esa URL y activa "Controlar audio mediante OBS".</>}
-        {' '}Está invisible hasta que suene un video.
+        {' '}Está invisible hasta que aparezca algo.
       </p>
 
       <ConfirmModal
         isOpen={!!toDelete}
-        title={<><Icon name="trash" size={18} /> Eliminar video</>}
-        message={`Se borrará "${toDelete}" de la biblioteca. Las acciones que lo usen dejarán de reproducir nada.`}
+        title={<><Icon name="trash" size={18} /> Eliminar {toDelete ? LIBS[toDelete.kind].one : ''}</>}
+        message={`Se borrará "${toDelete?.name}" de la biblioteca. Las acciones que lo usen dejarán de mostrar nada.`}
         onConfirm={remove}
         onCancel={() => setToDelete(null)}
       />

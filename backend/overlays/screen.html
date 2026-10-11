@@ -8,20 +8,23 @@
   * { box-sizing: border-box; margin: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
 
-  /* Un solo <video> que ocupa todo el recuadro. Sin nada reproduciéndose está invisible (la fuente queda transparente en el directo). */
-  #v { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; opacity: 0; transition: opacity .15s; pointer-events: none; }
-  #v.on { opacity: 1; }
-  @media (prefers-reduced-motion: reduce) { #v { transition: none; } }
+  /* Un <video> y una <img> (imagen o GIF) que ocupan todo el recuadro; solo se ve el que está en uso. Sin nada mostrándose todo está invisible
+     (la fuente queda transparente en el directo). */
+  #v, #i { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #v.on, #i.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #v, #i { transition: none; } }
   #msg { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 10px; font: 12px/1.4 sans-serif; color: #fff; background: rgba(200,30,60,.9); border-radius: 6px; display: none; }
 </style>
 </head>
 <body>
 <video id="v" playsinline preload="auto"></video>
+<img id="i" alt="">
 <div id="msg"></div>
 
 <script>
 (function () {
   var v = document.getElementById('v');
+  var img = document.getElementById('i');
   var isPreview = /[?&]preview=1/.test(location.search);
 
   // Pantalla (1-9): la última cifra de la ruta, tanto en /overlays/screen/3 (la app) como en /screen/3 (el VPS)
@@ -42,14 +45,16 @@
   var MAX_QUEUE = 20;
   var queue = [];
   var playing = false;
+  var imageTimer = null; // una imagen no "termina": se quita al cumplirse su duración
 
-  function show() { v.classList.add('on'); }
-  function hide() { v.classList.remove('on'); }
+  function hide() { v.classList.remove('on'); img.classList.remove('on'); }
 
   function stopCurrent() {
+    clearTimeout(imageTimer);
     v.pause();
     v.removeAttribute('src');
     v.load();
+    img.removeAttribute('src');
     playing = false;
     hide();
   }
@@ -58,33 +63,52 @@
     var item = queue.shift();
     if (!item) { playing = false; hide(); return; }
     playing = true;
+    if (item.kind === 'image') { showImage(item); return; }
+    img.classList.remove('on');
     v.style.objectFit = settings.fit;
     v.src = mediaUrl(item.url);
     v.volume = item.volume;
     v.muted = false;
-    show();
+    v.classList.add('on');
     var p = v.play();
     if (p && p.catch) {
       // Algunos navegadores no dejan reproducir con sonido sin un clic previo: se reproduce en silencio antes que no mostrar nada
       p.catch(function () { v.muted = true; v.play().catch(finish); });
     }
   }
-  function finish() { playing = false; next(); }
+  // Imagen o GIF: se muestra durante su duración. El parámetro t evita que el navegador reutilice el GIF ya terminado y lo reinicie desde el principio.
+  function showImage(item) {
+    v.classList.remove('on');
+    img.style.objectFit = settings.fit;
+    img.src = mediaUrl(item.url) + (item.url.indexOf('?') < 0 ? '?t=' : '&t=') + Date.now();
+    img.classList.add('on');
+    clearTimeout(imageTimer);
+    imageTimer = setTimeout(finish, Math.max(500, item.durationMs || 5000));
+  }
+  function finish() { clearTimeout(imageTimer); playing = false; next(); }
   v.addEventListener('ended', finish);
   var msg = document.getElementById('msg');
   var socketRef = null;
+  function reportError(why, file, itemKind) {
+    if (isPreview) { msg.textContent = 'No se pudo mostrar: ' + why; msg.style.display = 'block'; setTimeout(function () { msg.style.display = 'none'; }, 6000); }
+    if (socketRef) socketRef.emit('overlay:error', { name: kind, screen: screen, reason: why, file: file, kind: itemKind });
+  }
   v.addEventListener('error', function () {
     if (!playing) return;
     // Un video que no carga no bloquea la cola; en la vista previa se explica por qué (códec no admitido, archivo no encontrado...)
     var code = v.error ? v.error.code : 0;
     var why = code === 4 ? 'formato o códec no admitido (usa MP4 H.264 o WEBM), o archivo no encontrado' : code === 3 ? 'archivo dañado' : code === 2 ? 'error de red al pedir el archivo' : 'no se pudo cargar';
-    if (isPreview) { msg.textContent = 'No se pudo reproducir: ' + why; msg.style.display = 'block'; setTimeout(function () { msg.style.display = 'none'; }, 6000); }
-    if (socketRef) socketRef.emit('overlay:error', { name: kind, screen: screen, reason: why, file: (v.currentSrc || '').split('/').pop() });
+    reportError(why, (v.currentSrc || '').split('/').pop(), 'video');
+    finish();
+  });
+  img.addEventListener('error', function () {
+    if (!playing || !img.getAttribute('src')) return;
+    reportError('no se pudo cargar la imagen (archivo no encontrado o dañado)', (img.getAttribute('src') || '').split('?')[0].split('/').pop(), 'image');
     finish();
   });
 
   function onPlay(item) {
-    if (settings.onBusy === 'replace') { queue.length = 0; if (playing) stopCurrent(); }
+    if (settings.onBusy === 'replace') { queue.length = 0; if (playing) stopCurrent(); } // vale igual para videos e imágenes: comparten cola
     queue.push(item);
     if (queue.length > MAX_QUEUE) queue.shift();
     if (!playing) next();
@@ -95,7 +119,7 @@
     var socket = isLocal ? io() : io(appOrigin, { transports: ['websocket', 'polling'] });
     socketRef = socket;
     socket.on('connect', function () { socket.emit('overlay:join', { name: kind, screen: screen, preview: isPreview }); });
-    socket.on('overlay:' + kind + ':' + screen + ':state', function (st) { settings = { fit: st.fit, onBusy: st.onBusy }; v.style.objectFit = settings.fit; });
+    socket.on('overlay:' + kind + ':' + screen + ':state', function (st) { settings = { fit: st.fit, onBusy: st.onBusy }; v.style.objectFit = settings.fit; img.style.objectFit = settings.fit; });
     socket.on('overlay:' + kind + ':' + screen + ':play', onPlay);
     socket.on('overlay:' + kind + ':' + screen + ':stop', onStop);
   }

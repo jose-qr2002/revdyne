@@ -2,7 +2,7 @@ import React from 'react';
 import Select from './Select';
 import Icon from './Icon';
 import KeyListEditor from './KeyListEditor';
-import { STEP_TYPES, MAX_WAIT_MS } from '../services/actionSteps';
+import { STEP_TYPES, MAX_WAIT_MS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS } from '../services/actionSteps';
 
 const SCREENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -47,7 +47,7 @@ function FilePicker({ value, files, placeholder, onChange, onUpload, uploading, 
 // Un paso de la acción: cabecera (tipo, retraso, quitar) y sus campos
 // `hasMultiPress`: la acción tiene más de una pulsación de tecla (en total), así que un sonido puede sonar en cada una.
 // `everyKeyTaken`: otro paso de sonido de la acción ya usa "en cada pulsación" (solo uno puede).
-export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, onUploadSound, onUploadVideo, uploadingSound, uploadingVideo, onOpenSoundsFolder, hasMultiPress = false, everyKeyTaken = false }) {
+export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, images = [], onUploadSound, onUploadVideo, onUploadImage, uploadingSound, uploadingVideo, uploadingImage, onOpenSoundsFolder, hasMultiPress = false, everyKeyTaken = false }) {
   const meta = STEP_TYPES[step.type] || { label: step.type, icon: 'bolt' };
   const waitSeconds = (step.wait || 0) / 1000;
   const setWait = (v) => {
@@ -107,6 +107,35 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
         </>
       )}
 
+      {step.type === 'image' && (
+        <>
+          <div className="step-row">
+            <Field label="Imagen o GIF" grow={2} min={220}>
+              <FilePicker value={step.image} files={images} placeholder="Selecciona una imagen o GIF..." onChange={v => onChange({ image: v })} onUpload={onUploadImage} uploading={uploadingImage} uploadTitle="Subir imagen (.png, .jpg, .gif, .webp)" />
+            </Field>
+            <Field label="Pantalla" min={130}>
+              <Select className="modifier-select" value={String(step.screen || 1)} onChange={e => onChange({ screen: parseInt(e.target.value, 10) })} style={{ width: '100%' }}>
+                {SCREENS.map(n => <option key={n} value={String(n)}>Pantalla {n}</option>)}
+              </Select>
+            </Field>
+            <Field label="Se muestra durante" min={130}>
+              <span className="kl-num">
+                <input
+                  type="number" className="key-input" min={IMAGE_MIN_SECONDS} max={IMAGE_MAX_SECONDS} step="0.5" style={{ width: '80px', textAlign: 'center' }}
+                  value={step.duration ?? IMAGE_DEFAULT_SECONDS}
+                  onChange={e => onChange({ duration: e.target.value === '' ? '' : e.target.value })}
+                  onBlur={() => onChange({ duration: Math.min(IMAGE_MAX_SECONDS, Math.max(IMAGE_MIN_SECONDS, parseFloat(step.duration) || IMAGE_DEFAULT_SECONDS)) })}
+                /> s
+              </span>
+            </Field>
+          </div>
+          {step.image && images.includes(step.image) && (
+            <div className="img-preview"><img src={`/images/${encodeURIComponent(step.image)}`} alt={step.image} /></div>
+          )}
+          <p className="step-hint">Va a las mismas 9 pantallas que los videos (copia el enlace desde <strong>Pantallas</strong>) y comparte su cola: según el ajuste de la pantalla espera su turno o corta lo que haya. Un GIF se reproduce en bucle durante ese tiempo. Con un regalo de varias unidades se repite una vez por unidad (máximo 10).</p>
+        </>
+      )}
+
       {step.type === 'win' && (
         <>
           <div className="step-row">
@@ -124,7 +153,7 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
         </>
       )}
 
-      {!['keyboard', 'sound', 'video', 'win'].includes(step.type) && (
+      {!['keyboard', 'sound', 'video', 'image', 'win'].includes(step.type) && (
         <p className="step-hint">Este tipo de paso todavía no está disponible: se conserva, pero no hace nada.</p>
       )}
     </div>

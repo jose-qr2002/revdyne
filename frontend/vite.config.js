@@ -35,6 +35,10 @@ export default defineConfig({
         target: backend,
         changeOrigin: true
       },
+      '/images': {
+        target: backend,
+        changeOrigin: true
+      },
       '/videos': {
         target: backend,
         changeOrigin: true
