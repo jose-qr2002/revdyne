@@ -40,9 +40,55 @@ function eventToLists(evt) {
   return { ...rest, actionIds: actionId ? [actionId] : [], randomActionIds: Array.isArray(evt.randomActionIds) ? evt.randomActionIds : [] };
 }
 
+// v3: el paso de teclado deja de ser un texto con llaves ("{shift+w}{space}") y pasa a una lista de teclas ({ key, modifiers, delay, repeat }).
+// El sonido que llevaba pegado el paso de teclado pasa a ser un paso de sonido aparte (con `everyKey` si sonaba en cada tecla).
+const MODIFIER_ALIASES = { ctrl: 'control', control: 'control', shift: 'shift', alt: 'alt', command: 'command', win: 'command', cmd: 'command', meta: 'command' };
+
+// "r" o "abc" (una tecla por carácter) o "{shift+w}{space}" -> [{ key, modifiers }]
+function parseMacro(macro) {
+  const text = String(macro ?? '');
+  const out = [];
+  if (!text.includes('{')) {
+    for (const ch of text) if (ch.trim()) out.push({ key: ch.toLowerCase(), modifiers: [] });
+    return out;
+  }
+  const regex = /\{([^}]+)\}/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const inner = match[1].toLowerCase().trim();
+    if (inner === '+') { out.push({ key: '+', modifiers: [] }); continue; }
+    const parts = inner.split('+').map(p => p.trim()).filter(Boolean);
+    if (!parts.length) continue;
+    const key = parts[parts.length - 1];
+    const modifiers = [...new Set(parts.slice(0, -1).map(m => MODIFIER_ALIASES[m]).filter(Boolean))];
+    out.push({ key, modifiers });
+  }
+  return out;
+}
+
+// Devuelve los pasos que sustituyen a un paso de teclado antiguo (o el mismo paso si ya está en el formato nuevo)
+function keyboardStepToKeys(step) {
+  if (!step || step.type !== 'keyboard' || Array.isArray(step.keys)) return [step];
+  const delay = step.delay === undefined || step.delay === null || step.delay === '' ? 80 : Number(step.delay) || 80;
+  const { key, delay: _d, sound, volume, soundEveryKey, ...rest } = step; // eslint-disable-line no-unused-vars
+  const keyboard = { ...rest, type: 'keyboard', keys: parseMacro(key).map(k => ({ ...k, delay, repeat: 1 })) };
+  const result = [keyboard];
+  if (sound) result.push({ type: 'sound', sound, volume: volume ?? 100, everyKey: !!soundEveryKey, wait: Number(step.wait) || 0 });
+  return result;
+}
+
 const profiles = {
-  current: 2,
+  current: 3,
   steps: {
+    3: (data) => {
+      for (const profile of Object.values(data.list || {})) {
+        if (!profile || typeof profile !== 'object') continue;
+        for (const action of Object.values(profile.actions || {})) {
+          if (action && Array.isArray(action.steps)) action.steps = action.steps.flatMap(keyboardStepToKeys);
+        }
+      }
+      return data;
+    },
     2: (data) => {
       for (const profile of Object.values(data.list || {})) {
         if (!profile || typeof profile !== 'object') continue;

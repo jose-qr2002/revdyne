@@ -3,7 +3,7 @@ import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import ActionStepEditor from './ActionStepEditor';
-import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, MAX_WAIT_MS } from '../services/actionSteps';
+import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, totalPresses, comboLabel, MAX_WAIT_MS, MAX_REPEAT, MIN_KEY_DELAY_MS } from '../services/actionSteps';
 
 const TEST_DELAY_MS = 5000;
 
@@ -13,13 +13,6 @@ const toVolume = (v) => {
 };
 const toWait = (v) => Math.min(MAX_WAIT_MS, Math.max(0, parseInt(v, 10) || 0));
 
-const isMultiKeyMacro = (macroStr) => {
-  if (!macroStr) return false;
-  if (!macroStr.includes('{')) return macroStr.length > 1;
-  const matches = macroStr.match(/\{[^}]+\}/g);
-  return !!matches && matches.length > 1;
-};
-
 // Paso tal como se guarda (sin el `uid` de la UI y con los valores normalizados)
 function cleanStep(step) {
   // eslint-disable-next-line no-unused-vars
@@ -27,9 +20,17 @@ function cleanStep(step) {
   const wait = toWait(rest.wait);
   switch (rest.type) {
     case 'keyboard':
-      return { type: 'keyboard', key: (rest.key || '').toLowerCase(), delay: parseInt(rest.delay, 10) || 80, sound: rest.sound || null, volume: toVolume(rest.volume), soundEveryKey: !!rest.sound && isMultiKeyMacro(rest.key) && !!rest.soundEveryKey, wait };
+      return {
+        type: 'keyboard', wait,
+        keys: (rest.keys || []).filter(k => k && k.key).map(k => ({
+          key: String(k.key).toLowerCase(),
+          modifiers: Array.isArray(k.modifiers) ? k.modifiers : [],
+          delay: Math.min(MAX_WAIT_MS, Math.max(MIN_KEY_DELAY_MS, parseInt(k.delay, 10) || MIN_KEY_DELAY_MS)),
+          repeat: Math.min(MAX_REPEAT, Math.max(1, parseInt(k.repeat, 10) || 1)),
+        })),
+      };
     case 'sound':
-      return { type: 'sound', sound: rest.sound, volume: toVolume(rest.volume), wait };
+      return { type: 'sound', sound: rest.sound, volume: toVolume(rest.volume), everyKey: !!rest.everyKey, wait };
     case 'video':
       return { type: 'video', video: rest.video, screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)), volume: toVolume(rest.volume), wait };
     case 'win':
@@ -40,7 +41,7 @@ function cleanStep(step) {
 }
 
 function stepError(step) {
-  if (step.type === 'keyboard' && !(step.key || '').trim()) return 'Escribe la tecla o macro del paso de teclado';
+  if (step.type === 'keyboard' && !(step.keys || []).some(k => k && k.key)) return 'Añade al menos una tecla al paso de teclas (botón "Añadir tecla")';
   if (step.type === 'sound' && !step.sound) return 'Elige el archivo del paso de sonido';
   if (step.type === 'video' && !step.video) return 'Elige el video del paso de video';
   if (step.type === 'win' && !(parseInt(step.amount, 10) >= 1)) return 'La cantidad de wins debe ser 1 o más';
@@ -58,11 +59,12 @@ function StepChips({ steps }) {
       {steps.map((s, i) => (
         <span key={i} className="step-chip-group">
           {i > 0 && <span className="step-plus">+</span>}
-          {s.type === 'keyboard' && <>
-            <span style={{ ...CHIP, background: 'rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: '13px' }}><Icon name="keyboard" size={13} /> {s.key}</span>
-            {s.sound && <span style={{ ...CHIP, color: s.soundEveryKey ? '#ffeb3b' : '#4caf50' }}><Icon name="volume" size={12} /> {s.sound} · {s.volume ?? 100}%{s.soundEveryKey ? ' (cada tecla)' : ''}</span>}
-          </>}
-          {s.type === 'sound' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="music" size={13} /> {s.sound} · {s.volume ?? 100}%</span>}
+          {s.type === 'keyboard' && (s.keys || []).map((k, j) => (
+            <span key={j} style={{ ...CHIP, background: 'rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: '13px' }} title={`Espera ${k.delay ?? 80} ms tras cada pulsación`}>
+              <Icon name="keyboard" size={13} /> {comboLabel(k)}{(k.repeat || 1) > 1 ? ` x${k.repeat}` : ''}
+            </span>
+          ))}
+          {s.type === 'sound' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: s.everyKey ? '#ffeb3b' : '#4caf50' }}><Icon name="music" size={13} /> {s.sound} · {s.volume ?? 100}%{s.everyKey ? ' (en cada tecla)' : ''}</span>}
           {s.type === 'video' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="film" size={13} /> {s.video} · P{s.screen || 1} · {s.volume ?? 100}%</span>}
           {s.type === 'win' && (
             <span style={{ ...CHIP, fontWeight: 'bold', background: s.mode === 'decrease' ? 'rgba(255,0,80,0.15)' : 'rgba(76,175,80,0.15)', color: s.mode === 'decrease' ? 'var(--accent2)' : '#4caf50' }}>
@@ -282,11 +284,17 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
 
     const actionId = editingActionId || `act_${Date.now()}`;
     const isCurrentlyEnabled = editingActionId && actions[editingActionId] ? actions[editingActionId].enabled : true;
-    const newAction = { name, enabled: isCurrentlyEnabled, steps: steps.map(cleanStep) };
+    // "en cada pulsación" solo vale con varias pulsaciones; si se quitaron las teclas, se guarda desmarcado
+    const multi = totalPresses(steps) > 1;
+    const newAction = { name, enabled: isCurrentlyEnabled, steps: steps.map(cleanStep).map(st => (st.type === 'sound' ? { ...st, everyKey: st.everyKey && multi } : st)) };
 
     onUpdateConfig({ actions: { ...actions, [actionId]: newAction } });
     resetForm();
   };
+
+  // Sonido "en cada pulsación": solo si la acción tiene más de una pulsación en total, y solo un paso de sonido puede usarlo
+  const presses = totalPresses(steps);
+  const everyKeyOwner = steps.find(s => s.type === 'sound' && s.everyKey)?.uid ?? null;
 
   // ---- Lista ----
   const requestDeleteAction = (id) => {
@@ -399,6 +407,8 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               uploadingSound={uploadingSound}
               uploadingVideo={uploadingVideo}
               onOpenSoundsFolder={openSoundsFolder}
+              hasMultiPress={presses > 1}
+              everyKeyTaken={everyKeyOwner !== null && everyKeyOwner !== step.uid}
             />
           ))}
 

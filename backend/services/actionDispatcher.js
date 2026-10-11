@@ -2,12 +2,12 @@
 // Ejecuta una acción: todos sus pasos (tecla, sonido, video, win...) a la vez, cada uno con su retraso opcional (`wait`).
 // Ver backend/services/actionSteps.js para el formato.
 const logger = require('./logger');
-const { getSteps, stepWait } = require('./actionSteps');
+const { getSteps, stepWait, normalizeKeys, keysLabel, MAX_PRESSES } = require('./actionSteps');
 
 // ¿El paso tiene lo mínimo para hacer algo? (para los pasos con retraso, que se programan sin ejecutarse todavía)
 function isValidStep(step) {
   switch (step.type) {
-    case 'keyboard': return !!step.key;
+    case 'keyboard': return normalizeKeys(step).length > 0;
     case 'sound': return !!step.sound;
     case 'video': return !!step.video;
     case 'win': return true;
@@ -15,19 +15,31 @@ function isValidStep(step) {
   }
 }
 
-function runStep(step, { times, defaultDelayMs, playbackStyle }, action) {
+// Teclas: las pulsaciones del paso en orden (con sus repeticiones), repetidas `times` veces (p. ej. 5 rosas = 5 pasadas).
+// `perPress`: paso de sonido con "en cada tecla"; su sonido suena en cada pulsación, sincronizado con la cola de teclas.
+function runKeyboard(step, { times, defaultDelayMs }, perPress, action) {
   const actionQueue = require('./actionQueue');
+  const keys = normalizeKeys(step, defaultDelayMs);
+  if (!keys.length) return { executed: false };
+
+  const onePass = keys.flatMap(k => Array.from({ length: k.repeat }, () => ({ key: k.key, modifiers: k.modifiers, delay: k.delay })));
+  const presses = [];
+  for (let i = 0; i < Math.max(1, times); i++) presses.push(...onePass);
+  if (presses.length > MAX_PRESSES) {
+    logger.warn('teclas', 'Demasiadas pulsaciones en un disparo: se recorta', { accion: action.name, pedidas: presses.length, maximo: MAX_PRESSES });
+    presses.length = MAX_PRESSES;
+  }
+  actionQueue.enqueueKeyPresses(presses, { sound: perPress?.sound || null, volume: (perPress?.volume ?? 100) / 100 });
+  return { executed: true, label: keysLabel(step) };
+}
+
+function runStep(step, opts, action, perPress) {
+  const actionQueue = require('./actionQueue');
+  const { times, playbackStyle } = opts;
 
   switch (step.type) {
-    case 'keyboard': {
-      if (!step.key) return { executed: false };
-      const delay = step.delay !== undefined && step.delay !== null && step.delay !== '' ? Number(step.delay) : defaultDelayMs;
-      const volume = (step.volume ?? 100) / 100;
-      for (let i = 0; i < times; i++) {
-        actionQueue.enqueueKeyboardMacro(step.key, delay, step.sound || null, step.soundEveryKey || false, volume);
-      }
-      return { executed: true, label: step.key };
-    }
+    case 'keyboard':
+      return runKeyboard(step, opts, perPress, action);
     case 'sound': {
       if (!step.sound) return { executed: false };
       const volume = (step.volume ?? 100) / 100; // guardado como 0-100
@@ -57,25 +69,33 @@ function runStep(step, { times, defaultDelayMs, playbackStyle }, action) {
   }
 }
 
+const delayedLabel = (step) => (step.type === 'keyboard' ? keysLabel(step) : step.type === 'win' ? 'Win' : step.sound || step.video || step.type);
+
 function dispatch(action, { times = 1, defaultDelayMs = 80, playbackStyle = 'sequential' } = {}) {
   if (!action || !action.enabled) return { executed: false };
   const opts = { times, defaultDelayMs, playbackStyle };
+  const steps = getSteps(action);
   const labels = [];
   let executed = false;
 
-  for (const step of getSteps(action)) {
+  // Sonido "en cada tecla": solo tiene sentido si la acción tiene teclas; entonces suena con cada pulsación (y no aparte, una vez)
+  const hasKeys = steps.some(s => s.type === 'keyboard' && normalizeKeys(s).length);
+  const perPress = hasKeys ? steps.find(s => s.type === 'sound' && s.everyKey && s.sound) : null;
+
+  for (const step of steps) {
+    if (step === perPress) continue;
     const wait = stepWait(step);
     if (wait > 0) {
       if (!isValidStep(step)) continue;
       setTimeout(() => {
-        try { runStep(step, opts, action); }
+        try { runStep(step, opts, action, perPress); }
         catch (e) { logger.error('acciones', 'Error en un paso con retraso', { accion: action.name, tipo: step.type, error: e.message }); }
       }, wait);
       executed = true;
-      labels.push(`${step.type === 'win' ? 'Win' : step.key || step.sound || step.video || step.type} (+${(wait / 1000).toFixed(1).replace(/\.0$/, '')}s)`);
+      labels.push(`${delayedLabel(step)} (+${(wait / 1000).toFixed(1).replace(/\.0$/, '')}s)`);
       continue;
     }
-    const result = runStep(step, opts, action);
+    const result = runStep(step, opts, action, perPress);
     if (result.executed) {
       executed = true;
       if (result.label) labels.push(result.label);

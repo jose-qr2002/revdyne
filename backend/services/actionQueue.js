@@ -28,16 +28,17 @@ async function processQueue() {
     }
 
     if (task.type === 'keyboard') {
+      const mods = task.modifiers || [];
       if (robot) {
         try {
-          if (task.modifier && task.modifier !== 'none') robot.keyTap(task.key, task.modifier);
+          if (mods.length) robot.keyTap(task.key, mods);
           else robot.keyTap(task.key);
         } catch (err) {
           console.error(`⚠️ Error en RobotJS al presionar '${task.key}':`, err.message);
-          logger.error('teclas', 'Error de RobotJS al presionar una tecla', { tecla: task.key, modificador: task.modifier, error: err.message });
+          logger.error('teclas', 'Error de RobotJS al presionar una tecla', { tecla: task.key, modificadores: mods.join('+'), error: err.message });
         }
       }
-      console.log(`🎹 ${robot ? 'Presionado' : '[SIMULADO]'}: ${task.modifier !== 'none' ? task.modifier + '+' : ''}${task.key}`);
+      console.log(`🎹 ${robot ? 'Presionado' : '[SIMULADO]'}: ${[...mods, task.key].join('+')}`);
     }
     // 'sound' no necesita hacer nada más aquí: ya se emitió arriba.
     // Cuando agreguemos comandos, aquí entra:
@@ -49,36 +50,13 @@ async function processQueue() {
   isProcessing = false;
 }
 
-function parseMacro(macroStr) {
-  const sequence = [];
-  if (!macroStr.includes('{')) {
-    macroStr.split('').forEach(char => sequence.push({ modifier: 'none', key: char.toLowerCase() }));
-    return sequence;
+// Encola pulsaciones ya expandidas: [{ key, modifiers, delay }] (una por pulsación, con sus repeticiones desplegadas).
+// `sound`: si se indica, suena en CADA pulsación (el paso de sonido con "en cada tecla").
+function enqueueKeyPresses(presses, { sound = null, volume = 1 } = {}) {
+  if (!presses?.length) return;
+  for (const p of presses) {
+    queue.push({ type: 'keyboard', key: p.key, modifiers: p.modifiers || [], delay: Math.max(Number(p.delay) || 0, MIN_DELAY_MS), sound, volume });
   }
-  const regex = /\{([^}]+)\}/g;
-  let match;
-  while ((match = regex.exec(macroStr)) !== null) {
-    const inner = match[1].toLowerCase();
-    if (inner.includes('+')) {
-      const [modifier, key] = inner.split('+');
-      sequence.push({ modifier, key });
-    } else {
-      sequence.push({ modifier: 'none', key: inner });
-    }
-  }
-  return sequence;
-}
-
-function enqueueKeyboardMacro(macroStr, delay = 80, sound = null, soundEveryKey = false, volume = 1) {
-  if (!macroStr) return;
-  const safeDelay = Math.max(delay, MIN_DELAY_MS);
-  const sequence = parseMacro(macroStr);
-
-  sequence.forEach((step, index) => {
-    const stepSound = (soundEveryKey || index === 0) ? sound : null;
-    queue.push({ type: 'keyboard', key: step.key, modifier: step.modifier, delay: safeDelay, sound: stepSound, volume });
-  });
-
   processQueue();
 }
 
@@ -95,7 +73,7 @@ function emitSoundBatch(file, { times = 1, playbackStyle = 'sequential', volume 
 }
 
 module.exports = {
-  enqueueKeyboardMacro,
+  enqueueKeyPresses,
   enqueueSound,
   emitSoundBatch,
   isRobotAvailable: () => !!robot,

@@ -1,16 +1,10 @@
 import React from 'react';
 import Select from './Select';
 import Icon from './Icon';
+import KeyListEditor from './KeyListEditor';
 import { STEP_TYPES, MAX_WAIT_MS } from '../services/actionSteps';
 
 const SCREENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-
-const isMultiKeyMacro = (macroStr) => {
-  if (!macroStr) return false;
-  if (!macroStr.includes('{')) return macroStr.length > 1;
-  const matches = macroStr.match(/\{[^}]+\}/g);
-  return !!matches && matches.length > 1;
-};
 
 function Field({ label, children, grow = 1, min = 120 }) {
   return (
@@ -51,7 +45,9 @@ function FilePicker({ value, files, placeholder, onChange, onUpload, uploading, 
 }
 
 // Un paso de la acción: cabecera (tipo, retraso, quitar) y sus campos
-export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, onUploadSound, onUploadVideo, uploadingSound, uploadingVideo, onOpenSoundsFolder }) {
+// `hasMultiPress`: la acción tiene más de una pulsación de tecla (en total), así que un sonido puede sonar en cada una.
+// `everyKeyTaken`: otro paso de sonido de la acción ya usa "en cada pulsación" (solo uno puede).
+export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, onUploadSound, onUploadVideo, uploadingSound, uploadingVideo, onOpenSoundsFolder, hasMultiPress = false, everyKeyTaken = false }) {
   const meta = STEP_TYPES[step.type] || { label: step.type, icon: 'bolt' };
   const waitSeconds = (step.wait || 0) / 1000;
   const setWait = (v) => {
@@ -72,28 +68,7 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
       </div>
 
       {step.type === 'keyboard' && (
-        <>
-          <div className="step-row">
-            <Field label="Secuencia / Tecla" grow={2} min={180}>
-              <input type="text" className="key-input" placeholder="Ej: r, o {shift+w}{space}" value={step.key || ''} onChange={e => onChange({ key: e.target.value })} style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }} />
-            </Field>
-            <Field label="Entre teclas (ms)" min={100}>
-              <input type="number" className="key-input" value={step.delay ?? 80} onChange={e => onChange({ delay: e.target.value })} style={{ width: '100%', textAlign: 'center' }} min="10" max="5000" />
-            </Field>
-          </div>
-          <div className="step-row">
-            <Field label="Sonido junto a la tecla (opcional)" grow={2} min={220}>
-              <FilePicker value={step.sound} files={sounds} placeholder="Sin sonido" onChange={v => onChange({ sound: v })} onUpload={onUploadSound} uploading={uploadingSound} uploadTitle="Subir audio (.mp3, .wav)" onOpenFolder={onOpenSoundsFolder} />
-            </Field>
-            {step.sound && <Volume value={step.volume} onChange={v => onChange({ volume: v })} />}
-          </div>
-          {step.sound && isMultiKeyMacro(step.key) && (
-            <label className="step-check">
-              <input type="checkbox" className="check" checked={!!step.soundEveryKey} onChange={e => onChange({ soundEveryKey: e.target.checked })} />
-              Reproducir el sonido en <strong>cada</strong> tecla del combo
-            </label>
-          )}
-        </>
+        <KeyListEditor keys={Array.isArray(step.keys) ? step.keys : []} onChange={keys => onChange({ keys })} />
       )}
 
       {step.type === 'sound' && (
@@ -103,6 +78,16 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
           </Field>
           <Volume value={step.volume} onChange={v => onChange({ volume: v })} />
         </div>
+      )}
+
+      {step.type === 'sound' && hasMultiPress && (
+        <label className={`step-check${everyKeyTaken && !step.everyKey ? ' disabled' : ''}`} title={everyKeyTaken && !step.everyKey ? 'Otro sonido de esta acción ya suena en cada pulsación' : undefined}>
+          <input
+            type="checkbox" className="check" checked={!!step.everyKey} disabled={everyKeyTaken && !step.everyKey}
+            onChange={e => onChange({ everyKey: e.target.checked })}
+          />
+          Reproducir el sonido en <strong>cada pulsación</strong> de tecla (cada repetición)
+        </label>
       )}
 
       {step.type === 'video' && (

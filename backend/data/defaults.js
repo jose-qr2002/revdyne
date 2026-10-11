@@ -35,7 +35,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const EMPTY_PROFILES = {
-  schemaVersion: 2, // ver backend/data/migrations.js
+  schemaVersion: 3, // ver backend/data/migrations.js
   activeProfileId: null,
   list: {
     prof_global: {

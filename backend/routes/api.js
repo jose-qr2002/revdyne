@@ -51,8 +51,10 @@ module.exports = function apiRoutes(settings, io, tiktokService) {
   });
 
   router.post('/test-key', (req, res) => {
-    const { key, sound } = req.body;
-    actionQueue.enqueueKeyboardMacro(key, settings.keyDelayMs || 80, sound);
+    // Una sola pulsación de prueba: { key: 'w', modifiers: ['shift'], sound? } (nombres de tecla de RobotJS)
+    const { key, modifiers, sound } = req.body;
+    if (typeof key !== 'string' || !key.trim()) return res.status(400).json({ error: 'Falta la tecla' });
+    actionQueue.enqueueKeyPresses([{ key: key.trim().toLowerCase(), modifiers: Array.isArray(modifiers) ? modifiers : [], delay: settings.keyDelayMs || 80 }], { sound: sound || null });
     res.json({ ok: true, robotAvailable: actionQueue.isRobotAvailable() });
   });
 
