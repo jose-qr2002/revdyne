@@ -12,13 +12,14 @@ const ROOT_DIR = isElectron
   ? require('electron').app.getPath('userData')
   : process.cwd();
 
-// Carpeta visible para el usuario: aquí es donde arrastra sus mp3 a mano.
-// A propósito NO va dentro de ROOT_DIR, porque el usuario sí debe poder
-// verla y tocarla sin bucear en AppData.
 const TTS_ENGINES_DIR = path.join(ROOT_DIR, 'tts-engines');
 // Registro de avisos y errores (revdyne.log + rotados). En AppData, igual que el resto de datos.
 const LOGS_DIR = path.join(ROOT_DIR, 'logs');
-const SOUNDS_DIR = path.join(os.homedir(), 'Documents', 'REVDYNE', 'sounds');
+// Sonidos de las acciones. En AppData como el resto: escribir en Documentos lo bloquea el "acceso controlado a carpetas" de Windows.
+// Para añadirlos a mano, el panel tiene "Abrir carpeta" (POST /api/sounds/open-folder).
+const SOUNDS_DIR = path.join(ROOT_DIR, 'sounds');
+// Ubicación anterior (hasta 1.0.0-beta.13): bootstrap.migrateSoundsFolder mueve lo que haya aquí a SOUNDS_DIR. No se crea.
+const LEGACY_SOUNDS_DIR = path.join(os.homedir(), 'Documents', 'REVDYNE', 'sounds');
 // PIPER TTS
 const PIPER_DIR = path.join(__dirname, 'bin', 'piper');
 const PIPER_EXECUTABLE = path.join(PIPER_DIR, process.platform === 'win32' ? 'piper.exe' : 'piper');
@@ -42,8 +43,10 @@ ensureDir(VIDEOS_DIR);
 ensureDir(LOGS_DIR);
 
 module.exports = {
+  IS_ELECTRON: isElectron,
   ROOT_DIR,
   SOUNDS_DIR,
+  LEGACY_SOUNDS_DIR,
   MEDIA_DIR,
   VIDEOS_DIR,
   PIPER_EXECUTABLE,

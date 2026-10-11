@@ -1,51 +1,33 @@
+// backend/services/tiktokService.js
+// Conexión con TikTok LIVE (tiktok-live-connector): conectar/desconectar, monitores de conexión muda y estadísticas, datos de la sala.
+// Los eventos los procesan los módulos de backend/services/tiktok/: gifts.js (regalos), social.js (compartir, seguir, likes) y
+// chat.js (comentarios, stickers y Bot TTS). Lo que comparten (Socket.IO, ajustes) está en tiktok/context.js.
 const { TikTokLiveConnection } = require('tiktok-live-connector');
-const stickersManager = require('./stickersManager');
 const catalogService = require('./catalogService');
-const eventEngine = require('./eventEngine');
-const stickerCatalogService = require('./stickerCatalogService');
+const stickerCatalogService = require('./stickerCatalogService'); // eslint-disable-line no-unused-vars -- lo usa el bloque comentado de connect()
+const stickersManager = require('./stickersManager'); // eslint-disable-line no-unused-vars -- idem
 const store = require('../data/store');
 const { findSecUidDeep } = require('./secUidUtils');
-const secUidResolver = require('./secUidResolver'); // agregar arriba
-const chatFilter = require('./chatFilter');
+const secUidResolver = require('./secUidResolver');
 const overlayService = require('./overlayService');
-const { createGiftStreakCounter } = require('./giftStreaks');
 const logger = require('./logger');
 const rankingService = require('./rankingService');
 const topService = require('./topService');
+const ctx = require('./tiktok/context');
+const gifts = require('./tiktok/gifts');
+const social = require('./tiktok/social');
+const chat = require('./tiktok/chat');
 
 // ==========================================
-// 1. ESTADO GLOBAL DEL SERVICIO
+// 1. ESTADO DE LA CONEXIÓN
 // ==========================================
 let tiktokConnection = null;
 let isConnected = false;
 let ioInstance = null;
-let settingsRef = null; // antes "configRef" — ahora solo trae username/keyDelayMs/tts
-
-// Anomalías del contador de regalos -> registro. Nivel: warn si pudo afectar al conteo, info si solo es informativo.
-const GIFT_ANOMALIES = {
-  mensaje_repetido: ['info', 'Mensaje de regalo repetido (se ignoró)'],
-  conteo_retrocede: ['warn', 'Llegó un regalo con repeatCount menor que el ya contado (fuera de orden)'],
-  cierre_menor_que_lo_contado: ['warn', 'El evento de cierre trae menos unidades que las ya contadas'],
-  salto_grande: ['info', 'Una ráfaga saltó muchas unidades en un solo evento (faltaron eventos intermedios; sí se contaron)'],
-  combo_sin_groupId: ['warn', 'Regalo con combo sin groupId (no se pueden separar ráfagas)'],
-  sin_cierre: ['info', 'Ráfaga de regalos que nunca recibió su evento de cierre (ya se había contado)'],
-};
-const giftStreaks = createGiftStreakCounter({
-  onAnomaly: (type, info) => {
-    const [level, text] = GIFT_ANOMALIES[type] || ['warn', `Anomalía de regalo: ${type}`];
-    logger[level]('regalos', text, info);
-  },
-}); // unidades nuevas por evento de regalo (ráfagas por groupId)
-const followedUsers = new Set();
-const stickerCooldowns = new Map();
-const onceSeen = new Set();          // "reglaId_usuario" ya ejecutados (modo "una vez")
-const eventCooldowns = new Map();    // "reglaId_usuario" -> último disparo (modo "enfriamiento")
-const likeAccumulators = {};
-const stickerUserLast = new Map(); // usuario -> último disparo de cualquier sticker
 
 function init(io, settings) {
   ioInstance = io;
-  settingsRef = settings;
+  ctx.set(io, settings); // settings: config.json en memoria (username, keyDelayMs, minCoins, tts...)
   // Seguidores del streamer: roomInfo.data.owner.follow_info.follower_count (exacto, igual que el
   // followCount de los eventos follow). followerTotalNow no usa red; fetchFollowerTotal refresca.
   overlayService.setHooks({
@@ -91,94 +73,6 @@ async function fetchProfileInfo(username) {
   } catch { return info; } finally { clearTimeout(timer); }
 }
 
-// ==========================================
-// 2. MOTOR CENTRAL DE EVENTOS
-// ==========================================
-function executeEventActions(triggerType, conditionValue, times = 1) {
-  const matches = eventEngine.findMatchingEvents(triggerType, conditionValue);
-
-  let actionExecuted = false;
-  const labels = [];
-
-  matches.forEach(({ evt, actions }) => {
-    const result = eventEngine.runEvent(evt, actions, {
-      times,
-      defaultDelayMs: settingsRef?.keyDelayMs || 80,
-    });
-    if (result.executed) {
-      actionExecuted = true;
-      if (result.label) labels.push(result.label);
-    }
-  });
-
-  return { actionExecuted, keyExecuted: labels.join(' + ') || null };
-}
-
-function recordStickerUser(userKey) {
-  stickerUserLast.set(userKey, Date.now());
-  if (stickerUserLast.size > 10000) stickerUserLast.delete(stickerUserLast.keys().next().value);
-}
-
-function passesFrequency(evt, userKey) {
-  const mode = evt.frequency || 'once';
-  if (mode === 'always') return true;
-
-  const key = `${evt.id}_${userKey}`;
-
-  if (mode === 'once') {
-    if (onceSeen.has(key)) return false;
-    onceSeen.add(key);
-    return true;
-  }
-
-  if (mode === 'cooldown') {
-    const last = eventCooldowns.get(key);
-    if (last && Date.now() - last < (evt.cooldownSeconds || 0) * 1000) return false;
-    eventCooldowns.set(key, Date.now());
-    if (eventCooldowns.size > 10000) eventCooldowns.delete(eventCooldowns.keys().next().value);
-    return true;
-  }
-
-  return true;
-}
-
-const getUsername = (data) => (data.user?.displayId) || data.uniqueId || (data.user?.nickname) || 'alguien';
-
-function normalizeForSpeech(str) {
-  if (!str) return '';
-  return str
-    .normalize('NFKC')                          // 𝓒𝓸𝓸𝓵 → Cool (arregla fuentes estilizadas)
-    .replace(/\p{Extended_Pictographic}/gu, '')  // quita emojis
-    .trim();
-}
-
-function isSpeakable(normalizedStr) {
-  if (!normalizedStr) return false;
-  const letters = normalizedStr.match(/\p{L}|\p{N}/gu) || [];
-  // al menos un tercio del texto debe ser letras/números reales
-  return letters.length > 0 && (letters.length / normalizedStr.length) >= 0.34;
-}
-
-function getSpeakableName(data) {
-  const nickname = data.user?.nickname;
-  const fallbackUsername = data.user?.displayId || data.uniqueId || 'alguien';
-
-  if (nickname) {
-    const normalized = normalizeForSpeech(nickname);
-    if (isSpeakable(normalized)) {
-      return normalized;
-    }
-  }
-  return fallbackUsername;
-}
-
-  function recordCooldown(key) {
-    stickerCooldowns.set(key, Date.now());
-    if (stickerCooldowns.size > 10000) {
-      stickerCooldowns.delete(stickerCooldowns.keys().next().value);
-    }
-  }
-
 async function ensureRoomInfoWithRetry(connection, maxAttempts = 3) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const secUid = findSecUidDeep(connection.roomInfo);
@@ -193,316 +87,8 @@ async function ensureRoomInfoWithRetry(connection, maxAttempts = 3) {
   }
   return findSecUidDeep(connection.roomInfo);
 }
-
 // ==========================================
-// 3. CONTROLADORES DE EVENTOS DE TIKTOK
-// ==========================================
-
-function handleGift(data) {
-  const giftObj = data.gift || {};
-  const giftId = String(data.giftId);
-  const giftName = giftObj.name || `Gift #${giftId}`;
-  const coins = giftObj.diamondCount || 0;
-  const sender = getUsername(data);
-  const giftIcon = giftObj.icon?.urlList?.[0] || giftObj.image?.urlList?.[0] || data.pictureUrl || '';
-
-  catalogService.ensureGiftRegistered(giftId, { name: giftName, coins, icon: giftIcon });
-
-  // Unidades nuevas de este evento. El usuario se identifica por su id estable (el displayId puede faltar o repetirse).
-  const userKey = String(data.user?.id || data.user?.userId || data.user?.secUid || sender);
-  if (!data.gift) logger.warn('regalos', 'Evento de regalo sin detalles del regalo (monedas desconocidas)', { giftId, usuario: sender });
-  const streak = giftStreaks.process(data, userKey);
-  const newCount = streak.units;
-  logger.debug('regalos', 'evento', { giftId, nombre: giftName, monedas: coins, repeatCount: data.repeatCount, repeatEnd: data.repeatEnd, groupId: String(data.groupId), usuario: sender, unidadesNuevas: newCount });
-  if (newCount <= 0) return;
-
-  // La meta de monedas cuenta todos los regalos, también los que no llegan al mínimo de monedas de las reglas.
-  overlayService.addCoins(newCount * coins);
-  rankingService.record('gifters', rankUser(data), newCount * coins);
-
-  // Mejor regalo / mejor combo: usan el total acumulado de la ráfaga (no el incremento de este evento)
-  topService.record({
-    key: streak.key, giftId, giftName, perUnit: coins, units: streak.total,
-    icon: giftObj.image?.urlList?.[0] || giftObj.icon?.urlList?.[0] || '',
-    user: { id: userKey, nickname: data.user?.nickname, username: data.user?.displayId || sender },
-  });
-
-  if (coins < (settingsRef?.minCoins || 0)) return;
-
-  const result = executeEventActions('gift', giftId, newCount);
-
-  ioInstance.emit('giftReceived', {
-    giftId, giftName, coins, sender, newCount,
-    // Racha completa hasta ahora: el log agrupa por groupId y muestra "Rose ×24" en vez de x2, x6, x8...
-    groupId: streak.combo ? String(data.groupId) : '', streakTotal: streak.total, streakEnded: streak.ended,
-    key: result.keyExecuted || 'Ninguna',
-    pressed: result.actionExecuted,
-    timestamp: Date.now()
-  });
-}
-
-function handleShare(data) {
-  const username = getUsername(data);
-  overlayService.addShare(data);
-  rankingService.record('shares', rankUser(data), 1);
-  console.log(`📢 ${username} ha compartido el directo`);
-
-  let executed = false;
-  let label = null;
-
-  // La frecuencia se decide por regla, no globalmente
-  eventEngine.findMatchingEvents('share', 'any').forEach(({ evt, actions }) => {
-    if (!passesFrequency(evt, username)) return;
-    const result = eventEngine.runEvent(evt, actions, {
-      times: 1,
-      defaultDelayMs: settingsRef?.keyDelayMs || 80,
-    });
-    if (result.executed) { executed = true; label = label ? `${label} + ${result.label}` : result.label; }
-  });
-
-  ioInstance.emit('giftReceived', {
-    giftId: 'action_share', giftName: '📢 Compartió el Directo', coins: 0, sender: username, newCount: 1,
-    key: label || 'Ninguna', pressed: executed, timestamp: Date.now()
-  });
-}
-
-function handleFollow(data) {
-  const username = getUsername(data);
-  // La meta sigue el total (followCount), así que repetir el evento no la afecta; va antes de deduplicar.
-  overlayService.addFollower(data);
-  if (followedUsers.has(username)) return;
-  followedUsers.add(username);
-
-  console.log(`👤 Nuevo seguidor: @${username}`);
-  const result = executeEventActions('follow', 'any', 1);
-
-  ioInstance.emit('giftReceived', {
-    giftId: 'action_follow', giftName: '👤 Nuevo Seguidor', coins: 0, sender: username, newCount: 1,
-    key: result.keyExecuted || 'Ninguna', pressed: result.actionExecuted, timestamp: Date.now()
-  });
-}
-
-function handleLike(data) {
-  overlayService.addLiveLikes(data);
-  rankingService.record('likes', rankUser(data), data.count || 1);
-
-  const count = data.count || 1;
-  const username = getUsername(data) === 'alguien' ? 'Comunidad' : getUsername(data);
-
-  const likeEvents = eventEngine.getEventsByTrigger('like');
-
-  likeEvents.forEach(({ evt, actions }) => {
-    const threshold = parseInt(evt.condition, 10);
-    if (!threshold || threshold <= 0) return;
-
-    if (likeAccumulators[evt.id] === undefined) likeAccumulators[evt.id] = 0;
-    likeAccumulators[evt.id] += count;
-
-    if (likeAccumulators[evt.id] >= threshold) {
-      const timesToTrigger = Math.floor(likeAccumulators[evt.id] / threshold);
-      likeAccumulators[evt.id] %= threshold;
-
-      const result = eventEngine.runEvent(evt, actions, {
-        times: timesToTrigger,
-        defaultDelayMs: settingsRef?.keyDelayMs || 80,
-      });
-
-      ioInstance.emit('giftReceived', {
-        giftId: `like_${threshold}`, giftName: `❤️ Meta de ${threshold} Likes`, coins: 0, sender: username, newCount: timesToTrigger,
-        key: result.label || 'Ninguna', pressed: result.executed, timestamp: Date.now()
-      });
-    }
-  });
-}
-
-function handleChat(data) {
-  rankingService.record('comments', rankUser(data), 1);
-  const badges = (data.user?.badgeList || []).map(b => {
-    const iconUrl =
-      b.combine?.icon?.urlList?.[0] ||
-      b.image?.urlList?.[0] ||
-      b.icons?.urlList?.[0] ||
-      null;
-
-    const label = b.combine?.str || b.label || '';
-    const isFans = b.sceneType === 10 || (label && isNaN(Number(label)));
-    const isLevel = b.sceneType === 8 || (!isNaN(Number(label)) && label !== '');
-    const type = isFans ? 'fans' : isLevel ? 'level' : 'other';
-
-    return { label, iconUrl, type, level: b.privilegeLogExtra?.level || null };
-  }).filter(b => b.label || b.iconUrl);
-
-  // 🎁 STICKERS / EMOTES
-  if (data.emotes && data.emotes.length > 0) {
-    const catalog = stickersManager.getCatalog();
-    let catalogUpdated = false;
-
-    const antispam = settingsRef?.stickerAntispam || {};
-    const onePerComment = antispam.onePerComment !== false;      // activo por defecto
-    const userCooldownMs = antispam.userCooldownMs ?? 6000;      // 0 = sin enfriamiento
-
-    // 1. Registrar en el catálogo, contar repeticiones y recordar el orden de aparición
-    const occurrenceCount = {};
-    const order = [];
-    const emoteMeta = {};
-
-    data.emotes.forEach(emoteWrapper => {
-      const emote = emoteWrapper.emote;
-      if (!emote) return;
-      const emoteId = emote.id || emote.emoteId;
-      if (!emoteId || emoteId === '?') return;
-
-      if (occurrenceCount[emoteId] === undefined) order.push(emoteId);
-      occurrenceCount[emoteId] = (occurrenceCount[emoteId] || 0) + 1;
-
-      if (!emoteMeta[emoteId]) {
-        const emoteName = emote.name || emote.emoteId || 'Sticker';
-        const iconUrl = emote.image?.urlList?.[0] || emote.image?.imageList?.[0]?.url || emote.imageUrl || '';
-        emoteMeta[emoteId] = { name: emoteName, icon: iconUrl };
-
-        if (!catalog[emoteId]) {
-          stickersManager.upsertCatalogEntry(emoteId, emoteMeta[emoteId]);
-          catalogUpdated = true;
-          console.log(`✅ [CATÁLOGO] Sticker nuevo detectado: ${emoteName}`);
-        }
-      }
-    });
-
-    const senderId = String(data.user?.userId || data.user?.uniqueId || data.uniqueId || 'desconocido');
-
-    // 2. Solo cuentan los stickers que tienen una regla activa, en el orden en que aparecen
-    let candidates = order
-      .map(emoteId => ({ emoteId, matches: eventEngine.findMatchingEvents('sticker', emoteId) }))
-      .filter(c => c.matches.length > 0);
-
-    if (onePerComment) candidates = candidates.slice(0, 1);
-
-    // 3. Enfriamiento global del usuario
-    let blockedByCooldown = false;
-    if (candidates.length > 0 && userCooldownMs > 0) {
-      const last = stickerUserLast.get(senderId);
-      if (last && Date.now() - last < userCooldownMs) blockedByCooldown = true;
-    }
-
-    if (candidates.length > 0 && !blockedByCooldown) {
-      if (userCooldownMs > 0) recordStickerUser(senderId);
-
-      candidates.forEach(({ emoteId, matches }) => {
-        const countInMessage = occurrenceCount[emoteId];
-
-        matches.forEach(({ evt, actions }) => {
-          const repeatMode = evt.repeatMode || 'once';
-
-          let timesToTrigger = 1;
-          let playbackStyle = 'sequential';
-
-          if (repeatMode === 'all') {
-            timesToTrigger = countInMessage;
-          } else if (repeatMode === 'limited') {
-            timesToTrigger = Math.min(countInMessage, evt.repeatLimit || 1);
-            playbackStyle = evt.playbackStyle === 'simultaneous' ? 'simultaneous' : 'sequential';
-          }
-
-          const cooldownSeconds = evt.cooldownSeconds || 0;
-          if (cooldownSeconds > 0 && !eventEngine.eventIsSoundOnly(evt, actions)) {
-            const cooldownKey = `${evt.id}_${senderId}`;
-            const last = stickerCooldowns.get(cooldownKey);
-            if (last && (Date.now() - last) < cooldownSeconds * 1000) return;
-            recordCooldown(cooldownKey);
-          }
-
-          const result = eventEngine.runEvent(evt, actions, {
-            times: timesToTrigger,
-            defaultDelayMs: settingsRef?.keyDelayMs || 80,
-            playbackStyle,
-          });
-          if (result.executed) {
-            console.log(`🎯 [STICKER] "${result.label}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);
-          }
-        });
-      });
-    } else if (blockedByCooldown) {
-      console.log(`⏳ [STICKER] @${senderId} en enfriamiento (${userCooldownMs} ms)`);
-    }
-
-    if (catalogUpdated) {
-      ioInstance.emit('catalog:newSticker', stickersManager.getCatalog());
-    }
-  }
-
-  // 🔊 TTS (sin cambios respecto a tu versión original)
-  const tts = settingsRef.tts;
-  if (!tts || !tts.enabled) return;
-
-  const identity = data.userIdentity || {};
-  const isFollower = identity.isFollowerOfAnchor;
-  const isMod = identity.isModeratorOfAnchor;
-  const isAnchor = identity.isAnchor;
-  const username = getUsername(data);
-  const speakableName = getSpeakableName(data);
-  const nameIsBlocked = tts.profanityFilter && chatFilter.findBlockedTerm(speakableName, tts.blockedTerms);
-
-  const fanBadge = badges.find(b => b.type === 'fans');
-  const donatorBadge = badges.find(b => b.type === 'level');
-
-  const isFanClub = !!fanBadge;
-  const fanLevel = fanBadge && fanBadge.level ? parseInt(fanBadge.level, 10) : 0;
-
-  const isDonator = !!donatorBadge;
-  const donatorLevel = donatorBadge && donatorBadge.level ? parseInt(donatorBadge.level, 10) : 0;
-
-  const filterMode = tts.filterMode || 'all';
-  if (filterMode === 'followers' && !isFollower && !isFanClub && !isMod && !isAnchor) return;
-  if (filterMode === 'fans' && !isFanClub && !isMod && !isAnchor) return;
-  if (filterMode === 'fans' && tts.minFanLevel && fanLevel < tts.minFanLevel && !isMod && !isAnchor) return;
-
-  let commentText = (data.comment || data.content || '').trim();
-  if (!commentText) return;
-
-  if (tts.usePrefix && tts.prefixText) {
-    const lowerComment = commentText.toLowerCase();
-    const prefix = tts.prefixText.trim();
-    if (!lowerComment.startsWith(prefix)) return;
-    commentText = commentText.slice(prefix.length).trim();
-    if (!commentText) return;
-  }
-
-  if (tts.onlyLatin) {
-    const containsWeirdChars = /[^\p{Script=Latin}\p{N}\p{P}\p{Z}\p{S}\p{M}]/u.test(commentText);
-    if (containsWeirdChars) {
-      console.log(`🚫 Comentario ignorado por filtro de idioma: ${commentText}`);
-      return;
-    }
-  }
-
-  const userKey = String(data.user?.userId || data.user?.uniqueId || data.uniqueId || username);
-  const verdict = chatFilter.evaluateMessage({
-    userKey,
-    text: commentText,
-    tts,
-    exempt: isMod || isAnchor
-  });
-  if (!verdict.allowed) {
-    console.log(`🚫 [TTS] @${username} omitido (${verdict.reason}): ${commentText}`);
-    return;
-  }
-
-  const maxChars = tts.maxChars || 150;
-  if (commentText.length > maxChars) commentText = commentText.slice(0, maxChars) + '...';
-
-  const clearedName = (nameIsBlocked ? '' : speakableName).replace(/[_.-]/g, ' ').trim();
-  const clearedComment = commentText.replace(/[_.-]/g, ' ').trim();
-  const textToSay = (tts.sayUsername && clearedName) ? `${clearedName} dice: ${clearedComment}` : clearedComment;
-
-  ioInstance.emit('ttsComment', {
-    username, comment: commentText, text: textToSay,
-    isFanClub, fanLevel, isDonator, donatorLevel, isMod, badges,
-    timestamp: Date.now()
-  });
-}
-
-// ==========================================
-// 4. GESTIÓN DE CONEXIÓN (sin cambios)
+// 2. CONEXIÓN Y MONITORES
 // ==========================================
 function getCurrentSecUid() {
   return findSecUidDeep(tiktokConnection?.roomInfo);
@@ -573,19 +159,6 @@ function stopMonitors() {
   watchTimer = statsTimer = null;
 }
 
-// Usuario de un evento en el formato de los tops: clave estable (id), nombre visible, @usuario y avatar
-function rankUser(data) {
-  const u = data?.user || {};
-  const key = u.id || u.userId || u.secUid || u.displayId || u.uniqueId;
-  const username = u.displayId || u.uniqueId || '';
-  return {
-    key: key ? String(key) : '',
-    name: u.nickname || username,
-    username,
-    avatar: u.avatarThumb?.urlList?.[0] || u.avatarMedium?.urlList?.[0] || u.avatarLarge?.urlList?.[0] || '',
-  };
-}
-
 // Total de seguidores exacto de roomInfo (null si TikTok no lo entrega)
 const followerTotalFrom = (info) => Number(info?.data?.owner?.follow_info?.follower_count) || null;
 
@@ -595,13 +168,12 @@ function connect(username) {
   if (tiktokConnection) disconnect();
   currentUser = username || null;
   
-  stickerUserLast.clear();
-  onceSeen.clear();
-  eventCooldowns.clear();
+  chat.reset();   // enfriamiento global de stickers por usuario
+  social.reset(); // frecuencia "una vez" y enfriamientos de compartir
   overlayService.resetAll();
   topService.setOwner(username); // no reinicia al reconectar al mismo usuario
   rankingService.setOwner(username);
-  giftStreaks.reset();
+  gifts.reset();
   
   if (!username) {
     ioInstance.emit('status', { connected: false, message: 'Sin usuario configurado' });
@@ -676,12 +248,12 @@ function connect(username) {
     ioInstance.emit('status', { connected: false, message: `❌ Error: ${err.message}` });
   });
 
-  tiktokConnection.on('gift', guard('gift', handleGift));
-  tiktokConnection.on('share', guard('share', handleShare));
+  tiktokConnection.on('gift', guard('gift', gifts.handleGift));
+  tiktokConnection.on('share', guard('share', social.handleShare));
   tiktokConnection.on('roomUser', guard('roomUser', d => overlayService.setViewers(d.total))); // espectadores actuales
-  tiktokConnection.on('follow', guard('follow', handleFollow));
-  tiktokConnection.on('like', guard('like', handleLike));
-  tiktokConnection.on('chat', guard('chat', handleChat));
+  tiktokConnection.on('follow', guard('follow', social.handleFollow));
+  tiktokConnection.on('like', guard('like', social.handleLike));
+  tiktokConnection.on('chat', guard('chat', chat.handleChat));
 
   tiktokConnection.on('disconnected', (state) => {
     // Si ya no es la conexión actual, la desconexión la pidió la app (disconnect() o una reconexión): ya quedó

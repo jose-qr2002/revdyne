@@ -147,6 +147,17 @@ function App() {
     // Regalos nuevos de la sala a la que se conectó la app (ver catalogService.syncRoomGifts)
     socket.on('catalog:updated', (catalog) => setConfig(prev => (prev ? { ...prev, catalog } : prev)));
 
+    // Un archivo de datos estaba dañado (p. ej. la app se cerró a mitad de guardar): el servidor lo recuperó de la copia o lo reinició
+    socket.on('data:issues', (list) => {
+      const restored = list.filter(i => i.action === 'restored').map(i => i.file);
+      const reset = list.filter(i => i.action === 'reset').map(i => i.file);
+      const lines = [];
+      if (restored.length) lines.push(`Estos archivos estaban dañados y se recuperaron de la última copia de seguridad: ${restored.join(', ')}. Puede faltar el último cambio que hiciste.`);
+      if (reset.length) lines.push(`Estos archivos estaban dañados y no había copia válida, así que se empezaron de cero: ${reset.join(', ')}.`);
+      lines.push('El archivo dañado se guardó aparte (".corrupt-") en la carpeta de datos de Revdyne por si hace falta revisarlo.');
+      showAlert(lines.join('\n\n'), { title: 'Datos recuperados', type: reset.length ? 'error' : 'warning' });
+    });
+
     socket.on('systemError', (errorData) => {
       setSystemError(errorData);
       setTimeout(() => setSystemError(null), 10000);
@@ -167,6 +178,7 @@ function App() {
 
     return () => {
       socket.off('systemError');
+      socket.off('data:issues');
       socket.off('catalog:updated');
       socket.off('play-macro-sound');
       socket.off('play-macro-sound-batch');

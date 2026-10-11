@@ -1,6 +1,5 @@
 // Pasos de una acción: { name, enabled, steps: [{ type, wait?, ...campos }] }. Una acción puede combinar tecla, sonido, video, win...
-// MISMA conversión de acciones antiguas (un solo `type` con sus campos en la raíz) que backend/services/actionSteps.js:
-// si cambia allí, cambiarla aquí.
+// Formato en backend/services/actionSteps.js; las acciones antiguas ya llegan convertidas (backend/data/migrations.js).
 
 export const STEP_TYPES = {
   keyboard: { label: 'Tecla / macro', icon: 'keyboard' },
@@ -16,27 +15,8 @@ export const ALWAYS_AVAILABLE = ['sound', 'video', 'win'];
 
 export const MAX_WAIT_MS = 60000;
 
-function legacySteps(action) {
-  switch (action.type) {
-    case 'keyboard':
-      return [{ type: 'keyboard', key: action.key, delay: action.delay, sound: action.sound || null, volume: action.volume ?? 100, soundEveryKey: !!action.soundEveryKey }];
-    case 'sound':
-      return [{ type: 'sound', sound: action.sound, volume: action.volume ?? 100 }];
-    case 'video':
-      return [{ type: 'video', video: action.video, screen: action.screen, volume: action.volume ?? 100 }];
-    case 'win':
-      return [{ type: 'win', mode: action.mode, amount: action.amount }];
-    default: {
-      // eslint-disable-next-line no-unused-vars
-      const { name, enabled, ...rest } = action;
-      return action.type ? [rest] : [];
-    }
-  }
-}
-
 export function getSteps(action) {
-  if (!action) return [];
-  return Array.isArray(action.steps) ? action.steps.filter(s => s && typeof s.type === 'string') : legacySteps(action);
+  return Array.isArray(action?.steps) ? action.steps.filter(s => s && typeof s.type === 'string') : [];
 }
 
 export const isSoundOnly = (action) => { const steps = getSteps(action); return steps.length > 0 && steps.every(s => s.type === 'sound'); };

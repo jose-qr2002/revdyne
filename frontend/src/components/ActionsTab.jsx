@@ -105,8 +105,12 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const addableTypes = Object.keys(STEP_TYPES).filter(t => allowed.has(t));
 
   useEffect(() => {
-    fetch('/api/sounds/list').then(r => (r.ok ? r.json() : [])).then(setLocalSounds).catch(() => console.error('Error al obtener sonidos'));
+    const refreshSounds = () => fetch('/api/sounds/list').then(r => (r.ok ? r.json() : [])).then(setLocalSounds).catch(() => console.error('Error al obtener sonidos'));
+    refreshSounds();
+    // Al volver a la app (p. ej. tras copiar audios a la carpeta desde el Explorador) se relee la lista
+    window.addEventListener('focus', refreshSounds);
     fetch('/api/videos/list').then(r => (r.ok ? r.json() : [])).then(list => setVideoList(list.map(v => v.name))).catch(() => console.error('Error al obtener videos'));
+    return () => window.removeEventListener('focus', refreshSounds);
   }, []);
 
   useEffect(() => () => Object.values(countdownIntervals.current).forEach(clearInterval), []);
@@ -236,6 +240,16 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
       showToast('error', 'Error de red al intentar subir el video.');
     }
     setUploadingVideo(false);
+  };
+
+  const openSoundsFolder = async () => {
+    try {
+      const res = await fetch('/api/sounds/open-folder', { method: 'POST' });
+      const data = await res.json();
+      if (!data.ok) showToast('error', `No se pudo abrir la carpeta: ${data.dir || ''}`);
+    } catch {
+      showToast('error', 'Error de red al abrir la carpeta de sonidos');
+    }
   };
 
   // ---- Crear / editar ----
@@ -384,6 +398,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               onUploadVideo={() => pickVideo(step.uid)}
               uploadingSound={uploadingSound}
               uploadingVideo={uploadingVideo}
+              onOpenSoundsFolder={openSoundsFolder}
             />
           ))}
 

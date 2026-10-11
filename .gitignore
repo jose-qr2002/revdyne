@@ -23,6 +23,19 @@ catalog.json
 profiles.json
 stickers.json
 roomInfo-debug.json
+# Datos que "npm run dev" (node sin Electron) crea en la carpeta del proyecto
+/overlays.json
+/rankings.json
+/lastRoom.json
+/license.json
+/sounds/
+/media/
+/videos/
+/logs/
+*.json.tmp
+*.json.bak
+*.json.v*.bak
+*.json.corrupt-*
 # ==========================================
 # LOGS Y CACHÉ
 # ==========================================

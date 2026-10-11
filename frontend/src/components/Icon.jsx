@@ -3,6 +3,7 @@ import React from 'react';
 // Íconos de línea (24x24, trazo = currentColor) para reemplazar los emojis de la interfaz.
 // Uso: <Icon name="gift" size={18} />. Hereda el color del texto.
 const PATHS = {
+  folder: <path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
   film: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" /></>,
   trophy: <><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" /></>,
   minus: <path d="M5 12h14" />,

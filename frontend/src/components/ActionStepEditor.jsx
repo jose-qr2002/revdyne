@@ -30,7 +30,7 @@ function Volume({ value, onChange }) {
 }
 
 // Selector de archivo de la biblioteca (sonidos o videos) con botón de subir
-function FilePicker({ value, files, placeholder, onChange, onUpload, uploading, uploadTitle }) {
+function FilePicker({ value, files, placeholder, onChange, onUpload, uploading, uploadTitle, onOpenFolder }) {
   return (
     <div className="step-file">
       <Select className="modifier-select" value={value || ''} onChange={e => onChange(e.target.value || null)} style={{ flex: 1, minWidth: 0 }}>
@@ -41,12 +41,17 @@ function FilePicker({ value, files, placeholder, onChange, onUpload, uploading, 
       <button className="btn btn-secondary" onClick={onUpload} disabled={uploading} title={uploadTitle} style={{ padding: '0 12px', fontWeight: 'bold' }}>
         {uploading ? <Icon name="clock" size={15} /> : <><Icon name="plus" size={15} /> Subir</>}
       </button>
+      {onOpenFolder && (
+        <button className="icon-btn" onClick={onOpenFolder} title="Abrir la carpeta de sonidos (para añadir audios a mano)" aria-label="Abrir la carpeta de sonidos">
+          <Icon name="folder" size={16} />
+        </button>
+      )}
     </div>
   );
 }
 
 // Un paso de la acción: cabecera (tipo, retraso, quitar) y sus campos
-export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, onUploadSound, onUploadVideo, uploadingSound, uploadingVideo }) {
+export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, onUploadSound, onUploadVideo, uploadingSound, uploadingVideo, onOpenSoundsFolder }) {
   const meta = STEP_TYPES[step.type] || { label: step.type, icon: 'bolt' };
   const waitSeconds = (step.wait || 0) / 1000;
   const setWait = (v) => {
@@ -78,7 +83,7 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
           </div>
           <div className="step-row">
             <Field label="Sonido junto a la tecla (opcional)" grow={2} min={220}>
-              <FilePicker value={step.sound} files={sounds} placeholder="Sin sonido" onChange={v => onChange({ sound: v })} onUpload={onUploadSound} uploading={uploadingSound} uploadTitle="Subir audio (.mp3, .wav)" />
+              <FilePicker value={step.sound} files={sounds} placeholder="Sin sonido" onChange={v => onChange({ sound: v })} onUpload={onUploadSound} uploading={uploadingSound} uploadTitle="Subir audio (.mp3, .wav)" onOpenFolder={onOpenSoundsFolder} />
             </Field>
             {step.sound && <Volume value={step.volume} onChange={v => onChange({ volume: v })} />}
           </div>
@@ -94,7 +99,7 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
       {step.type === 'sound' && (
         <div className="step-row">
           <Field label="Archivo de sonido" grow={2} min={220}>
-            <FilePicker value={step.sound} files={sounds} placeholder="Selecciona un sonido..." onChange={v => onChange({ sound: v })} onUpload={onUploadSound} uploading={uploadingSound} uploadTitle="Subir audio (.mp3, .wav)" />
+            <FilePicker value={step.sound} files={sounds} placeholder="Selecciona un sonido..." onChange={v => onChange({ sound: v })} onUpload={onUploadSound} uploading={uploadingSound} uploadTitle="Subir audio (.mp3, .wav)" onOpenFolder={onOpenSoundsFolder} />
           </Field>
           <Volume value={step.volume} onChange={v => onChange({ volume: v })} />
         </div>

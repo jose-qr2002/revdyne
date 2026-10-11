@@ -5,7 +5,7 @@ const actionDispatcher = require('./actionDispatcher');
 const { isSoundOnly } = require('./actionSteps');
 
 function getActiveEventSources() {
-  const profiles = store.loadProfiles();
+  const profiles = store.peekProfiles(); // solo lectura: sin copiar en cada regalo/like
   const global = profiles.list.prof_global || { actions: {}, events: [] };
   const activeId = profiles.activeProfileId;
 
@@ -18,7 +18,7 @@ function getActiveEventSources() {
 }
 
 // Acciones de un evento: `actionIds` se ejecutan todas a la vez; de `randomActionIds` se elige una al azar.
-// Los eventos guardados antes tienen un solo `actionId` (= lista de una). Los stickers siguen usando `actionId`.
+// Los stickers usan un solo `actionId` (= lista de una). Los eventos antiguos ya llegan migrados (backend/data/migrations.js).
 function eventActionIds(evt) {
   const all = Array.isArray(evt.actionIds) ? evt.actionIds : (evt.actionId ? [evt.actionId] : []);
   const random = Array.isArray(evt.randomActionIds) ? evt.randomActionIds : [];

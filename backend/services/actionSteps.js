@@ -7,32 +7,13 @@
 //   win      { mode: 'increase' | 'decrease', amount }
 // `wait` (ms, opcional) retrasa ese paso respecto al momento en que se dispara la acción.
 //
-// Las acciones guardadas antes de los pasos tienen un solo `type` con sus campos en la raíz: getSteps las convierte al vuelo
-// (no se reescribe profiles.json; al editarlas desde la UI se guardan ya con pasos).
-// MISMA lógica en frontend/src/services/actionSteps.js: si cambia aquí, cambiarla allí.
+// Las acciones guardadas antes de los pasos (un solo `type`) las convierte backend/data/migrations.js al leer profiles.json.
+// Lo mismo, en el panel: frontend/src/services/actionSteps.js.
 
 const MAX_WAIT_MS = 60000;
 
-function legacySteps(action) {
-  switch (action.type) {
-    case 'keyboard':
-      return [{ type: 'keyboard', key: action.key, delay: action.delay, sound: action.sound || null, volume: action.volume ?? 100, soundEveryKey: !!action.soundEveryKey }];
-    case 'sound':
-      return [{ type: 'sound', sound: action.sound, volume: action.volume ?? 100 }];
-    case 'video':
-      return [{ type: 'video', video: action.video, screen: action.screen, volume: action.volume ?? 100 }];
-    case 'win':
-      return [{ type: 'win', mode: action.mode, amount: action.amount }];
-    default: {
-      const { name, enabled, ...rest } = action; // tipos que aún no existen (p. ej. l4d2_command): se conservan tal cual
-      return action.type ? [rest] : [];
-    }
-  }
-}
-
 function getSteps(action) {
-  if (!action) return [];
-  return Array.isArray(action.steps) ? action.steps.filter(s => s && typeof s.type === 'string') : legacySteps(action);
+  return Array.isArray(action?.steps) ? action.steps.filter(s => s && typeof s.type === 'string') : [];
 }
 
 const stepWait = (step) => Math.min(MAX_WAIT_MS, Math.max(0, parseInt(step.wait, 10) || 0));

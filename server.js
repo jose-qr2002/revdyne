@@ -20,7 +20,6 @@ const tiktokService = require('./backend/services/tiktokService');
 
 const apiRoutes = require('./backend/routes/api');
 const ttsRoutes = require('./backend/routes/tts');
-const alertsRoutes = require('./backend/routes/alerts');
 const soundsRoutes = require('./backend/routes/sounds');
 const catalogRoutes = require('./backend/routes/catalog');
 const stickersRoutes = require('./backend/routes/stickers');
@@ -75,7 +74,6 @@ app.use('/api/stickers', stickersRoutes());
 app.use('/api/profiles', profilesRoutes());
 app.use('/api/games', gamesRoutes());
 app.use('/api/system', systemRoutes());
-app.use('/api/alerts', alertsRoutes());
 app.use('/api/tts', ttsRoutes(settings));
 app.use('/api/actions', actionsRoutes());
 app.use('/api/license', licenseRoutes());
@@ -113,7 +111,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
+// Archivos de datos dañados que se recuperaron de la copia (.bak) o se reiniciaron: se avisa al panel una vez
+const sendDataIssues = (target) => { const list = store.takeDataIssues(); if (list.length) target.emit('data:issues', list); };
+store.onDataIssue(() => { if (io.engine.clientsCount > 0) sendDataIssues(io); });
+
 io.on('connection', socket => {
+  sendDataIssues(socket);
   socket.emit('status', {
     connected: tiktokService.isConnected(),
     message: tiktokService.isConnected() ? `✅ Conectado` : 'Desconectado',

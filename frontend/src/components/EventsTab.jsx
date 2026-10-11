@@ -6,10 +6,10 @@ import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import { stepsSummary } from '../services/actionSteps';
 
-// Acciones de un evento: `actionIds` (todas a la vez) y `randomActionIds` (una al azar). Los eventos antiguos traen un solo `actionId`.
-// Misma lectura que eventActionIds en backend/services/eventEngine.js.
+// Acciones de un evento: `actionIds` (todas a la vez) y `randomActionIds` (una al azar). Los antiguos con un solo `actionId` ya
+// llegan migrados del servidor (backend/data/migrations.js).
 const eventActionIds = (evt) => ({
-  all: Array.isArray(evt.actionIds) ? evt.actionIds : (evt.actionId ? [evt.actionId] : []),
+  all: Array.isArray(evt.actionIds) ? evt.actionIds : [],
   random: Array.isArray(evt.randomActionIds) ? evt.randomActionIds : [],
 });
 
