@@ -63,5 +63,6 @@ module.exports = {
   STICKERS_FILE: path.join(ROOT_DIR, 'stickers.json'),
   OVERLAYS_FILE: path.join(ROOT_DIR, 'overlays.json'),
   LAST_ROOM_FILE: path.join(ROOT_DIR, 'lastRoom.json'), // última sala a la que se conectó la app (para actualizar sus regalos)
+  GIFT_SYNC_LOG_FILE: path.join(ROOT_DIR, 'giftSyncLog.json'), // historial (temporal) de obtenciones de regalos: qué trajo cada descarga
   RANKINGS_FILE: path.join(ROOT_DIR, 'rankings.json'), // tops "del día" (se conservan al cerrar la app)
 };

@@ -5,6 +5,7 @@ import { showAlert } from '../services/dialog';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import { stepsSummary } from '../services/actionSteps';
+import { groupGifts } from './giftUtils';
 
 // Acciones de un evento: `actionIds` (todas a la vez) y `randomActionIds` (una al azar). Los antiguos con un solo `actionId` ya
 // llegan migrados del servidor (backend/data/migrations.js).
@@ -61,7 +62,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const displayEvents = allScopeEvents.filter(e => e.trigger !== 'sticker');
 
   const catalogArray = useMemo(() => {
-    return Object.entries(catalog || {}).sort((a, b) =>
+    return groupGifts(catalog).sort((a, b) =>
       (a[1].coins || 0) - (b[1].coins || 0) ||
       String(a[1].name).localeCompare(String(b[1].name))
     );
@@ -70,9 +71,9 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const filteredGifts = useMemo(() => {
     if (!giftSearch) return catalogArray;
     const searchLower = giftSearch.toLowerCase();
-    return catalogArray.filter(([id, data]) => {
+    return catalogArray.filter(([, data]) => {
       const matchName = data.name.toLowerCase().includes(searchLower);
-      const matchId = id.includes(searchLower);
+      const matchId = data.ids.some(i => i.includes(searchLower));
       const matchCoins = data.coins && data.coins.toString().includes(searchLower);
       return matchName || matchId || matchCoins;
     });
@@ -348,6 +349,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                 {paginatedGifts.map(([id, data]) => (
                   <div
                     key={id}
+                    title={data.ids.length > 1 ? `Este regalo tiene ${data.ids.length} IDs en TikTok (${data.ids.join(', ')}). La regla vale para todos.` : undefined}
                     onClick={() => { setCondition(id); setIsGiftModalOpen(false); setGiftSearch(''); }}
                     style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'background 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
@@ -358,7 +360,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
                     ) : <span style={{ fontSize: '24px' }}><Icon name="gift" size={26} /></span>}
                     <div style={{ overflow: 'hidden' }}>
                       <div style={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.name}</div>
-                      <div style={{ color: '#ffd700', fontSize: '12px', fontWeight: 'bold', marginTop: '2px' }}>{data.coins} <Icon name="gem" size={13} /></div>
+                      <div style={{ color: '#ffd700', fontSize: '12px', fontWeight: 'bold', marginTop: '2px' }}>{data.coins} <Icon name="gem" size={13} />{data.ids.length > 1 && <span className="gift-variants" style={{ fontWeight: 600 }}> · {data.ids.length} IDs</span>}</div>
                     </div>
                   </div>
                 ))}

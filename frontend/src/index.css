@@ -1506,3 +1506,74 @@ input[type="range"]:disabled { cursor: not-allowed; opacity: .4; }
 .evt-check-name { flex: 1; min-width: 0; }
 .evt-check-sub { font-size: 11px; color: var(--text3); white-space: nowrap; }
 .evt-hint { font-size: 11px; color: var(--text3); margin: 6px 0 0; }
+
+/* Regalos con varios IDs en el catálogo */
+.gift-variants { color: var(--accent); font-weight: 600; }
+
+/* Regalos TikTok: tarjeta clicable y detalle del regalo */
+.gift-card { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+.gift-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.04); }
+.gift-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gd-summary { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text2); margin-bottom: 10px; }
+.gd-coins { color: #ffd700; font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 4px; }
+.gd-note { font-size: 12px; color: var(--text2); line-height: 1.55; margin: 0 0 12px; }
+.gd-warn { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.55; color: var(--text); padding: 10px 12px; margin-bottom: 14px; background: rgba(255, 215, 0, .08); border: 1px solid rgba(255, 215, 0, .35); border-radius: var(--radius-sm); }
+.gd-warn svg { flex-shrink: 0; color: var(--yellow); margin-top: 2px; }
+.gd-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.gd-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.gd-row.split { border-color: var(--accent); }
+.gd-photo { width: 84px; height: 84px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: repeating-conic-gradient(#14141b 0% 25%, #191922 0% 50%) 0 0 / 14px 14px; border-radius: 8px; overflow: hidden; }
+.gd-photo img { width: 100%; height: 100%; object-fit: contain; }
+.gd-nophoto { color: var(--text3); }
+.gd-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.gd-name { font-weight: 700; font-size: 14px; }
+.gd-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text2); }
+.gd-id { font-family: monospace; color: var(--text); }
+.gd-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.gd-tag { font-size: 10px; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text2); background: var(--bg2); }
+.gd-tag.seen { color: #7bd88f; border-color: rgba(123, 216, 143, .5); }
+.gd-tag.split { color: var(--accent); border-color: var(--accent); }
+.gd-tag.muted { color: var(--text3); }
+.gd-split { flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 560px) { .gd-row { flex-wrap: wrap; } .gd-split { margin-left: auto; } }
+.gd-ok { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.55; color: var(--text); padding: 10px 12px; margin-bottom: 14px; background: rgba(123, 216, 143, .08); border: 1px solid rgba(123, 216, 143, .4); border-radius: var(--radius-sm); }
+.gd-ok svg { flex-shrink: 0; color: #7bd88f; margin-top: 2px; }
+
+/* Regalos TikTok: botones de la cabecera e historial de descargas */
+.cat-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.gh-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); cursor: pointer; margin-bottom: 12px; }
+.gh-runs { display: flex; flex-direction: column; gap: 8px; }
+.gh-run { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.gh-run.empty { opacity: .65; }
+.gh-run > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.gh-run > summary::-webkit-details-marker { display: none; }
+.gh-run[open] > summary { border-bottom: 1px solid var(--border); }
+.gh-when { font-size: 12px; color: var(--text3); font-variant-numeric: tabular-nums; min-width: 96px; }
+.gh-source { font-size: 13px; font-weight: 700; flex: 1; min-width: 160px; }
+.gh-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gh-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text2); background: var(--bg2); }
+.gh-chip.new { color: #7bd88f; border-color: rgba(123, 216, 143, .5); }
+.gh-chip.upd { color: #ffd24a; border-color: rgba(255, 210, 74, .5); }
+.gh-chip.lang { color: var(--accent); border-color: var(--accent); }
+.gh-body { padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+.gh-room { font-size: 11px; color: var(--text3); font-family: monospace; }
+.gh-none { font-size: 12px; color: var(--text3); margin: 0; }
+.gh-section-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); margin-bottom: 8px; }
+.gh-section-title span { color: var(--accent); }
+.gh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.gh-more { margin-top: 8px; }
+.gh-gift { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.gh-photo { width: 38px; height: 38px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden; color: var(--text3); }
+.gh-photo img { width: 100%; height: 100%; object-fit: contain; }
+.gh-gift-info { min-width: 0; }
+.gh-gift-name { font-size: 12px; font-weight: 700; }
+.gh-gift-meta { font-size: 11px; color: var(--text3); }
+.gh-changerow { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 8px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+.gh-changerow .gh-gift { border: 0; padding: 0; background: none; min-width: 190px; }
+.gh-changes { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text2); }
+.gh-change s { color: var(--text3); }
+.gh-change strong { color: var(--text); }
+.gh-photos { display: inline-flex; align-items: center; gap: 6px; }
+.gh-thumb { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; background: repeating-conic-gradient(#14141b 0% 25%, #191922 0% 50%) 0 0 / 10px 10px; border-radius: 6px; overflow: hidden; }
+.gh-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.gh-thumb em { font-size: 9px; color: var(--text3); font-style: normal; text-align: center; }

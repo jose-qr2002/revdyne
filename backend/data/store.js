@@ -181,6 +181,10 @@ function saveSettings(settings) {
 function loadCatalog() {
   return readJSON(paths.CATALOG_FILE, EMPTY_CATALOG);
 }
+// Solo lectura (congelado, sin copiar): el mismo objeto mientras el archivo no cambie (giftGroups lo usa como clave de su caché)
+function peekCatalog() {
+  return peekJSON(paths.CATALOG_FILE, EMPTY_CATALOG);
+}
 function saveCatalog(catalog) {
   writeJSON(paths.CATALOG_FILE, catalog);
 }
@@ -207,6 +211,14 @@ function loadRankings() {
 }
 function saveRankings(data) {
   writeJSON(paths.RANKINGS_FILE, data);
+}
+
+// --- Historial de obtenciones de regalos (giftSyncLog.json): { runs: [...] } ---
+function loadGiftSyncLog() {
+  return readJSON(paths.GIFT_SYNC_LOG_FILE, { runs: [] });
+}
+function saveGiftSyncLog(log) {
+  writeJSON(paths.GIFT_SYNC_LOG_FILE, log);
 }
 
 // --- Última sala (lastRoom.json): { roomId, username, idioma, at } ---
@@ -243,9 +255,9 @@ function loadGames() {
 module.exports = {
   readJSON, writeJSON, takeDataIssues, onDataIssue,
   loadSettings, saveSettings,
-  loadCatalog, saveCatalog,
+  loadCatalog, peekCatalog, saveCatalog,
   loadStickers, saveStickers,
   loadProfiles, peekProfiles, saveProfiles,
-  loadOverlays, saveOverlays, loadRankings, saveRankings, loadLastRoom, saveLastRoom,
+  loadOverlays, saveOverlays, loadRankings, saveRankings, loadGiftSyncLog, saveGiftSyncLog, loadLastRoom, saveLastRoom,
   loadGames,
 };

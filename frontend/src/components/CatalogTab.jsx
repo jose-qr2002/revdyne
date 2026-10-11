@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Select from './Select';
 import GiftTierIcon from './GiftTier';
 import Icon from './Icon';
 import { apiFetch } from '../services/api';
+import { groupGifts } from './giftUtils';
+import GiftDetailModal from './GiftDetailModal';
+import GiftSyncHistoryModal from './GiftSyncHistoryModal';
 
 export default function CatalogTab({ catalog, onCatalogSynced }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10,6 +13,9 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isSyncing, setIsSyncing] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [detailId, setDetailId] = useState(null); // ID del regalo cuyo detalle está abierto (cualquiera de su grupo)
+  const [splitBusy, setSplitBusy] = useState(null);
+  const [showHistory, setShowHistory] = useState(false); // historial temporal de descargas de regalos
 
   const ITEMS_PER_PAGE = 50;
 
@@ -23,6 +29,17 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  // Grupo del regalo abierto (se recalcula solo si el catálogo cambia, p. ej. al separar un ID)
+  const detailGroup = useMemo(() => (detailId ? groupGifts(catalog).find(([, g]) => g.ids.includes(detailId)) : null), [catalog, detailId]);
+
+  const handleSplit = async (id, split) => {
+    setSplitBusy(id);
+    const res = await apiFetch('/api/catalog/split', 'POST', { id, split });
+    setSplitBusy(null);
+    if (res?.catalog) onCatalogSynced(res.catalog);
+    else setNotification({ type: 'error', text: res?.error || 'No se pudo cambiar el regalo' });
+  };
 
   const handleSyncGifts = async () => {
     if (isSyncing) return;
@@ -45,9 +62,11 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
     setIsSyncing(false);
   };
 
-  const allFilteredGifts = Object.entries(catalog || {})
-    .filter(([id, data]) =>
-      data.name.toLowerCase().includes(searchTerm.toLowerCase()) || id.includes(searchTerm)
+  // Una tarjeta por regalo: los IDs repetidos (mismo nombre y precio) se agrupan
+  const groups = useMemo(() => groupGifts(catalog), [catalog]);
+  const allFilteredGifts = groups
+    .filter(([, data]) =>
+      data.name.toLowerCase().includes(searchTerm.toLowerCase()) || data.ids.some(i => i.includes(searchTerm))
     )
     .sort((a, b) => {
       const [, giftA] = a;
@@ -80,12 +99,16 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
         <div>
           <h3 style={{ margin: 0 }}>Catálogo Oficial de TikTok</h3>
           <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>
-            Total en tu base de datos: {Object.keys(catalog || {}).length} regalos mapeados
+            {groups.length} regalos distintos ({Object.keys(catalog || {}).length} IDs en tu base de datos)
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
             Actualizar también consulta la sala del último directo al que te conectaste.
           </div>
         </div>
+        <div className="cat-actions">
+          <button className="btn btn-secondary" onClick={() => setShowHistory(true)} title="Qué trajo cada descarga de regalos (herramienta temporal)">
+            <Icon name="clock" size={15} /> Últimas descargas
+          </button>
         <button
           className="btn"
           onClick={handleSyncGifts}
@@ -98,6 +121,7 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
         >
           {isSyncing ? <><Icon name="clock" size={15} /> Conectando con TikTok...</> : <><Icon name="refresh" size={15} /> Actualizar / Descargar regalos</>}
         </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', background: 'var(--card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -115,7 +139,7 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
         {paginatedGifts.map(([id, data]) => (
-          <div key={id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button key={id} type="button" className="gift-card" onClick={() => setDetailId(id)} title="Ver el detalle: IDs, fotos y nombres">
             <div style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
               {data.icon ? (
                 <img src={data.icon} alt={data.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
@@ -123,14 +147,22 @@ export default function CatalogTab({ catalog, onCatalogSynced }) {
                 <span style={{ fontSize: '24px' }}><GiftTierIcon coins={data.coins} size={28} /></span>
               )}
             </div>
-            <div style={{ overflow: 'hidden' }}>
+            <div style={{ overflow: 'hidden', minWidth: 0, textAlign: 'left' }}>
               <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.name}</div>
-              <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>ID: {id}</div>
+              <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>
+                ID: {id}{data.ids.length > 1 && <span className="gift-variants"> · {data.ids.length} IDs</span>}
+              </div>
               <div style={{ fontSize: '13px', color: '#ffd700', marginTop: '4px', fontWeight: 'bold' }}>{data.coins} <Icon name="gem" size={13} /></div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
+
+      {showHistory && <GiftSyncHistoryModal catalog={catalog} onClose={() => setShowHistory(false)} />}
+
+      {detailGroup && (
+        <GiftDetailModal ids={detailGroup[1].ids} catalog={catalog} busyId={splitBusy} onSplit={handleSplit} onClose={() => setDetailId(null)} />
+      )}
 
       {allFilteredGifts.length === 0 && (
         <div className="log-empty">No se encontraron regalos en el catálogo.</div>

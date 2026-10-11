@@ -40,6 +40,13 @@ function migrateSoundsFolder() {
   }
 }
 
+// Decisiones revisadas sobre IDs de regalos (giftOverrides.json) aplicadas al catálogo ya guardado
+function applyGiftOverrides() {
+  const store = require('./store');
+  const catalog = store.loadCatalog();
+  if (require('./giftOverrides').applyOverrides(catalog)) store.saveCatalog(catalog);
+}
+
 function ensureFirstRun() {
   try { migrateSoundsFolder(); } catch (e) { console.error('⚠️ No se pudieron mover los sonidos:', e.message); }
   createIfMissing(paths.CONFIG_FILE, DEFAULT_SETTINGS, 'config.json');
@@ -47,6 +54,7 @@ function ensureFirstRun() {
   createIfMissing(paths.STICKERS_FILE, EMPTY_STICKERS, 'stickers.json');
   createIfMissing(paths.PROFILES_FILE, EMPTY_PROFILES, 'profiles.json');
   createIfMissing(paths.OVERLAYS_FILE, DEFAULT_OVERLAYS, 'overlays.json');
+  try { applyGiftOverrides(); } catch (e) { console.error('⚠️ No se pudieron aplicar las decisiones de regalos:', e.message); }
 }
 
 module.exports = { ensureFirstRun };

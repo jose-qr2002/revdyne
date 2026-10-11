@@ -8,6 +8,7 @@ const rankingService = require('../rankingService');
 const topService = require('../topService');
 const { createGiftStreakCounter } = require('../giftStreaks');
 const logger = require('../logger');
+const giftGroups = require('../giftGroups');
 
 // Anomalías del contador de regalos -> registro. Nivel: warn si pudo afectar al conteo, info si solo es informativo.
 const GIFT_ANOMALIES = {
@@ -25,6 +26,15 @@ const giftStreaks = createGiftStreakCounter({
   },
 }); // unidades nuevas por evento de regalo (ráfagas por groupId)
 
+// Una vez por ID y sesión: qué ID trae TikTok de verdad cuando el regalo tiene varios en el catálogo (sirve para diagnosticar reglas)
+const variantsLogged = new Set();
+function logVariants(giftId, giftName, coins) {
+  if (variantsLogged.has(giftId)) return;
+  variantsLogged.add(giftId);
+  const variants = giftGroups.variantsOf(giftId);
+  if (variants.length > 1) logger.info('regalos', 'Regalo recibido con varios IDs en el catálogo (una regla sirve para todos)', { giftId, nombre: giftName, monedas: coins, variantes: variants.join(',') });
+}
+
 function handleGift(data) {
   const giftObj = data.gift || {};
   const giftId = String(data.giftId);
@@ -34,6 +44,7 @@ function handleGift(data) {
   const giftIcon = giftObj.icon?.urlList?.[0] || giftObj.image?.urlList?.[0] || data.pictureUrl || '';
 
   catalogService.ensureGiftRegistered(giftId, { name: giftName, coins, icon: giftIcon });
+  logVariants(giftId, giftName, coins);
 
   // Unidades nuevas de este evento. El usuario se identifica por su id estable (el displayId puede faltar o repetirse).
   const userKey = String(data.user?.id || data.user?.userId || data.user?.secUid || sender);
@@ -70,6 +81,7 @@ function handleGift(data) {
 
 // Al conectar (también al reconectar): las ráfagas a medias de la conexión anterior ya no cuentan
 function reset() {
+  variantsLogged.clear();
   giftStreaks.reset();
 }
 

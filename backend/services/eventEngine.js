@@ -3,6 +3,7 @@ const store = require('../data/store');
 const entitlements = require('./entitlements');
 const actionDispatcher = require('./actionDispatcher');
 const { isSoundOnly } = require('./actionSteps');
+const giftGroups = require('./giftGroups');
 
 function getActiveEventSources() {
   const profiles = store.peekProfiles(); // solo lectura: sin copiar en cada regalo/like
@@ -78,7 +79,14 @@ function findMatchingEvents(triggerType, conditionValue) {
 
   const result = collect(global, allowed, predicate);
   if (active) result.push(...collect(active, allowed, predicate));
-  return result;
+  if (result.length || triggerType !== 'gift') return result;
+
+  // Ningún regla con ese ID exacto: TikTok usa varios IDs para el mismo regalo, así que sirven las reglas de su grupo (mismo nombre y
+  // precio). Solo si no hay coincidencia exacta: quien hizo una regla por cada ID no ve que se dispare dos veces.
+  const variantPredicate = evt => evt.trigger === 'gift' && giftGroups.sameGift(evt.condition, condStr);
+  const viaGroup = collect(global, allowed, variantPredicate);
+  if (active) viaGroup.push(...collect(active, allowed, variantPredicate));
+  return viaGroup;
 }
 
 function getEventsByTrigger(triggerType) {

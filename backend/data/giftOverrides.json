@@ -1,0 +1,17 @@
+{
+  "_comentario": "Decisiones revisadas por una persona sobre IDs de regalos con el mismo nombre y precio (TikTok no indica en ningún campo si son el mismo regalo; se decidió mirando las fotos). split = IDs que son OTRO regalo (no se agrupan). same = grupos con fotos distintas que SÍ son el mismo regalo (rediseños). Se aplican al catálogo al arrancar y al sincronizar, sin pisar lo que el usuario haya elegido en el detalle del regalo.",
+  "split": {
+    "5660": "Hand Heart: corazón brillante sobre manos abiertas (5924 y 6968 son manos formando un corazón)",
+    "56589": "Magic Genie: otro diseño y otro regalo que 17962",
+    "59320": "Mystery Box: tipo de regalo distinto (type 1/combo) al 18508 (type 4); revisar si se confirma"
+  },
+  "same": [
+    ["6271", "8503", "16194"],
+    ["47644", "547119"],
+    ["167005", "218928", "1347190"],
+    ["12355", "153750"],
+    ["12356", "153751"],
+    ["12357", "153753"],
+    ["946670", "1190501"]
+  ]
+}

@@ -202,7 +202,7 @@ function connect(username) {
     overlayService.seedViewers();
 
     // Regalos de la sala: la lista general no trae los regalos propios del streamer o de su región. Se hace en segundo plano.
-    catalogService.syncRoomGifts(state.roomId).then(r => {
+    catalogService.syncRoomGifts(state.roomId, { username }).then(r => {
       if (conn !== tiktokConnection) return; // ya hay otra conexión
       logger.info('catalogo', 'Regalos de la sala sincronizados', { usuario: username, nuevos: r.nuevos, total: r.total });
       if (r.nuevos > 0) ioInstance.emit('catalog:updated', r.catalog);
@@ -220,7 +220,10 @@ function connect(username) {
     fetchProfileInfo(username).then(info => {
       if (conn !== tiktokConnection) return; // ya hay otra conexión
       console.log(`🌎 [REGALOS] @${username} | idioma del perfil: ${info.language || 'desconocido'} | sala ${roomId}`);
-      if (info.language) store.saveLastRoom({ ...lastRoom, idioma: info.language });
+      if (info.language) {
+        store.saveLastRoom({ ...lastRoom, idioma: info.language });
+        catalogService.noteRoomLanguage(roomId, info.language); // el historial de regalos anota el idioma de esa sala
+      }
       if (needFollowerFallback && info.followers) {
         overlayService.setFollowerApprox(info.followers);
         logger.info('overlay', 'Seguidores aproximados del perfil', { usuario: username, seguidores: info.followers });
