@@ -6,19 +6,21 @@ export const STEP_TYPES = {
   sound: { label: 'Sonido', icon: 'music' },
   video: { label: 'Video en pantalla', icon: 'film' },
   image: { label: 'Imagen / GIF en pantalla', icon: 'image' },
+  alert: { label: 'Alerta en pantalla', icon: 'sparkles' },
   win: { label: 'Win Game', icon: 'trophy' },
   l4d2_command: { label: 'Comando L4D2', icon: 'gamepad', soon: true },
   minecraft_command: { label: 'Comando Minecraft', icon: 'gamepad', soon: true },
 };
 
 // Tipos siempre disponibles en cualquier juego (además de los que permite el juego del perfil)
-export const ALWAYS_AVAILABLE = ['sound', 'video', 'image', 'win'];
+export const ALWAYS_AVAILABLE = ['sound', 'video', 'image', 'alert', 'win'];
 
 export const MAX_WAIT_MS = 60000;
 export const MAX_REPEAT = 100;
 export const IMAGE_MIN_SECONDS = 1;
 export const IMAGE_MAX_SECONDS = 60;
 export const IMAGE_DEFAULT_SECONDS = 5;
+export const ALERT_DEFAULT_SECONDS = 6; // los límites y el diseño por defecto de las alertas los da el servidor (GET /api/overlays/video -> alert)
 export const MIN_KEY_DELAY_MS = 30; // la cola de teclas no baja de esto entre pulsaciones (actionQueue.MIN_DELAY_MS)
 
 export function getSteps(action) {
@@ -41,6 +43,7 @@ export function newStep(type) {
     case 'sound': return { type, sound: '', volume: 100, everyKey: false, wait: 0 };
     case 'video': return { type, video: '', screen: 1, volume: 100, wait: 0 };
     case 'image': return { type, image: '', screen: 1, duration: IMAGE_DEFAULT_SECONDS, wait: 0 };
+    case 'alert': return { type, text: 'Gracias {nickname} por {giftname} x{repeatcount}', screen: 1, duration: ALERT_DEFAULT_SECONDS, showAvatar: true, showGift: false, singleLine: false, style: {}, wait: 0 };
     case 'win': return { type, mode: 'increase', amount: 1, wait: 0 };
     default: return { type, wait: 0 };
   }
@@ -61,4 +64,16 @@ export const comboLabel = (k) => [...(k.modifiers || []).map(keyLabel), keyLabel
 export function totalPresses(steps) {
   return steps.filter(s => s.type === 'keyboard')
     .reduce((n, s) => n + (s.keys || []).filter(k => k.key).reduce((m, k) => m + Math.min(MAX_REPEAT, Math.max(1, parseInt(k.repeat, 10) || 1)), 0), 0);
+}
+
+// Texto de una alerta con los datos de ejemplo (vista previa del diseñador). Misma sustitución que backend/services/alertTemplate.js (renderTemplate)
+export function renderAlertText(text, sample) {
+  const u = sample?.user || {};
+  const g = sample?.gift || {};
+  const val = (v) => (v === undefined || v === null ? '' : String(v));
+  const values = {
+    username: val(u.username), nickname: val(u.nickname || u.username), giftname: val(g.name), repeatcount: val(sample?.repeatCount),
+    coins: val(sample?.coins), likecount: val(sample?.likeCount), totallikecount: val(sample?.totalLikeCount), comment: val(sample?.comment),
+  };
+  return String(text ?? '').replace(/\{(\w+)\}/g, (m, key) => (Object.prototype.hasOwnProperty.call(values, key.toLowerCase()) ? values[key.toLowerCase()] : m));
 }

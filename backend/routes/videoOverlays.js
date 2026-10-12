@@ -7,6 +7,7 @@ const fs = require('fs');
 const paths = require('../paths');
 const videoService = require('../services/videoService');
 const { OVERLAY_PUBLIC_BASE_URL } = require('../data/defaults');
+const alertTemplate = require('../services/alertTemplate');
 
 const MAX_VIDEO_BYTES = 300 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024; // un GIF largo puede pesar bastante
@@ -30,6 +31,11 @@ function screensRoutes() {
       options: videoService.options,
       publicBaseUrl: OVERLAY_PUBLIC_BASE_URL,
       image: { min: videoService.IMAGE_MIN_SECONDS, max: videoService.IMAGE_MAX_SECONDS, default: videoService.IMAGE_DEFAULT_SECONDS },
+      // Alertas: única fuente de los valores por defecto, fuentes y límites del diseño (ver alertTemplate.js)
+      alert: {
+        fonts: alertTemplate.FONTS, defaults: alertTemplate.DEFAULT_STYLE, limits: alertTemplate.LIMITS, placeholders: alertTemplate.PLACEHOLDERS,
+        duration: alertTemplate.DURATION, maxText: alertTemplate.MAX_TEXT, nameEffects: alertTemplate.NAME_EFFECTS, entrances: alertTemplate.ENTRANCES, sample: alertTemplate.SAMPLE_CONTEXT,
+      },
     });
   });
 

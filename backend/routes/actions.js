@@ -2,6 +2,7 @@ const express = require('express');
 const store = require('../data/store');
 const actionDispatcher = require('../services/actionDispatcher');
 const actionQueue = require('../services/actionQueue');
+const { SAMPLE_CONTEXT } = require('../services/alertTemplate');
 const { hasStep } = require('../services/actionSteps');
 
 const MAX_TEST_DELAY_MS = 30000;
@@ -20,7 +21,7 @@ function runTest(action) {
   // Se prueba aunque esté desactivada
   return actionDispatcher.dispatch(
     { ...action, enabled: true },
-    { times: 1, defaultDelayMs: settings.keyDelayMs || 80 }
+    { times: 1, defaultDelayMs: settings.keyDelayMs || 80, context: SAMPLE_CONTEXT } // las alertas se prueban con datos de ejemplo
   );
 }
 

@@ -6,7 +6,7 @@
 // Los videos van a la carpeta `videos` de AppData (paths.VIDEOS_DIR) y se sirven en /videos; las imágenes y GIF a `images` (paths.IMAGES_DIR,
 // en /images). Nunca a Documentos. Videos e imágenes comparten la MISMA cola de cada pantalla.
 // Cada página de pantalla (backend/overlays/screen.html) se une a la sala `overlay:video:<n>` y recibe `overlay:video:<n>:play` con
-// { kind: 'video' | 'image', file, url, volume (video) | durationMs (imagen) }.
+// { kind: 'video' | 'image' | 'alert', file, url, volume (video) | durationMs (imagen) | datos de la alerta (alertTemplate.buildPayload) }.
 // Los ajustes de cada pantalla (ajuste dentro del recuadro y qué hacer si llega otro contenido mientras hay uno) viven en overlays.json, clave `video`.
 const fs = require('fs');
 const path = require('path');
@@ -124,6 +124,13 @@ function playImage(screen, { file, duration = IMAGE_DEFAULT_SECONDS } = {}) {
   return emitPlay(n, { kind: 'image', file: name, url: `/images/${encodeURIComponent(name)}`, durationMs: Math.round(seconds * 1000) }, 'Imagen');
 }
 
+// Muestra una alerta (texto con foto de perfil y nombre) en una pantalla. `payload` ya viene saneado (alertTemplate.buildPayload)
+function playAlert(screen, payload) {
+  const n = parseInt(screen, 10);
+  if (!SCREENS.includes(n)) return { executed: false };
+  return emitPlay(n, payload, 'Alerta');
+}
+
 function stop(screen) {
   const n = parseInt(screen, 10);
   if (SCREENS.includes(n)) io?.to(room(n)).to(previewRoom(n)).emit(`overlay:${KIND}:${n}:stop`);
@@ -164,7 +171,7 @@ function init(ioInstance) {
 module.exports = {
   init, KIND, SCREENS, VIDEO_EXTENSIONS, IMAGE_EXTENSIONS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS,
   getConfig, updateScreen, counts, clientCount,
-  play, playImage, stop,
+  play, playImage, playAlert, stop,
   listVideos, deleteVideo, resolveVideo,
   listImages, deleteImage, resolveImage,
   options: VIDEO_OPTIONS,

@@ -14,12 +14,13 @@ function set(ioInstance, settingsRef) {
 const defaultDelayMs = () => settings?.keyDelayMs || 80;
 
 // Ejecuta todas las reglas que coinciden con un disparador (regalo, seguidor...). `times` = unidades (5 rosas = 5).
+// `context`: datos del evento para las alertas (quién, regalo, cantidades, comentario; ver alertTemplate.js).
 // Devuelve si se ejecutó algo y la etiqueta para el Log en vivo (varias reglas se unen con " + ").
-function executeEventActions(triggerType, conditionValue, times = 1) {
+function executeEventActions(triggerType, conditionValue, times = 1, context = null) {
   const labels = [];
   let actionExecuted = false;
   for (const { evt, actions } of eventEngine.findMatchingEvents(triggerType, conditionValue)) {
-    const result = eventEngine.runEvent(evt, actions, { times, defaultDelayMs: defaultDelayMs() });
+    const result = eventEngine.runEvent(evt, actions, { times, defaultDelayMs: defaultDelayMs(), context });
     if (result.executed) {
       actionExecuted = true;
       if (result.label) labels.push(result.label);

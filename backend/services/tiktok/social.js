@@ -1,7 +1,7 @@
 // backend/services/tiktok/social.js
 // Eventos "share", "follow" y "like": metas, rankings y reglas de compartir (con su frecuencia), seguir y metas de likes.
 const ctx = require('./context');
-const { getUsername, rankUser } = require('./users');
+const { getUsername, rankUser, alertUser } = require('./users');
 const eventEngine = require('../eventEngine');
 const overlayService = require('../overlayService');
 const rankingService = require('../rankingService');
@@ -50,6 +50,7 @@ function handleShare(data) {
     const result = eventEngine.runEvent(evt, actions, {
       times: 1,
       defaultDelayMs: ctx.defaultDelayMs(),
+      context: { user: alertUser(data) },
     });
     if (result.executed) { executed = true; label = label ? `${label} + ${result.label}` : result.label; }
   });
@@ -68,7 +69,7 @@ function handleFollow(data) {
   followedUsers.add(username);
 
   console.log(`👤 Nuevo seguidor: @${username}`);
-  const result = ctx.executeEventActions('follow', 'any', 1);
+  const result = ctx.executeEventActions('follow', 'any', 1, { user: alertUser(data) });
 
   ctx.io.emit('giftReceived', {
     giftId: 'action_follow', giftName: '👤 Nuevo Seguidor', coins: 0, sender: username, newCount: 1,
@@ -99,6 +100,7 @@ function handleLike(data) {
       const result = eventEngine.runEvent(evt, actions, {
         times: timesToTrigger,
         defaultDelayMs: ctx.defaultDelayMs(),
+        context: { user: alertUser(data), likeCount: count, totalLikeCount: data.total },
       });
 
       ctx.io.emit('giftReceived', {

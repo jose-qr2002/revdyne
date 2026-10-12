@@ -8,24 +8,63 @@
   * { box-sizing: border-box; margin: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
 
-  /* Un <video> y una <img> (imagen o GIF) que ocupan todo el recuadro; solo se ve el que está en uso. Sin nada mostrándose todo está invisible
-     (la fuente queda transparente en el directo). */
+  /* Un <video>, una <img> (imagen o GIF) y la alerta ocupan todo el recuadro; solo se ve lo que está en uso. Sin nada mostrándose todo está
+     invisible (la fuente queda transparente en el directo). */
   #v, #i { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; opacity: 0; transition: opacity .15s; pointer-events: none; }
   #v.on, #i.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { #v, #i { transition: none; } }
   #msg { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 10px; font: 12px/1.4 sans-serif; color: #fff; background: rgba(200,30,60,.9); border-radius: 6px; display: none; }
+
+  /* ---- Alerta ---- #a se centra y se escala para caber en el recuadro; .al lleva la animación de entrada/salida; .al-inner el movimiento flotante */
+  #a { position: absolute; left: 50%; top: 50%; width: max-content; max-width: 1500px; transform-origin: center center; visibility: hidden; pointer-events: none; }
+  .al { display: flex; justify-content: center; }
+  .al-inner { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+  .al-inner.single { flex-direction: row; gap: 26px; text-align: left; }
+  .al-body { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+  .al-body.single { flex-direction: row; align-items: center; gap: 18px; }
+  .al-avatar { border-radius: 50%; object-fit: cover; background: #d3d6da; flex: 0 0 auto; }
+  .al-textrow { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .al-gift { object-fit: contain; flex: 0 0 auto; }
+  .al-line { overflow-wrap: break-word; max-width: 1300px; }
+  .al-w { display: inline-block; white-space: nowrap; }
+  .al-l { display: inline-block; white-space: pre; }
+  .al-li { display: inline-block; }
+  /* Efectos del nombre: degradado dentro de las letras */
+  .fx-rainbow, .fx-gold, .fx-fire, .fx-ice { color: transparent !important; -webkit-background-clip: text; background-clip: text; }
+  .fx-rainbow { background-image: linear-gradient(90deg, #ff3b3b, #ffb02e, #f6ec3a, #3be36a, #2ec8ff, #7a5cff, #ff3bd4, #ff3b3b); background-size: 200% 100%; animation: al-bg 3s linear infinite; }
+  .fx-gold { background-image: linear-gradient(180deg, #fff6c2 0%, #ffd23f 45%, #b8860b 55%, #ffe27a 100%); }
+  .fx-fire { background-image: linear-gradient(180deg, #fff35c 0%, #ffae00 45%, #ff3d00 100%); }
+  .fx-ice { background-image: linear-gradient(180deg, #f2fdff 0%, #8fdcff 50%, #3a8dff 100%); }
+  /* Entrada, salida y efectos */
+  .al.in-pop { animation: al-pop .55s cubic-bezier(.2, 1.4, .4, 1) both; }
+  .al.in-slide { animation: al-slide .5s cubic-bezier(.2, .9, .3, 1) both; }
+  .al.in-fade { animation: al-fade .5s ease both; }
+  .al.out { opacity: 0; transition: opacity .4s ease; }
+  .al-inner.float { animation: al-float 2.4s ease-in-out infinite; }
+  @keyframes al-pop { 0% { transform: scale(.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes al-slide { 0% { transform: translateY(70px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  @keyframes al-fade { 0% { opacity: 0; } 100% { opacity: 1; } }
+  @keyframes al-float { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
+  @keyframes al-wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.2em); } }
+  @keyframes al-wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  @keyframes al-bg { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .al, .al *, .al-inner { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 <video id="v" playsinline preload="auto"></video>
 <img id="i" alt="">
+<div id="a"></div>
 <div id="msg"></div>
 
 <script>
 (function () {
   var v = document.getElementById('v');
   var img = document.getElementById('i');
+  var alertEl = document.getElementById('a');
   var isPreview = /[?&]preview=1/.test(location.search);
+  // Modo diseñador (solo desde el panel): sin conexión; dibuja lo que le manda el panel por postMessage, para ver el diseño de una alerta en vivo
+  var isDesigner = /[?&]designer=1/.test(location.search);
 
   // Pantalla (1-9): la última cifra de la ruta, tanto en /overlays/screen/3 (la app) como en /screen/3 (el VPS)
   var screen = parseInt((location.pathname.match(/\/screen\/([1-9])\/?$/) || [])[1], 10) || 1;
@@ -46,11 +85,13 @@
   var queue = [];
   var playing = false;
   var imageTimer = null; // una imagen no "termina": se quita al cumplirse su duración
+  var alertTimer = null, alertOutTimer = null, alertToken = 0; // igual con una alerta; el token cancela una alerta que aún está cargando su fuente
 
-  function hide() { v.classList.remove('on'); img.classList.remove('on'); }
+  function hide() { v.classList.remove('on'); img.classList.remove('on'); alertEl.style.visibility = 'hidden'; alertEl.textContent = ''; }
 
   function stopCurrent() {
-    clearTimeout(imageTimer);
+    clearTimeout(imageTimer); clearTimeout(alertTimer); clearTimeout(alertOutTimer);
+    alertToken++;
     v.pause();
     v.removeAttribute('src');
     v.load();
@@ -64,7 +105,9 @@
     if (!item) { playing = false; hide(); return; }
     playing = true;
     if (item.kind === 'image') { showImage(item); return; }
+    if (item.kind === 'alert') { showAlert(item); return; }
     img.classList.remove('on');
+    alertEl.style.visibility = 'hidden';
     v.style.objectFit = settings.fit;
     v.src = mediaUrl(item.url);
     v.volume = item.volume;
@@ -79,13 +122,14 @@
   // Imagen o GIF: se muestra durante su duración. El parámetro t evita que el navegador reutilice el GIF ya terminado y lo reinicie desde el principio.
   function showImage(item) {
     v.classList.remove('on');
+    alertEl.style.visibility = 'hidden';
     img.style.objectFit = settings.fit;
     img.src = mediaUrl(item.url) + (item.url.indexOf('?') < 0 ? '?t=' : '&t=') + Date.now();
     img.classList.add('on');
     clearTimeout(imageTimer);
     imageTimer = setTimeout(finish, Math.max(500, item.durationMs || 5000));
   }
-  function finish() { clearTimeout(imageTimer); playing = false; next(); }
+  function finish() { clearTimeout(imageTimer); clearTimeout(alertTimer); clearTimeout(alertOutTimer); playing = false; next(); }
   v.addEventListener('ended', finish);
   var msg = document.getElementById('msg');
   var socketRef = null;
@@ -107,8 +151,168 @@
     finish();
   });
 
+  // ---------------------------------------------------------------------------------------------------------------------------------
+  // Alertas: foto de perfil + nombre + texto (ya con los datos del evento puestos por el servidor) con el diseño elegido.
+  // Todo el texto entra con textContent (nunca como HTML) y el diseño viene saneado del servidor (backend/services/alertTemplate.js).
+  var FALLBACK_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#d3d6da"/><circle cx="50" cy="38" r="17" fill="#eceef0"/><path d="M16 100c0-22 15-36 34-36s34 14 34 36z" fill="#eceef0"/></svg>');
+
+  // Oscurece un color #rrggbb (para el relieve 3D)
+  function shade(hex, f) {
+    var n = parseInt(hex.slice(1), 16);
+    function c(x) { return Math.max(0, Math.min(255, Math.round(x * f))); }
+    return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
+  }
+
+  var fontPromises = {};
+  function loadFont(name, weight) {
+    var key = name + '|' + weight;
+    if (fontPromises[key]) return fontPromises[key];
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + (weight !== 400 ? ':wght@' + weight : '') + '&display=swap';
+    document.head.appendChild(link);
+    fontPromises[key] = new Promise(function (resolve) {
+      var done = false;
+      function fin() { if (!done) { done = true; resolve(); } }
+      link.onload = function () { if (document.fonts && document.fonts.load) document.fonts.load(weight + ' 40px "' + name + '"').then(fin, fin); else fin(); };
+      link.onerror = fin; // sin internet: se usa la fuente de respaldo
+      setTimeout(fin, 2500);
+    });
+    return fontPromises[key];
+  }
+
+  // Rellena una línea: texto normal, o letra a letra (agrupadas por palabra para que no se corten) si hay ola o temblor
+  // (con un efecto de color en el nombre NO se divide en letras: el degradado se pinta en la línea y las letras sueltas no lo heredan)
+  function fillText(el, text, st, counter, letters) {
+    if (!letters || (!st.wave && !st.wiggle)) { el.textContent = text; return; }
+    text.split(' ').forEach(function (word, wi) {
+      if (wi > 0) el.appendChild(document.createTextNode(' '));
+      var w = document.createElement('span');
+      w.className = 'al-w';
+      Array.from(word).forEach(function (ch) {
+        var outer = document.createElement('span'); outer.className = 'al-l';
+        var inner = document.createElement('span'); inner.className = 'al-li';
+        inner.textContent = ch;
+        if (st.wave) outer.style.animation = 'al-wave 1.1s ease-in-out ' + (counter.n * 0.07).toFixed(2) + 's infinite';
+        if (st.wiggle) inner.style.animation = 'al-wiggle .5s ease-in-out ' + ((counter.n % 4) * 0.09).toFixed(2) + 's infinite';
+        counter.n++;
+        outer.appendChild(inner);
+        w.appendChild(outer);
+      });
+      el.appendChild(w);
+    });
+  }
+
+  // Una línea de texto (el nombre o el mensaje) con tamaño, color, borde y sombras
+  function makeLine(text, st, size, color, effect) {
+    var el = document.createElement('div');
+    var hasEffect = effect && effect !== 'none';
+    el.className = 'al-line' + (hasEffect ? ' fx-' + effect : '');
+    el.style.fontSize = size + 'px';
+    el.style.letterSpacing = st.letterSpacing + 'px';
+    el.style.lineHeight = String(st.lineSpacing);
+    if (!hasEffect) el.style.color = color;
+    // Relieve 3D y sombra suave con drop-shadow (funciona también con el degradado de los efectos, a diferencia de text-shadow)
+    var filters = [];
+    if (st.shadow3d) {
+      var d = Math.max(1, Math.round(size / 28));
+      var dark = shade(hasEffect ? '#9a9a9a' : color, 0.35);
+      for (var k = 0; k < 5; k++) filters.push('drop-shadow(' + d + 'px ' + d + 'px 0 ' + dark + ')');
+    }
+    if (st.softShadow) filters.push('drop-shadow(0 6px 10px rgba(0,0,0,.55))');
+    if (filters.length) el.style.filter = filters.join(' ');
+    if (st.border && st.borderWidth > 0) { el.style.webkitTextStroke = st.borderWidth + 'px ' + st.borderColor; el.style.paintOrder = 'stroke fill'; }
+    fillText(el, text, st, { n: 0 }, !hasEffect);
+    return el;
+  }
+
+  // Escala la alerta (nunca la agranda) para que quepa en el recuadro, centrada
+  function fitAlert() {
+    alertEl.style.transform = 'translate(-50%, -50%) scale(1)';
+    var w = alertEl.offsetWidth, h = alertEl.offsetHeight;
+    if (!w || !h || !window.innerWidth || !window.innerHeight) return; // sin tamaño todavía (iframe sin pintar): se ajusta al cambiar el tamaño
+    var s = Math.min(1, (window.innerWidth * 0.96) / w, (window.innerHeight * 0.94) / h);
+    alertEl.style.transform = 'translate(-50%, -50%) scale(' + s.toFixed(3) + ')';
+  }
+
+  // Dibuja la alerta. opts.entrance = con animación de entrada (en el diseñador solo al pedirla, para no repetirla con cada ajuste)
+  function renderAlert(item, opts) {
+    var st = item.style || {};
+    var fontFamily = '"' + st.font + '", "Segoe UI", Arial, sans-serif';
+    alertEl.textContent = '';
+    var al = document.createElement('div');
+    al.className = 'al' + (opts.entrance && st.entrance !== 'none' ? ' in-' + st.entrance : '');
+    al.style.fontFamily = fontFamily;
+    al.style.fontWeight = String(item.fontWeight || 400);
+    var inner = document.createElement('div');
+    inner.className = 'al-inner' + (item.singleLine ? ' single' : '') + (st.float ? ' float' : '');
+
+    if (item.showAvatar) {
+      var av = document.createElement('img');
+      av.className = 'al-avatar';
+      av.style.width = av.style.height = st.avatarSize + 'px';
+      av.referrerPolicy = 'no-referrer';
+      av.alt = '';
+      av.onerror = function () { av.onerror = null; av.src = FALLBACK_AVATAR; };
+      av.src = item.avatar || FALLBACK_AVATAR;
+      inner.appendChild(av);
+    }
+
+    var body = document.createElement('div');
+    body.className = 'al-body' + (item.singleLine ? ' single' : '');
+    if (item.name) body.appendChild(makeLine(item.name, st, st.nameSize, st.nameColor, st.nameEffect));
+    if (item.text || (item.showGift && item.gift)) {
+      var row = document.createElement('div');
+      row.className = 'al-textrow';
+      if (item.text) row.appendChild(makeLine(item.text, st, st.textSize, st.textColor, 'none'));
+      if (item.showGift && item.gift) {
+        var g = document.createElement('img');
+        g.className = 'al-gift';
+        g.style.height = Math.round(st.textSize * 1.5) + 'px';
+        g.referrerPolicy = 'no-referrer';
+        g.alt = '';
+        g.onerror = function () { g.style.display = 'none'; fitAlert(); };
+        g.onload = fitAlert;
+        g.src = item.gift;
+        row.appendChild(g);
+      }
+      body.appendChild(row);
+    }
+    inner.appendChild(body);
+    al.appendChild(inner);
+    alertEl.appendChild(al);
+    alertEl.style.visibility = 'visible';
+    fitAlert();
+    return al;
+  }
+
+  function showAlert(item) {
+    v.classList.remove('on'); img.classList.remove('on');
+    var token = ++alertToken;
+    loadFont(item.style.font, item.fontWeight || 400).then(function () {
+      if (token !== alertToken || !playing) return; // la cortaron mientras cargaba la fuente
+      var al = renderAlert(item, { entrance: true });
+      var ms = Math.max(1000, item.durationMs || 6000);
+      clearTimeout(alertTimer); clearTimeout(alertOutTimer);
+      alertOutTimer = setTimeout(function () { al.classList.add('out'); }, Math.max(0, ms - 450));
+      alertTimer = setTimeout(finish, ms);
+    });
+  }
+
+  window.addEventListener('resize', function () { if (alertEl.style.visibility === 'visible') fitAlert(); });
+
+  // Diseñador del panel: dibuja lo que manda (misma página, mismo código que usa el directo)
+  if (isDesigner) {
+    window.addEventListener('message', function (e) {
+      var d = e.data;
+      if (e.origin !== location.origin || !d || d.type !== 'revdyne-alert-preview' || !d.item || !d.item.style) return;
+      loadFont(d.item.style.font, d.item.fontWeight || 400).then(function () { renderAlert(d.item, { entrance: !!d.replay }); });
+    });
+    if (window.parent !== window) window.parent.postMessage({ type: 'revdyne-alert-ready' }, location.origin);
+  }
+
   function onPlay(item) {
-    if (settings.onBusy === 'replace') { queue.length = 0; if (playing) stopCurrent(); } // vale igual para videos e imágenes: comparten cola
+    if (settings.onBusy === 'replace') { queue.length = 0; if (playing) stopCurrent(); } // vale igual para videos, imágenes y alertas: comparten cola
     queue.push(item);
     if (queue.length > MAX_QUEUE) queue.shift();
     if (!playing) next();
@@ -124,10 +328,12 @@
     socket.on('overlay:' + kind + ':' + screen + ':stop', onStop);
   }
 
-  var tag = document.createElement('script');
-  tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
-  tag.onload = start;
-  document.head.appendChild(tag);
+  if (!isDesigner) {
+    var tag = document.createElement('script');
+    tag.src = isLocal ? '/socket.io/socket.io.js' : 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js';
+    tag.onload = start;
+    document.head.appendChild(tag);
+  }
 })();
 </script>
 </body>

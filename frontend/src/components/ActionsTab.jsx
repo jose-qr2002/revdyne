@@ -3,7 +3,7 @@ import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import ActionStepEditor from './ActionStepEditor';
-import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, totalPresses, comboLabel, MAX_WAIT_MS, MAX_REPEAT, MIN_KEY_DELAY_MS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS } from '../services/actionSteps';
+import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, totalPresses, comboLabel, MAX_WAIT_MS, MAX_REPEAT, MIN_KEY_DELAY_MS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS, ALERT_DEFAULT_SECONDS } from '../services/actionSteps';
 
 const TEST_DELAY_MS = 5000;
 
@@ -35,6 +35,12 @@ function cleanStep(step) {
       return { type: 'video', video: rest.video, screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)), volume: toVolume(rest.volume), wait };
     case 'image':
       return { type: 'image', image: rest.image, screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)), duration: Math.min(IMAGE_MAX_SECONDS, Math.max(IMAGE_MIN_SECONDS, parseFloat(rest.duration) || IMAGE_DEFAULT_SECONDS)), wait };
+    case 'alert':
+      return {
+        type: 'alert', text: String(rest.text || '').slice(0, 200), screen: Math.min(9, Math.max(1, parseInt(rest.screen, 10) || 1)),
+        duration: Math.min(60, Math.max(1, parseFloat(rest.duration) || ALERT_DEFAULT_SECONDS)),
+        showAvatar: rest.showAvatar !== false, showGift: !!rest.showGift, singleLine: !!rest.singleLine, style: rest.style && typeof rest.style === 'object' ? rest.style : {}, wait,
+      };
     case 'win':
       return { type: 'win', mode: rest.mode === 'decrease' ? 'decrease' : 'increase', amount: Math.min(1000, Math.max(1, parseInt(rest.amount, 10) || 1)), wait };
     default:
@@ -47,6 +53,7 @@ function stepError(step) {
   if (step.type === 'sound' && !step.sound) return 'Elige el archivo del paso de sonido';
   if (step.type === 'video' && !step.video) return 'Elige el video del paso de video';
   if (step.type === 'image' && !step.image) return 'Elige la imagen o GIF del paso de imagen';
+  if (step.type === 'alert' && !String(step.text || '').trim()) return 'Escribe el texto de la alerta';
   if (step.type === 'win' && !(parseInt(step.amount, 10) >= 1)) return 'La cantidad de wins debe ser 1 o más';
   return null;
 }
@@ -70,12 +77,13 @@ function StepChips({ steps }) {
           {s.type === 'sound' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: s.everyKey ? '#ffeb3b' : '#4caf50' }}><Icon name="music" size={13} /> {s.sound} · {s.volume ?? 100}%{s.everyKey ? ' (en cada tecla)' : ''}</span>}
           {s.type === 'video' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="film" size={13} /> {s.video} · P{s.screen || 1} · {s.volume ?? 100}%</span>}
           {s.type === 'image' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50' }}><Icon name="image" size={13} /> {s.image} · P{s.screen || 1} · {s.duration ?? 5}s</span>}
+          {s.type === 'alert' && <span style={{ ...CHIP, background: 'rgba(76,175,80,0.15)', color: '#4caf50', maxWidth: '320px' }} title={s.text}><Icon name="sparkles" size={13} /> <span className="ellipsis">{s.text}</span> · P{s.screen || 1} · {s.duration ?? 6}s</span>}
           {s.type === 'win' && (
             <span style={{ ...CHIP, fontWeight: 'bold', background: s.mode === 'decrease' ? 'rgba(255,0,80,0.15)' : 'rgba(76,175,80,0.15)', color: s.mode === 'decrease' ? 'var(--accent2)' : '#4caf50' }}>
               <Icon name="trophy" size={13} /> {s.mode === 'decrease' ? '−' : '+'}{s.amount ?? 1} {(s.amount ?? 1) == 1 ? 'win' : 'wins'}
             </span>
           )}
-          {!['keyboard', 'sound', 'video', 'image', 'win'].includes(s.type) && <span style={{ ...CHIP, color: 'var(--text3)' }}>{STEP_TYPES[s.type]?.label || s.type} (no disponible)</span>}
+          {!['keyboard', 'sound', 'video', 'image', 'alert', 'win'].includes(s.type) && <span style={{ ...CHIP, color: 'var(--text3)' }}>{STEP_TYPES[s.type]?.label || s.type} (no disponible)</span>}
           {waitChip(s)}
         </span>
       ))}
@@ -96,6 +104,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const [localSounds, setLocalSounds] = useState([]);
   const [videoList, setVideoList] = useState([]);
   const [imageList, setImageList] = useState([]);
+  const [alertInfo, setAlertInfo] = useState(null); // fuentes, valores por defecto y límites del diseño de alertas (los da el servidor)
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageInputRef = useRef(null);
   const [uploadingSound, setUploadingSound] = useState(false);
@@ -118,6 +127,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     refreshSounds();
     // Al volver a la app (p. ej. tras copiar audios a la carpeta desde el Explorador) se relee la lista
     window.addEventListener('focus', refreshSounds);
+    fetch('/api/overlays/video').then(r => (r.ok ? r.json() : null)).then(d => { if (d?.alert) setAlertInfo(d.alert); }).catch(() => console.error('Error al obtener los datos de las alertas'));
     fetch('/api/images/list').then(r => (r.ok ? r.json() : [])).then(list => setImageList(list.map(v => v.name))).catch(() => console.error('Error al obtener imágenes'));
     fetch('/api/videos/list').then(r => (r.ok ? r.json() : [])).then(list => setVideoList(list.map(v => v.name))).catch(() => console.error('Error al obtener videos'));
     return () => window.removeEventListener('focus', refreshSounds);
@@ -437,6 +447,7 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
               sounds={localSounds}
               videos={videoList}
               images={imageList}
+              alertInfo={alertInfo}
               onUploadSound={() => pickSound(step.uid)}
               onUploadVideo={() => pickVideo(step.uid)}
               onUploadImage={() => pickImage(step.uid)}

@@ -7,6 +7,8 @@
 //   sound    { sound, volume, everyKey? }                    everyKey: suena en cada pulsación de las teclas de la acción (si las hay)
 //   video    { video, screen 1-9, volume }
 //   image    { image, screen 1-9, duration (segundos, 1-60) }   imagen o GIF; comparte pantalla y cola con los videos
+//   alert    { text, screen 1-9, duration (s), showAvatar, showGift, singleLine, style }   alerta con foto, nombre y texto con {marcadores}
+//                                                            (ver backend/services/alertTemplate.js); usa los datos del evento (opts.context)
 //   win      { mode: 'increase' | 'decrease', amount }
 // `wait` (ms, opcional) retrasa ese paso respecto al momento en que se dispara la acción.
 //

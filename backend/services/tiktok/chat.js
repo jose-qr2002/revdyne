@@ -1,7 +1,7 @@
 // backend/services/tiktok/chat.js
 // Evento "chat": ranking de comentarios, stickers/emotes (con su antispam y enfriamientos) y lectura en voz alta (Bot TTS).
 const ctx = require('./context');
-const { getUsername, getSpeakableName, rankUser } = require('./users');
+const { getUsername, getSpeakableName, rankUser, alertUser } = require('./users');
 const eventEngine = require('../eventEngine');
 const stickersManager = require('../stickersManager');
 const rankingService = require('../rankingService');
@@ -122,6 +122,7 @@ function handleStickers(data) {
           times: timesToTrigger,
           defaultDelayMs: ctx.defaultDelayMs(),
           playbackStyle,
+          context: { user: alertUser(data), comment: String(data.comment || data.content || '').trim() },
         });
         if (result.executed) {
           console.log(`🎯 [STICKER] "${result.label}" x${timesToTrigger} (${emoteMeta[emoteId]?.name || emoteId})`);

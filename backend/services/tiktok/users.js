@@ -32,6 +32,16 @@ function getSpeakableName(data) {
   return fallbackUsername;
 }
 
+// Quién hizo el evento, para las alertas: nombre visible, @usuario y foto (el evento "share" no trae foto: queda vacía)
+function alertUser(data) {
+  const u = data?.user || {};
+  return {
+    nickname: u.nickname || '',
+    username: u.displayId || u.uniqueId || data?.uniqueId || '',
+    avatar: u.avatarThumb?.urlList?.[0] || u.avatarMedium?.urlList?.[0] || u.avatarLarge?.urlList?.[0] || '',
+  };
+}
+
 // Usuario de un evento en el formato de los tops: clave estable (id), nombre visible, @usuario y avatar
 function rankUser(data) {
   const u = data?.user || {};
@@ -45,4 +55,4 @@ function rankUser(data) {
   };
 }
 
-module.exports = { getUsername, getSpeakableName, rankUser };
+module.exports = { getUsername, getSpeakableName, rankUser, alertUser };

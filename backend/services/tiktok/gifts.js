@@ -1,7 +1,7 @@
 // backend/services/tiktok/gifts.js
 // Evento "gift": cuenta las unidades nuevas de cada ráfaga, alimenta metas/tops/rankings y dispara las reglas de regalo.
 const ctx = require('./context');
-const { getUsername, rankUser } = require('./users');
+const { getUsername, rankUser, alertUser } = require('./users');
 const catalogService = require('../catalogService');
 const overlayService = require('../overlayService');
 const rankingService = require('../rankingService');
@@ -9,6 +9,7 @@ const topService = require('../topService');
 const { createGiftStreakCounter } = require('../giftStreaks');
 const logger = require('../logger');
 const giftGroups = require('../giftGroups');
+const alertHold = require('../alertHold');
 
 // Anomalías del contador de regalos -> registro. Nivel: warn si pudo afectar al conteo, info si solo es informativo.
 const GIFT_ANOMALIES = {
@@ -52,7 +53,11 @@ function handleGift(data) {
   const streak = giftStreaks.process(data, userKey);
   const newCount = streak.units;
   logger.debug('regalos', 'evento', { giftId, nombre: giftName, monedas: coins, repeatCount: data.repeatCount, repeatEnd: data.repeatEnd, groupId: String(data.groupId), usuario: sender, unidadesNuevas: newCount });
-  if (newCount <= 0) return;
+  if (newCount <= 0) {
+    // Cierre del combo sin unidades nuevas: las alertas que esperaban salen ahora, con el total final
+    if (streak.combo && streak.ended) alertHold.flushStreak(streak.key);
+    return;
+  }
 
   // La meta de monedas cuenta todos los regalos, también los que no llegan al mínimo de monedas de las reglas.
   overlayService.addCoins(newCount * coins);
@@ -67,7 +72,13 @@ function handleGift(data) {
 
   if (coins < (ctx.settings?.minCoins || 0)) return;
 
-  const result = ctx.executeEventActions('gift', giftId, newCount);
+  // Datos para las alertas: la cantidad es la racha completa hasta ahora y las monedas su valor total (valor por unidad x cantidad)
+  const eventContext = {
+    user: alertUser(data), gift: { name: giftName, image: giftObj.image?.urlList?.[0] || giftIcon },
+    repeatCount: streak.total, coins: coins * streak.total,
+    streak: { key: streak.key, combo: streak.combo, ended: streak.ended }, // las alertas de un combo esperan a que termine
+  };
+  const result = ctx.executeEventActions('gift', giftId, newCount, eventContext);
 
   ctx.io.emit('giftReceived', {
     giftId, giftName, coins, sender, newCount,
@@ -81,6 +92,7 @@ function handleGift(data) {
 
 // Al conectar (también al reconectar): las ráfagas a medias de la conexión anterior ya no cuentan
 function reset() {
+  alertHold.clear();
   variantsLogged.clear();
   giftStreaks.reset();
 }

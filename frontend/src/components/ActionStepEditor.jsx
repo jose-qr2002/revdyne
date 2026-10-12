@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Select from './Select';
 import Icon from './Icon';
 import KeyListEditor from './KeyListEditor';
+import AlertDesignModal from './AlertDesignModal';
 import { STEP_TYPES, MAX_WAIT_MS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS } from '../services/actionSteps';
 
 const SCREENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -47,8 +48,28 @@ function FilePicker({ value, files, placeholder, onChange, onUpload, uploading, 
 // Un paso de la acción: cabecera (tipo, retraso, quitar) y sus campos
 // `hasMultiPress`: la acción tiene más de una pulsación de tecla (en total), así que un sonido puede sonar en cada una.
 // `everyKeyTaken`: otro paso de sonido de la acción ya usa "en cada pulsación" (solo uno puede).
-export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, images = [], onUploadSound, onUploadVideo, onUploadImage, uploadingSound, uploadingVideo, uploadingImage, onOpenSoundsFolder, hasMultiPress = false, everyKeyTaken = false }) {
+export default function ActionStepEditor({ step, onChange, onRemove, sounds, videos, images = [], alertInfo = null, onUploadSound, onUploadVideo, onUploadImage, uploadingSound, uploadingVideo, uploadingImage, onOpenSoundsFolder, hasMultiPress = false, everyKeyTaken = false }) {
   const meta = STEP_TYPES[step.type] || { label: step.type, icon: 'bolt' };
+  const [designing, setDesigning] = useState(false);
+  const textRef = useRef(null);
+  const caretRef = useRef(null); // dónde dejar el cursor tras insertar un marcador (se aplica cuando React ya puso el texto nuevo)
+  useEffect(() => {
+    const el = textRef.current;
+    if (caretRef.current === null || !el) return;
+    el.focus();
+    el.setSelectionRange(caretRef.current, caretRef.current);
+    caretRef.current = null;
+  }, [step.text]);
+  // Inserta un marcador ({giftname}...) donde está el cursor del texto de la alerta
+  const insertPlaceholder = (key) => {
+    const el = textRef.current;
+    const text = step.text || '';
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    const next = (text.slice(0, start) + '{' + key + '}' + text.slice(end)).slice(0, alertInfo?.maxText || 200);
+    caretRef.current = Math.min(next.length, start + key.length + 2);
+    onChange({ text: next });
+  };
   const waitSeconds = (step.wait || 0) / 1000;
   const setWait = (v) => {
     const ms = Math.round((parseFloat(v) || 0) * 1000);
@@ -136,6 +157,50 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
         </>
       )}
 
+      {step.type === 'alert' && (
+        <>
+          <Field label="Texto de la alerta" grow={1} min={260}>
+            <input
+              ref={textRef} type="text" className="key-input" style={{ width: '100%' }} maxLength={alertInfo?.maxText || 200}
+              placeholder="Ej: Gracias {nickname} por {giftname} x{repeatcount}" value={step.text || ''} onChange={e => onChange({ text: e.target.value })}
+            />
+          </Field>
+          {alertInfo && (
+            <div className="ph-chips" aria-label="Datos que se pueden insertar en el texto">
+              {alertInfo.placeholders.map(p => (
+                <button key={p.key} type="button" className="ph-chip" title={`${p.help}: {${p.key}}`} onClick={() => insertPlaceholder(p.key)}>{p.label}</button>
+              ))}
+            </div>
+          )}
+          <div className="step-row">
+            <Field label="Pantalla" min={130}>
+              <Select className="modifier-select" value={String(step.screen || 1)} onChange={e => onChange({ screen: parseInt(e.target.value, 10) })} style={{ width: '100%' }}>
+                {SCREENS.map(n => <option key={n} value={String(n)}>Pantalla {n}</option>)}
+              </Select>
+            </Field>
+            <Field label="Se muestra durante" min={130}>
+              <span className="kl-num">
+                <input
+                  type="number" className="key-input" step="0.5" style={{ width: '80px', textAlign: 'center' }}
+                  min={alertInfo?.duration.min || 1} max={alertInfo?.duration.max || 60}
+                  value={step.duration ?? 6} onChange={e => onChange({ duration: e.target.value === '' ? '' : e.target.value })}
+                  onBlur={() => onChange({ duration: Math.min(alertInfo?.duration.max || 60, Math.max(alertInfo?.duration.min || 1, parseFloat(step.duration) || alertInfo?.duration.default || 6)) })}
+                /> s
+              </span>
+            </Field>
+            <Field label="Aspecto" min={150}>
+              <button type="button" className="btn btn-secondary" onClick={() => setDesigning(true)} disabled={!alertInfo}><Icon name="settings" size={15} /> Personalizar diseño</button>
+            </Field>
+          </div>
+          <p className="step-hint">
+            Muestra la foto de perfil, el nombre y este texto en una pantalla (copia el enlace desde <strong>Pantallas</strong>); comparte cola con videos e imágenes.
+            Los datos salen del evento que dispara la acción: con regalos sirven Regalo, Cantidad y Monedas; con likes, Likes; los stickers traen el Comentario. Lo que el
+            evento no trae queda vacío. Con regalos en combo suele convenir poner la pantalla en "Cortar el actual".
+          </p>
+          {designing && alertInfo && <AlertDesignModal step={step} info={alertInfo} onChange={onChange} onClose={() => setDesigning(false)} />}
+        </>
+      )}
+
       {step.type === 'win' && (
         <>
           <div className="step-row">
@@ -153,7 +218,7 @@ export default function ActionStepEditor({ step, onChange, onRemove, sounds, vid
         </>
       )}
 
-      {!['keyboard', 'sound', 'video', 'image', 'win'].includes(step.type) && (
+      {!['keyboard', 'sound', 'video', 'image', 'alert', 'win'].includes(step.type) && (
         <p className="step-hint">Este tipo de paso todavía no está disponible: se conserva, pero no hace nada.</p>
       )}
     </div>
