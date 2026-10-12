@@ -1,7 +1,7 @@
 // backend/services/tiktok/chat.js
 // Evento "chat": ranking de comentarios, stickers/emotes (con su antispam y enfriamientos) y lectura en voz alta (Bot TTS).
 const ctx = require('./context');
-const { getUsername, getSpeakableName, rankUser, alertUser } = require('./users');
+const { getUsername, getSpeakableName, rankUser, alertUser, actorOf } = require('./users');
 const eventEngine = require('../eventEngine');
 const stickersManager = require('../stickersManager');
 const rankingService = require('../rankingService');
@@ -210,9 +210,25 @@ function handleTTS(data, badges) {
   });
 }
 
+// Reglas de comentarios: "chat" (cualquier comentario) y "chattext" (un comentario concreto). Solo se registra en el Log si alguna regla se ejecutó.
+function handleChatTriggers(data) {
+  const comment = String(data.comment || data.content || '').trim();
+  if (!comment) return;
+  const actor = actorOf(data);
+  const context = { user: alertUser(data), comment };
+  const labels = [];
+  for (const [trigger, value] of [['chat', 'any'], ['chattext', comment]]) {
+    const result = ctx.executeEventActions(trigger, value, 1, context, { actor, frequency: 'always' });
+    if (result.actionExecuted && result.keyExecuted) labels.push(result.keyExecuted);
+  }
+  if (labels.length) ctx.emitLog('action_chat', '💬 Comentario', getUsername(data), labels.join(' + '));
+}
+
 function handleChat(data) {
   rankingService.record('comments', rankUser(data), 1);
+  actorOf(data); // recuerda los roles de quien comenta (los usan los filtros de entradas, likes... que no traen identidad)
   const badges = parseBadges(data);
+  handleChatTriggers(data);
   if (data.emotes && data.emotes.length > 0) handleStickers(data);
   handleTTS(data, badges);
 }

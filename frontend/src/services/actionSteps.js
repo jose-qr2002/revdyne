@@ -73,7 +73,7 @@ export function renderAlertText(text, sample) {
   const val = (v) => (v === undefined || v === null ? '' : String(v));
   const values = {
     username: val(u.username), nickname: val(u.nickname || u.username), giftname: val(g.name), repeatcount: val(sample?.repeatCount),
-    coins: val(sample?.coins), likecount: val(sample?.likeCount), totallikecount: val(sample?.totalLikeCount), comment: val(sample?.comment),
+    coins: val(sample?.coins), likecount: val(sample?.likeCount), totallikecount: val(sample?.totalLikeCount), comment: val(sample?.comment), fanlevel: val(sample?.fanLevel),
   };
   return String(text ?? '').replace(/\{(\w+)\}/g, (m, key) => (Object.prototype.hasOwnProperty.call(values, key.toLowerCase()) ? values[key.toLowerCase()] : m));
 }

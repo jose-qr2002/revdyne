@@ -9,6 +9,10 @@ const eventIcon = (ev) => {
   const id = String(ev.giftId || '');
   if (id === 'action_follow') return <Icon name="user" size={16} />;
   if (id === 'action_share') return <Icon name="share" size={16} />;
+  if (id === 'action_join') return <Icon name="eye" size={16} />;
+  if (id === 'action_superfan') return <Icon name="crown" size={16} />;
+  if (id === 'action_fanlevel') return <Icon name="star" size={16} />;
+  if (id === 'action_chat') return <Icon name="message" size={16} />;
   if (id.startsWith('like_')) return <Icon name="heart" size={16} />;
   if (id.startsWith('overlay_')) return <Icon name="target" size={16} />;
   return <GiftTierIcon coins={ev.coins} size={16} />;

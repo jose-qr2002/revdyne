@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Select from './Select';
 import Icon from './Icon';
+import Select from './Select';
 import { showAlert } from '../services/dialog';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import { stepsSummary } from '../services/actionSteps';
 import { groupGifts } from './giftUtils';
+import { WHO_OPTIONS, TRIGGER_GROUPS, FREQUENCY_TRIGGERS, defaultFrequency, CHAT_MATCHES, frequencyLabel, whoLabel } from '../services/eventTriggers';
 
 // Acciones de un evento: `actionIds` (todas a la vez) y `randomActionIds` (una al azar). Los antiguos con un solo `actionId` ya
 // llegan migrados del servidor (backend/data/migrations.js).
@@ -32,6 +33,43 @@ function ActionChecklist({ actions, selected, blocked, onToggle, blockedHint }) 
   );
 }
 
+// Ficha seleccionable (un radio con aspecto de botón). El radio sigue ahí para teclado y lectores de pantalla.
+function Pill({ name, checked, onSelect, label, icon }) {
+  return (
+    <label className={`ev-pill${checked ? ' on' : ''}`}>
+      <input type="radio" name={name} checked={checked} onChange={onSelect} />
+      {icon && <Icon name={icon} size={14} />}
+      <span>{label}</span>
+    </label>
+  );
+}
+
+// Frecuencia por usuario para los disparadores que se repiten mucho
+function FrequencyPicker({ frequency, setFrequency, cooldownSeconds, setCooldownSeconds, what }) {
+  return (
+    <div className="ev-freq">
+      <span className="ev-freq-title">¿Cuándo se ejecuta?</span>
+      <label className="ev-opt small">
+        <input type="radio" name="ev-frequency" checked={frequency === 'once'} onChange={() => setFrequency('once')} />
+        <span>Una sola vez por usuario (en este directo)</span>
+      </label>
+      <label className="ev-opt small">
+        <input type="radio" name="ev-frequency" checked={frequency === 'always'} onChange={() => setFrequency('always')} />
+        <span>Todas las veces que {what}</span>
+      </label>
+      <label className="ev-opt small">
+        <input type="radio" name="ev-frequency" checked={frequency === 'cooldown'} onChange={() => setFrequency('cooldown')} />
+        <span>Con enfriamiento por usuario:</span>
+        <input type="number" min="1" className="key-input ev-num" value={cooldownSeconds} disabled={frequency !== 'cooldown'} onChange={e => setCooldownSeconds(e.target.value)} />
+        <span>seg</span>
+      </label>
+    </div>
+  );
+}
+
+const FREQUENCY_WHAT = {
+  join: 'entre al directo', share: 'comparta', superfan: 'se haga Super Fan', chat: 'comente', chattext: 'escriba ese comentario',
+};
 
 export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [showForm, setShowForm] = useState(false);
@@ -39,6 +77,9 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
   const [trigger, setTrigger] = useState('gift');
   const [condition, setCondition] = useState('');
+  const [match, setMatch] = useState('equals');            // Chat (comentario): es exactamente | contiene
+  const [whoMode, setWhoMode] = useState('all');
+  const [whoUser, setWhoUser] = useState('');
   const [selectedActionIds, setSelectedActionIds] = useState([]); // se ejecutan todas
   const [randomActionIds, setRandomActionIds] = useState([]); // se ejecuta una al azar
   const [frequency, setFrequency] = useState('once');
@@ -95,16 +136,41 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     onUpdateProfiles(newProfiles);
   };
 
+  // Al cambiar de disparador se limpia la condición y se pone la frecuencia por defecto de ese disparador
+  const selectTrigger = (id) => {
+    setTrigger(id);
+    setCondition('');
+    setFrequency(defaultFrequency(id));
+    setCooldownSeconds(30);
+  };
+
   const handleEditEvent = (evt) => {
     setEditingEventId(evt.id);
     setTrigger(evt.trigger);
-    setCondition(evt.condition === 'any' ? '' : evt.condition);
+    setCondition(evt.condition === 'any' ? '' : String(evt.condition));
+    setMatch(evt.match === 'contains' ? 'contains' : 'equals');
+    setWhoMode(evt.who?.mode || 'all');
+    setWhoUser(evt.who?.username || '');
     const ids = eventActionIds(evt);
     setSelectedActionIds(ids.all);
     setRandomActionIds(ids.random);
-    setShowForm(true);
-    setFrequency(evt.frequency || 'once');
+    setFrequency(evt.frequency || defaultFrequency(evt.trigger));
     setCooldownSeconds(evt.cooldownSeconds ?? 30);
+    setShowForm(true);
+  };
+
+  // Validación de la condición según el disparador; devuelve { title, text } o null
+  const conditionError = () => {
+    const n = Number(condition);
+    switch (trigger) {
+      case 'gift': return condition ? null : { title: 'Falta el regalo', text: 'Debes seleccionar un regalo del catálogo.' };
+      case 'giftcoins': return Number.isInteger(n) && n >= 1 ? null : { title: 'Monedas no válidas', text: 'Escribe cuántas monedas vale el regalo (un número entero de 1 en adelante).' };
+      case 'like': return Number.isInteger(n) && n >= 1 ? null : { title: 'Cantidad no válida', text: 'Debes ingresar una cantidad válida de likes.' };
+      case 'chattext': return condition.trim() ? null : { title: 'Falta el comentario', text: 'Escribe el comentario que activará el evento.' };
+      case 'fanlevel':
+      case 'fanlevelmin': return Number.isInteger(n) && n >= 1 && n <= 100 ? null : { title: 'Nivel no válido', text: 'Escribe un nivel de fan válido (un número entero de 1 a 100).' };
+      default: return null;
+    }
   };
 
   const handleSaveEvent = () => {
@@ -113,23 +179,25 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     const random = randomActionIds.filter(id => scopeProfile.actions?.[id] && !all.includes(id));
     if (!all.length && !random.length) return void showAlert('Elige al menos una acción de tu arsenal.', { title: 'Falta la acción' });
     if (random.length === 1) return void showAlert('Para elegir una al azar marca al menos 2 acciones en "Y una al azar de estas" (con una sola, ponla en "Todas estas a la vez").', { title: 'Acciones al azar' });
-    if (trigger === 'gift' && !condition) return void showAlert('Debes seleccionar un regalo del catálogo.', { title: 'Falta el regalo' });
-    if (trigger === 'like' && (!condition || isNaN(condition) || condition <= 0)) return void showAlert('Debes ingresar una cantidad válida de likes.', { title: 'Cantidad no válida' });
-    if (trigger === 'share' && frequency === 'cooldown' && !(parseInt(cooldownSeconds, 10) > 0)) return void showAlert('Ingresa un enfriamiento mayor a 0 segundos.', { title: 'Enfriamiento no válido' });
+    const condErr = conditionError();
+    if (condErr) return void showAlert(condErr.text, { title: condErr.title });
+    if (whoMode === 'user' && !whoUser.trim().replace(/^@+/, '')) return void showAlert('Escribe el @ del usuario que puede activar el evento.', { title: 'Falta el usuario' });
+    const usesFrequency = FREQUENCY_TRIGGERS.includes(trigger);
+    if (usesFrequency && frequency === 'cooldown' && !(parseInt(cooldownSeconds, 10) > 0)) return void showAlert('Ingresa un enfriamiento mayor a 0 segundos.', { title: 'Enfriamiento no válido' });
 
     const isCurrentlyEnabled = editingEventId ? allScopeEvents.find(e => e.id === editingEventId)?.enabled : true;
+    const numeric = ['giftcoins', 'like', 'fanlevel', 'fanlevelmin'].includes(trigger);
 
     const newEvent = {
       id: editingEventId || `evt_${Date.now()}`,
       trigger,
-      condition: (trigger === 'gift' || trigger === 'like') ? condition : 'any',
+      condition: trigger === 'gift' ? condition : trigger === 'chattext' ? condition.trim() : numeric ? String(parseInt(condition, 10)) : 'any',
       actionIds: all,
       randomActionIds: random,
       enabled: isCurrentlyEnabled !== undefined ? isCurrentlyEnabled : true,
-      ...(trigger === 'share' && {
-        frequency,
-        cooldownSeconds: Math.max(0, parseInt(cooldownSeconds, 10) || 0)
-      })
+      ...(trigger === 'chattext' && { match }),
+      ...(whoMode !== 'all' && { who: { mode: whoMode, ...(whoMode === 'user' && { username: whoUser.trim().replace(/^@+/, '') }) } }),
+      ...(usesFrequency && { frequency, cooldownSeconds: Math.max(0, parseInt(cooldownSeconds, 10) || 0) }),
     };
 
     const updatedEvents = editingEventId
@@ -142,13 +210,17 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
   const resetForm = () => {
     setEditingEventId(null);
+    setTrigger('gift');
     setCondition('');
+    setMatch('equals');
+    setWhoMode('all');
+    setWhoUser('');
     setSelectedActionIds([]);
     setRandomActionIds([]);
     setShowForm(false);
     setIsGiftModalOpen(false);
     setGiftSearch('');
-    setFrequency('once');
+    setFrequency(defaultFrequency('gift'));
     setCooldownSeconds(30);
   };
 
@@ -168,36 +240,109 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
     updateScopeEvents(allScopeEvents.map(e => e.id === eventId ? { ...e, enabled: !currentStatus } : e));
   };
 
-  const renderTriggerName = (evt) => {
-    if (evt.trigger === 'follow') return <span><Icon name="user" size={15} /> Alguien te sigue</span>;
-    if (evt.trigger === 'share') {
-      const freq = evt.frequency || 'once';
-      const freqLabel = freq === 'always' ? 'siempre' : freq === 'cooldown' ? `cada ${evt.cooldownSeconds}s por usuario` : '1 vez por usuario';
-      return (
-        <span>
-          <Icon name="share" size={15} /> Alguien comparte el directo{' '}
-          <span style={{ fontSize: '11px', color: 'var(--text2)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>{freqLabel}</span>
-        </span>
-      );
-    }
-    if (evt.trigger === 'like') return <span><Icon name="heart" size={15} /> Al llegar a {evt.condition} Likes</span>;
+  const chip = (text) => <span className="ev-chip">{text}</span>;
 
-    if (evt.trigger === 'gift') {
-      const gift = catalog[evt.condition];
-      if (gift) {
+  // Qué dispara la regla, para la lista
+  const renderTriggerName = (evt) => {
+    const who = whoLabel(evt);
+    const withExtras = (icon, text, showFrequency) => (
+      <span className="ev-trigger-name">
+        <Icon name={icon} size={15} /> {text}
+        {showFrequency && chip(frequencyLabel(evt))}
+        {who && chip(who)}
+      </span>
+    );
+    switch (evt.trigger) {
+      case 'follow': return withExtras('user', 'Alguien te sigue');
+      case 'share': return withExtras('share', 'Alguien comparte el directo', true);
+      case 'join': return withExtras('eye', 'Alguien entra al directo', true);
+      case 'superfan': return withExtras('crown', 'Alguien se hace Super Fan', true);
+      case 'like': return withExtras('heart', `Al llegar a ${evt.condition} Likes`);
+      case 'chat': return withExtras('message', 'Cualquier comentario', true);
+      case 'chattext': return withExtras('message', evt.match === 'contains' ? `Comentario que contiene "${evt.condition}"` : `Comentario "${evt.condition}"`, true);
+      case 'fanlevel': return withExtras('star', `Sube al nivel de fan ${evt.condition}`);
+      case 'fanlevelmin': return withExtras('star', `Sube a nivel de fan ${evt.condition} o más`);
+      case 'giftcoins': return withExtras('coin', `Llega un regalo de ${evt.condition} ${Number(evt.condition) === 1 ? 'moneda' : 'monedas'}`);
+      case 'gift': {
+        const gift = catalog[evt.condition];
+        if (gift) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {gift.icon ? (
+                <img src={gift.icon} alt={gift.name} style={{ width: '28px', height: '28px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '2px' }} onError={(e) => e.target.style.display = 'none'} />
+              ) : <span><Icon name="gift" size={20} /></span>}
+              <span>Envían: {gift.name} <span style={{ color: '#ffd700' }}>({gift.coins} <Icon name="gem" size={13} />)</span></span>
+              {who && chip(who)}
+            </div>
+          );
+        }
+        return withExtras('gift', `Regalo desconocido (ID: ${evt.condition})`);
+      }
+      default: return <span>{evt.trigger}</span>;
+    }
+  };
+
+  // Detalle que aparece bajo el disparador elegido
+  const renderTriggerDetail = (id) => {
+    switch (id) {
+      case 'like':
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {gift.icon ? (
-              <img src={gift.icon} alt={gift.name} style={{ width: '28px', height: '28px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '2px' }} onError={(e) => e.target.style.display = 'none'} />
-            ) : <span><Icon name="gift" size={20} /></span>}
-            <span>Envían: {gift.name} <span style={{ color: '#ffd700' }}>({gift.coins} <Icon name="gem" size={13} />)</span></span>
+          <label className="ev-inline">Cada <input type="number" min="1" className="key-input ev-num" placeholder="500" value={condition} onChange={e => setCondition(e.target.value)} /> likes se activa el evento</label>
+        );
+      case 'chattext':
+        return (
+          <>
+            <input type="text" className="key-input" style={{ width: '100%' }} placeholder="Ej: !hola" maxLength={100} value={condition} onChange={e => setCondition(e.target.value)} />
+            <Select className="modifier-select" value={match} onChange={e => setMatch(e.target.value)} style={{ width: '100%' }}>
+              {Object.entries(CHAT_MATCHES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </Select>
+            <small className="ev-hint">No importan las mayúsculas ni los espacios de más.</small>
+          </>
+        );
+      case 'fanlevel':
+        return <label className="ev-inline">Cuando alguien llegue exactamente al nivel <input type="number" min="1" max="100" className="key-input ev-num" placeholder="5" value={condition} onChange={e => setCondition(e.target.value)} /></label>;
+      case 'fanlevelmin':
+        return <label className="ev-inline">Cuando alguien llegue al nivel <input type="number" min="1" max="100" className="key-input ev-num" placeholder="5" value={condition} onChange={e => setCondition(e.target.value)} /> o a uno mayor</label>;
+      case 'giftcoins':
+        return (
+          <>
+            <label className="ev-inline">Regalos que valen <input type="number" min="1" className="key-input ev-num" placeholder="1" value={condition} onChange={e => setCondition(e.target.value)} /> monedas cada uno</label>
+            <small className="ev-hint">Sirve cualquier regalo de ese valor (el precio de una unidad).</small>
+          </>
+        );
+      case 'gift':
+        return (
+          <div
+            onClick={() => setIsGiftModalOpen(true)}
+            className="ev-gift-pick"
+          >
+            {condition && catalog[condition] ? (
+              <>
+                {catalog[condition].icon ? (
+                  <img src={catalog[condition].icon} alt="Icon" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                ) : <span style={{ fontSize: '20px' }}><Icon name="gift" size={22} /></span>}
+                <span style={{ fontWeight: 'bold' }}>{catalog[condition].name} <span style={{ color: '#ffd700', marginLeft: '4px' }}>({catalog[condition].coins} <Icon name="gem" size={13} />)</span></span>
+              </>
+            ) : (
+              <span className="ev-gift-empty"><Icon name="search" size={15} /> Clic aquí para elegir un regalo...</span>
+            )}
           </div>
         );
-      }
-      return <span><Icon name="gift" size={15} /> Regalo desconocido (ID: {evt.condition})</span>;
+      default:
+        return null;
     }
-    return <span>{evt.trigger}</span>;
   };
+
+  const triggerDetail = (id) => {
+    const base = renderTriggerDetail(id);
+    const freq = FREQUENCY_TRIGGERS.includes(id)
+      ? <FrequencyPicker frequency={frequency} setFrequency={setFrequency} cooldownSeconds={cooldownSeconds} setCooldownSeconds={setCooldownSeconds} what={FREQUENCY_WHAT[id]} />
+      : null;
+    return base || freq ? <>{base}{freq}</> : null;
+  };
+
+  const currentItem = TRIGGER_GROUPS.flatMap(g => g.items).find(i => i.id === trigger) || TRIGGER_GROUPS[0].items[0];
+  const currentDetail = triggerDetail(trigger);
 
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -212,14 +357,14 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Vínculos: Eventos de TikTok → Acciones</h3>
-        <button className="btn" onClick={() => setShowForm(true)}>+ Crear Nuevo Vínculo</button>
+        <button className="btn" onClick={() => { resetForm(); setShowForm(true); }}>+ Crear Nuevo Vínculo</button>
       </div>
 
       <ModalShell
         isOpen={showForm}
         onClose={resetForm}
         title={editingEventId ? <><Icon name="edit" size={16} /> Editando regla</> : <><Icon name="sparkles" size={16} /> Diseñar regla</>}
-        width="700px"
+        width="900px"
         footer={
           <>
             <button className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
@@ -229,101 +374,77 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           </>
         }
       >
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div className="ev-form">
+          <section className="ev-step">
+            <div className="ev-step-head"><span className="ev-n">1</span> ¿Quién puede activar el evento?</div>
+            <div className="ev-pills">
+              {WHO_OPTIONS.map(o => (
+                <Pill key={o.id} name="ev-who" checked={whoMode === o.id} onSelect={() => setWhoMode(o.id)} label={o.label} />
+              ))}
+            </div>
+            {whoMode === 'user' && (
+              <input type="text" className="key-input ev-user" placeholder="@usuario" maxLength={60} value={whoUser} onChange={e => setWhoUser(e.target.value)} />
+            )}
+            {whoMode !== 'all' && whoMode !== 'user' && (
+              <small className="ev-hint">
+                TikTok informa si alguien es seguidor, suscriptor o moderador en sus comentarios y regalos. En los demás eventos (entrar, likes...) se usa lo que ya se vio de esa persona
+                durante este directo; si todavía no se sabe, no se activa.
+              </small>
+            )}
+          </section>
 
-          <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-            <label style={{ display: 'block', fontSize: '13px', color: '#ffeb3b', marginBottom: '8px', fontWeight: 'bold' }}>1. CUANDO OCURRA ESTO...</label>
-            <Select className="modifier-select" value={trigger} onChange={e => { setTrigger(e.target.value); setCondition(''); }} style={{ width: '100%', marginBottom: '10px' }}>
-              <option value="gift">Recibir un regalo específico</option>
-              <option value="like">Alcanzar meta de likes</option>
-              <option value="follow">Nuevo seguidor</option>
-              <option value="share">Compartir directo</option>
-            </Select>
-
-            {trigger === 'gift' && (
-              <div
-                onClick={() => setIsGiftModalOpen(true)}
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'border 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = '#00bcd4'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-              >
-                {condition && catalog[condition] ? (
-                  <>
-                    {catalog[condition].icon ? (
-                      <img src={catalog[condition].icon} alt="Icon" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
-                    ) : <span style={{ fontSize: '20px' }}><Icon name="gift" size={22} /></span>}
-                    <span style={{ fontWeight: 'bold' }}>{catalog[condition].name} <span style={{ color: '#ffd700', marginLeft: '4px' }}>({catalog[condition].coins} <Icon name="gem" size={13} />)</span></span>
-                  </>
-                ) : (
-                  <span style={{ color: '#00bcd4', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Icon name="search" size={15} /> Clic aquí para elegir un regalo...
-                  </span>
-                )}
+          <section className="ev-step">
+            <div className="ev-step-head"><span className="ev-n">2</span> ¿Por qué se activará el evento?</div>
+            <div className="ev-groups">
+              {TRIGGER_GROUPS.map(group => (
+                <div key={group.label} className={`ev-gcard${group.label === 'General' ? ' wide' : ''}`}>
+                  <div className="ev-group-title">{group.label}</div>
+                  <div className="ev-pills">
+                    {group.items.map(item => (
+                      <Pill key={item.id} name="ev-trigger" checked={trigger === item.id} onSelect={() => selectTrigger(item.id)} label={item.label} icon={item.icon} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {currentDetail && (
+              <div className="ev-panel">
+                <div className="ev-panel-title"><Icon name={currentItem.icon} size={14} /> {currentItem.label}</div>
+                {currentDetail}
               </div>
             )}
+          </section>
 
-            {trigger === 'like' && (
-              <input type="number" className="key-input" placeholder="Ej: 500" value={condition} onChange={e => setCondition(e.target.value)} style={{ width: '100%' }} />
-            )}
-            {trigger === 'share' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text2)' }}>¿Cuándo se ejecuta?</label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input type="radio" checked={frequency === 'once'} onChange={() => setFrequency('once')} />
-                  <span>Una sola vez por usuario (en este directo)</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input type="radio" checked={frequency === 'always'} onChange={() => setFrequency('always')} />
-                  <span>Todas las veces que comparta</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input type="radio" checked={frequency === 'cooldown'} onChange={() => setFrequency('cooldown')} />
-                  <span>Con enfriamiento por usuario:</span>
-                  <input
-                    type="number" min="1" className="key-input"
-                    value={cooldownSeconds} disabled={frequency !== 'cooldown'}
-                    onChange={e => setCooldownSeconds(e.target.value)}
-                    style={{ width: '70px' }}
-                  />
-                  <span>seg</span>
-                </label>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-            <span style={{ fontSize: '24px' }}><Icon name="arrowRight" size={24} /></span>
-          </div>
-
-          <div style={{ flex: 1, minWidth: '250px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-            <label style={{ display: 'block', fontSize: '13px', color: '#4caf50', marginBottom: '8px', fontWeight: 'bold' }}>2. EJECUTAR...</label>
+          <section className="ev-step">
+            <div className="ev-step-head"><span className="ev-n">3</span> ¿Qué se ejecutará?</div>
             {scopeActionsArray.length === 0 ? (
               <div style={{ fontSize: '12px', color: '#ff4d4d' }}>
                 No tienes acciones creadas en este perfil. Ve a la pestaña "Acciones" primero.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <div className="evt-list-head"><Icon name="layers" size={14} /> Todas estas a la vez <span>{selectedActionIds.length || ''}</span></div>
-                  <ActionChecklist
-                    actions={scopeActionsArray} selected={selectedActionIds} blocked={randomActionIds}
-                    blockedHint="Ya está en Y una al azar de estas"
-                    onToggle={id => setSelectedActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-                  />
+              <>
+                <div className="ev-actions">
+                  <div>
+                    <div className="evt-list-head"><Icon name="layers" size={14} /> Todas estas a la vez <span>{selectedActionIds.length || ''}</span></div>
+                    <ActionChecklist
+                      actions={scopeActionsArray} selected={selectedActionIds} blocked={randomActionIds}
+                      blockedHint="Ya está en Y una al azar de estas"
+                      onToggle={id => setSelectedActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                    />
+                  </div>
+                  <div>
+                    <div className="evt-list-head"><Icon name="repeat" size={14} /> Y una al azar de estas <span>{randomActionIds.length || ''}</span></div>
+                    <ActionChecklist
+                      actions={scopeActionsArray} selected={randomActionIds} blocked={selectedActionIds}
+                      blockedHint="Ya está en Todas estas a la vez"
+                      onToggle={id => setRandomActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <div className="evt-list-head"><Icon name="repeat" size={14} /> Y una al azar de estas <span>{randomActionIds.length || ''}</span></div>
-                  <ActionChecklist
-                    actions={scopeActionsArray} selected={randomActionIds} blocked={selectedActionIds}
-                    blockedHint="Ya está en Todas estas a la vez"
-                    onToggle={id => setRandomActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-                  />
-                  <p className="evt-hint">Opcional. Cada vez que ocurra se elige una (con un regalo de varias unidades, una por unidad). Las desactivadas no entran al sorteo.</p>
-                </div>
-              </div>
+                <p className="evt-hint">La lista de la derecha es opcional: cada vez que ocurra se elige una (con un regalo de varias unidades, una por unidad). Las desactivadas no entran al sorteo.</p>
+              </>
             )}
-          </div>
+          </section>
         </div>
       </ModalShell>
 
@@ -331,8 +452,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#00bcd4' }}>Seleccionar Regalo</h3>
-              <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', display: 'inline-flex' }} aria-label="Cerrar"><Icon name="x" size={18} /></button>
+              <h3 style={{ margin: 0, color: 'var(--accent)' }}>Seleccionar Regalo</h3>
+              <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', display: 'inline-flex' }} aria-label="Cerrar selector de regalos"><Icon name="x" size={18} /></button>
             </div>
 
             <div style={{ padding: '16px 20px', background: 'rgba(0,0,0,0.2)' }}>

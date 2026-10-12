@@ -4,6 +4,7 @@ const entitlements = require('./entitlements');
 const actionDispatcher = require('./actionDispatcher');
 const { isSoundOnly } = require('./actionSteps');
 const giftGroups = require('./giftGroups');
+const eventTriggers = require('./eventTriggers');
 
 function getActiveEventSources() {
   const profiles = store.peekProfiles(); // solo lectura: sin copiar en cada regalo/like
@@ -72,10 +73,12 @@ function runEvent(evt, actions, opts = {}) {
   return executed ? { executed: true, label: labels.join(' + ') } : { executed: false };
 }
 
-function findMatchingEvents(triggerType, conditionValue) {
+// `actor`: quién hizo el evento ({ key, username, roles }, ver tiktok/users.js actorOf); las reglas con filtro "quién puede activarlo" solo
+// lo cumplen si encaja (ver eventTriggers.whoAllows).
+function findMatchingEvents(triggerType, conditionValue, actor = null) {
   const { global, active, allowed } = getActiveEventSources();
   const condStr = String(conditionValue);
-  const predicate = evt => evt.trigger === triggerType && (evt.condition === 'any' || String(evt.condition) === condStr);
+  const predicate = evt => evt.trigger === triggerType && eventTriggers.matches(evt, conditionValue) && eventTriggers.whoAllows(evt, actor);
 
   const result = collect(global, allowed, predicate);
   if (active) result.push(...collect(active, allowed, predicate));
@@ -83,15 +86,15 @@ function findMatchingEvents(triggerType, conditionValue) {
 
   // Ningún regla con ese ID exacto: TikTok usa varios IDs para el mismo regalo, así que sirven las reglas de su grupo (mismo nombre y
   // precio). Solo si no hay coincidencia exacta: quien hizo una regla por cada ID no ve que se dispare dos veces.
-  const variantPredicate = evt => evt.trigger === 'gift' && giftGroups.sameGift(evt.condition, condStr);
+  const variantPredicate = evt => evt.trigger === 'gift' && giftGroups.sameGift(evt.condition, condStr) && eventTriggers.whoAllows(evt, actor);
   const viaGroup = collect(global, allowed, variantPredicate);
   if (active) viaGroup.push(...collect(active, allowed, variantPredicate));
   return viaGroup;
 }
 
-function getEventsByTrigger(triggerType) {
+function getEventsByTrigger(triggerType, actor = null) {
   const { global, active, allowed } = getActiveEventSources();
-  const predicate = evt => evt.trigger === triggerType;
+  const predicate = evt => evt.trigger === triggerType && eventTriggers.whoAllows(evt, actor);
 
   const result = collect(global, allowed, predicate);
   if (active) result.push(...collect(active, allowed, predicate));

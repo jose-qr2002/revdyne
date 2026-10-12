@@ -1,7 +1,7 @@
 // backend/services/tiktok/gifts.js
 // Evento "gift": cuenta las unidades nuevas de cada ráfaga, alimenta metas/tops/rankings y dispara las reglas de regalo.
 const ctx = require('./context');
-const { getUsername, rankUser, alertUser } = require('./users');
+const { getUsername, rankUser, alertUser, actorOf } = require('./users');
 const catalogService = require('../catalogService');
 const overlayService = require('../overlayService');
 const rankingService = require('../rankingService');
@@ -78,7 +78,14 @@ function handleGift(data) {
     repeatCount: streak.total, coins: coins * streak.total,
     streak: { key: streak.key, combo: streak.combo, ended: streak.ended }, // las alertas de un combo esperan a que termine
   };
-  const result = ctx.executeEventActions('gift', giftId, newCount, eventContext);
+  // Reglas "regalo específico" (por ID) y "moneda específica" (el regalo vale justo esas monedas por unidad). Cada regla puede limitar quién la activa.
+  const actor = actorOf(data);
+  const byGift = ctx.executeEventActions('gift', giftId, newCount, eventContext, { actor });
+  const byCoins = ctx.executeEventActions('giftcoins', coins, newCount, eventContext, { actor });
+  const result = {
+    actionExecuted: byGift.actionExecuted || byCoins.actionExecuted,
+    keyExecuted: [byGift.keyExecuted, byCoins.keyExecuted].filter(Boolean).join(' + ') || null,
+  };
 
   ctx.io.emit('giftReceived', {
     giftId, giftName, coins, sender, newCount,

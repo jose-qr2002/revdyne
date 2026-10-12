@@ -169,7 +169,7 @@ function connect(username) {
   currentUser = username || null;
   
   chat.reset();   // enfriamiento global de stickers por usuario
-  social.reset(); // frecuencia "una vez" y enfriamientos de compartir
+  social.reset(); // frecuencia "una vez" y enfriamientos por usuario, roles recordados, Super Fan
   overlayService.resetAll();
   topService.setOwner(username); // no reinicia al reconectar al mismo usuario
   rankingService.setOwner(username);
@@ -257,6 +257,10 @@ function connect(username) {
   tiktokConnection.on('follow', guard('follow', social.handleFollow));
   tiktokConnection.on('like', guard('like', social.handleLike));
   tiktokConnection.on('chat', guard('chat', chat.handleChat));
+  tiktokConnection.on('member', guard('member', social.handleJoin));           // alguien entra al directo
+  tiktokConnection.on('superFan', guard('superFan', social.handleSuperFan));
+  tiktokConnection.on('superFanJoin', guard('superFanJoin', social.handleSuperFan));
+  tiktokConnection.on('barrage', guard('barrage', social.handleBarrage));      // aquí llega la subida de nivel de fan
 
   tiktokConnection.on('disconnected', (state) => {
     // Si ya no es la conexión actual, la desconexión la pidió la app (disconnect() o una reconexión): ya quedó

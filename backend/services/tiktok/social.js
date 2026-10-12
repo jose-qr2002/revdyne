@@ -1,39 +1,17 @@
 // backend/services/tiktok/social.js
-// Eventos "share", "follow" y "like": metas, rankings y reglas de compartir (con su frecuencia), seguir y metas de likes.
+// Eventos de la audiencia: "share", "follow", "like", "member" (entrar al directo), Super Fan y subida de nivel de fan. Alimentan metas y
+// rankings y disparan las reglas de la pestaña Eventos (con su filtro "quién puede activarlo" y su frecuencia por usuario).
 const ctx = require('./context');
-const { getUsername, rankUser, alertUser } = require('./users');
+const { getUsername, rankUser, alertUser, actorOf, findUserDeep, resetActors } = require('./users');
+const frequency = require('./frequency');
 const eventEngine = require('../eventEngine');
 const overlayService = require('../overlayService');
 const rankingService = require('../rankingService');
 
 const followedUsers = new Set();     // seguidores ya contados (un follow repetido no vuelve a disparar reglas). No se reinicia al conectar.
-const onceSeen = new Set();          // "reglaId_usuario" ya ejecutados (modo "una vez")
-const eventCooldowns = new Map();    // "reglaId_usuario" -> último disparo (modo "enfriamiento")
-const likeAccumulators = {};         // reglaId -> likes acumulados hacia su umbral. No se reinicia al conectar.
-
-// Frecuencia de una regla de compartir para un usuario: siempre, una vez por directo o con enfriamiento
-function passesFrequency(evt, userKey) {
-  const mode = evt.frequency || 'once';
-  if (mode === 'always') return true;
-
-  const key = `${evt.id}_${userKey}`;
-
-  if (mode === 'once') {
-    if (onceSeen.has(key)) return false;
-    onceSeen.add(key);
-    return true;
-  }
-
-  if (mode === 'cooldown') {
-    const last = eventCooldowns.get(key);
-    if (last && Date.now() - last < (evt.cooldownSeconds || 0) * 1000) return false;
-    eventCooldowns.set(key, Date.now());
-    if (eventCooldowns.size > 10000) eventCooldowns.delete(eventCooldowns.keys().next().value);
-    return true;
-  }
-
-  return true;
-}
+const likeAccumulators = {};         // reglaId -> likes acumulados hacia su umbral (solo cuentan los de quien la regla deja pasar). No se reinicia al conectar.
+const superFanSeen = new Map();      // usuario -> última vez (TikTok manda varios mensajes de Super Fan por una misma persona)
+const SUPER_FAN_DEDUPE_MS = 15000;
 
 function handleShare(data) {
   const username = getUsername(data);
@@ -41,23 +19,12 @@ function handleShare(data) {
   rankingService.record('shares', rankUser(data), 1);
   console.log(`📢 ${username} ha compartido el directo`);
 
-  let executed = false;
-  let label = null;
-
-  // La frecuencia se decide por regla, no globalmente
-  eventEngine.findMatchingEvents('share', 'any').forEach(({ evt, actions }) => {
-    if (!passesFrequency(evt, username)) return;
-    const result = eventEngine.runEvent(evt, actions, {
-      times: 1,
-      defaultDelayMs: ctx.defaultDelayMs(),
-      context: { user: alertUser(data) },
-    });
-    if (result.executed) { executed = true; label = label ? `${label} + ${result.label}` : result.label; }
-  });
+  // La frecuencia se decide por regla ('una vez' por usuario por defecto)
+  const result = ctx.executeEventActions('share', 'any', 1, { user: alertUser(data) }, { actor: actorOf(data), frequency: 'once' });
 
   ctx.io.emit('giftReceived', {
     giftId: 'action_share', giftName: '📢 Compartió el Directo', coins: 0, sender: username, newCount: 1,
-    key: label || 'Ninguna', pressed: executed, timestamp: Date.now()
+    key: result.keyExecuted || 'Ninguna', pressed: result.actionExecuted, timestamp: Date.now()
   });
 }
 
@@ -69,7 +36,8 @@ function handleFollow(data) {
   followedUsers.add(username);
 
   console.log(`👤 Nuevo seguidor: @${username}`);
-  const result = ctx.executeEventActions('follow', 'any', 1, { user: alertUser(data) });
+  // Quien acaba de seguir es seguidor aunque este evento no traiga su identidad
+  const result = ctx.executeEventActions('follow', 'any', 1, { user: alertUser(data) }, { actor: actorOf(data, { follower: true }) });
 
   ctx.io.emit('giftReceived', {
     giftId: 'action_follow', giftName: '👤 Nuevo Seguidor', coins: 0, sender: username, newCount: 1,
@@ -83,10 +51,9 @@ function handleLike(data) {
 
   const count = data.count || 1;
   const username = getUsername(data) === 'alguien' ? 'Comunidad' : getUsername(data);
+  const actor = actorOf(data);
 
-  const likeEvents = eventEngine.getEventsByTrigger('like');
-
-  likeEvents.forEach(({ evt, actions }) => {
+  eventEngine.getEventsByTrigger('like', actor).forEach(({ evt, actions }) => {
     const threshold = parseInt(evt.condition, 10);
     if (!threshold || threshold <= 0) return;
 
@@ -111,10 +78,51 @@ function handleLike(data) {
   });
 }
 
-// Al conectar: la frecuencia "una vez" y los enfriamientos de compartir empiezan de cero en cada directo
-function reset() {
-  onceSeen.clear();
-  eventCooldowns.clear();
+// Alguien entra al directo (mensaje "member"). Solo se registra en el Log si alguna regla se ejecutó (entran muchos).
+function handleJoin(data) {
+  if (Number(data?.action) === 3) return; // 3 = se suscribió, no es una entrada
+  const result = ctx.executeEventActions('join', 'any', 1, { user: alertUser(data) }, { actor: actorOf(data), frequency: 'once' });
+  if (result.actionExecuted) ctx.emitLog('action_join', '👋 Entró al directo', getUsername(data), result.keyExecuted);
 }
 
-module.exports = { handleShare, handleFollow, handleLike, reset };
+// Super Fan (mensajes "superFan" y "superFanJoin"). Estos mensajes no traen el usuario en un campo fijo: se busca dentro del mensaje.
+function handleSuperFan(data) {
+  const user = findUserDeep(data);
+  const holder = user ? { user } : {};
+  const actor = actorOf(holder);
+  const who = user ? getUsername(holder) : 'alguien';
+
+  const now = Date.now();
+  const dedupeKey = actor.key || 'desconocido';
+  if (now - (superFanSeen.get(dedupeKey) || 0) < SUPER_FAN_DEDUPE_MS) return;
+  superFanSeen.set(dedupeKey, now);
+  if (superFanSeen.size > 500) superFanSeen.delete(superFanSeen.keys().next().value);
+
+  const result = ctx.executeEventActions('superfan', 'any', 1, { user: alertUser(holder) }, { actor: actorOf(holder, { subscriber: false }), frequency: 'once' });
+  if (result.actionExecuted) ctx.emitLog('action_superfan', '⭐ Nuevo Super Fan', who, result.keyExecuted);
+}
+
+// Subida de nivel de fan: llega como mensaje "barrage" de tipo "fans level upgrade" con el nivel alcanzado. Otros "barrage" se ignoran.
+function handleBarrage(data) {
+  const level = Number(data?.fansLevelParam?.currentGrade);
+  if (!(level > 0)) return;
+  const holder = { user: data.fansLevelParam.user };
+  const actor = actorOf(holder);
+  const context = { user: alertUser(holder), fanLevel: level };
+
+  // "Específico" (exactamente ese nivel) y "mínimo" (ese nivel o más) son reglas distintas
+  const exact = ctx.executeEventActions('fanlevel', level, 1, context, { actor });
+  const min = ctx.executeEventActions('fanlevelmin', level, 1, context, { actor });
+  if (exact.actionExecuted || min.actionExecuted) {
+    ctx.emitLog('action_fanlevel', `🎖️ Nivel de fan ${level}`, getUsername(holder), [exact.keyExecuted, min.keyExecuted].filter(Boolean).join(' + '));
+  }
+}
+
+// Al conectar: lo pendiente del directo anterior no cuenta
+function reset() {
+  superFanSeen.clear();
+  frequency.reset(); // "una vez" y enfriamientos por usuario (compartir, entrar, comentar...)
+  resetActors();     // roles (seguidor, suscriptor, moderador) recordados de los usuarios
+}
+
+module.exports = { handleShare, handleFollow, handleLike, handleJoin, handleSuperFan, handleBarrage, reset };

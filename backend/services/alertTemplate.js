@@ -5,7 +5,7 @@
 //
 // Paso:  { type: 'alert', text, screen, duration (s), showAvatar, showGift, singleLine, style: { ...parcial, se completa con DEFAULT_STYLE } }
 // Datos del evento (`context`, lo rellenan los manejadores de backend/services/tiktok/):
-//        { user: { nickname, username, avatar }, gift: { name, image }, repeatCount, coins, likeCount, totalLikeCount, comment }
+//        { user: { nickname, username, avatar }, gift: { name, image }, repeatCount, coins, likeCount, totalLikeCount, comment, fanLevel }
 
 const MAX_TEXT = 200;
 const DURATION = { min: 1, max: 60, default: 6 };
@@ -43,7 +43,8 @@ const PLACEHOLDERS = [
   { key: 'coins', label: 'Monedas', help: 'Valor total del regalo en monedas (por la cantidad)' },
   { key: 'likecount', label: 'Likes', help: 'Likes de este envío' },
   { key: 'totallikecount', label: 'Likes totales', help: 'Likes totales del directo' },
-  { key: 'comment', label: 'Comentario', help: 'El comentario (en stickers)' },
+  { key: 'comment', label: 'Comentario', help: 'El comentario (en comentarios y stickers)' },
+  { key: 'fanlevel', label: 'Nivel de fan', help: 'El nivel de fan alcanzado (en subidas de nivel de fan)' },
 ];
 
 const COLOR = /^#[0-9a-f]{6}$/i;
@@ -75,7 +76,7 @@ function templateValues(context) {
   return {
     username: val(u.username), nickname: val(u.nickname || u.username), giftname: val(g.name),
     repeatcount: val(c.repeatCount), coins: val(c.coins), likecount: val(c.likeCount), totallikecount: val(c.totalLikeCount),
-    comment: val(c.comment),
+    comment: val(c.comment), fanlevel: val(c.fanLevel),
   };
 }
 
