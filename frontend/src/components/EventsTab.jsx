@@ -6,7 +6,10 @@ import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import { stepsSummary } from '../services/actionSteps';
 import { groupGifts } from './giftUtils';
-import { WHO_OPTIONS, TRIGGER_GROUPS, FREQUENCY_TRIGGERS, defaultFrequency, CHAT_MATCHES, frequencyLabel, whoLabel } from '../services/eventTriggers';
+import { WHO_OPTIONS, TRIGGER_GROUPS, TRIGGER_ITEMS, triggerLabel, FREQUENCY_TRIGGERS, defaultFrequency, CHAT_MATCHES, frequencyLabel, whoLabel } from '../services/eventTriggers';
+import ListToolbar from './ListToolbar';
+import Pagination from './Pagination';
+import { useListView, searchKey } from '../hooks/useListView';
 
 // Acciones de un evento: `actionIds` (todas a la vez) y `randomActionIds` (una al azar). Los antiguos con un solo `actionId` ya
 // llegan migrados del servidor (backend/data/migrations.js).
@@ -71,6 +74,10 @@ const FREQUENCY_WHAT = {
   join: 'entre al directo', share: 'comparta', superfan: 'se haga Super Fan', chat: 'comente', chattext: 'escriba ese comentario',
 };
 
+// Clave de la búsqueda y los filtros actuales (al cambiar, la lista vuelve a la página 1) y la de "sin filtros"
+const listKey = (query, trigger, who, state) => [query, trigger, who, state].join('|');
+const CLEARED_KEY = listKey('', 'all', 'any', 'all');
+
 export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [showForm, setShowForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState(null);
@@ -93,6 +100,12 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
 
+  // Búsqueda y filtros de la lista de reglas
+  const [search, setSearch] = useState('');
+  const [fTrigger, setFTrigger] = useState('all');
+  const [fWho, setFWho] = useState('any');
+  const [fState, setFState] = useState('all');
+
   const activeProfileId = profiles.activeProfileId;
 
   const scopeProfileId = activeProfileId;
@@ -101,6 +114,29 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
   const allScopeEvents = scopeProfile.events || [];
 
   const displayEvents = allScopeEvents.filter(e => e.trigger !== 'sticker');
+
+  // Texto donde busca la barra: disparador, condición (nombre del regalo, comentario...), quién y los nombres de sus acciones
+  const missingActions = (evt) => { const ids = eventActionIds(evt); return [...ids.all, ...ids.random].filter(id => !scopeProfile.actions?.[id]).length; };
+  const eventSearchText = (evt) => {
+    const ids = eventActionIds(evt);
+    const gift = evt.trigger === 'gift' ? catalog[evt.condition] : null;
+    return searchKey([
+      triggerLabel(evt.trigger), evt.condition === 'any' ? '' : evt.condition, gift?.name, whoLabel(evt), evt.who?.username,
+      ...[...ids.all, ...ids.random].map(id => scopeProfile.actions?.[id]?.name),
+    ].join(' '));
+  };
+  const query = searchKey(search.trim());
+  const filteredEvents = displayEvents.filter(evt => {
+    if (fTrigger !== 'all' && evt.trigger !== fTrigger) return false;
+    if (fWho !== 'any' && (evt.who?.mode || 'all') !== fWho) return false;
+    if (fState === 'enabled' && !evt.enabled) return false;
+    if (fState === 'disabled' && evt.enabled) return false;
+    if (fState === 'broken' && missingActions(evt) === 0) return false;
+    return !query || eventSearchText(evt).includes(query);
+  });
+  const view = useListView(filteredEvents, listKey(query, fTrigger, fWho, fState));
+  const filtersActive = !!query || fTrigger !== 'all' || fWho !== 'any' || fState !== 'all';
+  const clearFilters = () => { setSearch(''); setFTrigger('all'); setFWho('any'); setFState('all'); };
 
   const catalogArray = useMemo(() => {
     return groupGifts(catalog).sort((a, b) =>
@@ -205,6 +241,7 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
       : [...allScopeEvents, newEvent];
 
     updateScopeEvents(updatedEvents);
+    if (!editingEventId) { clearFilters(); view.jumpTo(view.lastPageFor(displayEvents.length + 1), CLEARED_KEY); } // la nueva queda al final: se muestra (con los filtros ya limpios)
     resetForm();
   };
 
@@ -500,11 +537,25 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
         </div>
       )}
 
+      {displayEvents.length > 0 && (
+        <ListToolbar
+          search={search} onSearch={setSearch} placeholder="Buscar regla (disparador, regalo, acción...)"
+          active={filtersActive} onClear={clearFilters}
+          filters={[
+            { id: 'trigger', label: 'Disparador', value: fTrigger, onChange: setFTrigger, options: [{ value: 'all', label: 'Todos' }, ...TRIGGER_ITEMS.map(i => ({ value: i.id, label: i.label }))] },
+            { id: 'who', label: 'Quién', value: fWho, onChange: setFWho, options: [{ value: 'any', label: 'Cualquiera' }, ...WHO_OPTIONS.map(o => ({ value: o.id, label: o.id === 'all' ? 'Abiertas a todos' : o.label }))] },
+            { id: 'state', label: 'Estado', value: fState, onChange: setFState, options: [{ value: 'all', label: 'Todos' }, { value: 'enabled', label: 'Activas' }, { value: 'disabled', label: 'Desactivadas' }, { value: 'broken', label: 'Con acciones eliminadas' }] },
+          ]}
+        />
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {displayEvents.length === 0 ? (
           <div className="log-empty">No has vinculado ningún evento en este alcance. ¡Crea tu primera regla arriba!</div>
+        ) : view.total === 0 ? (
+          <div className="log-empty">Ninguna regla coincide con la búsqueda o los filtros. <button className="btn btn-secondary btn-sm" onClick={clearFilters}>Limpiar</button></div>
         ) : (
-          displayEvents.map(evt => {
+          view.pageItems.map(evt => {
             const ids = eventActionIds(evt);
             const nameOf = id => scopeProfile.actions?.[id]?.name;
             const missing = [...ids.all, ...ids.random].filter(id => !nameOf(id)).length;
@@ -538,6 +589,8 @@ export default function EventsTab({ profiles, catalog, onUpdateProfiles }) {
           })
         )}
       </div>
+
+      <Pagination view={view} noun={view.total === 1 ? 'regla' : 'reglas'} />
     </div>
   );
 }

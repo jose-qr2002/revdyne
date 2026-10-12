@@ -3,9 +3,15 @@ import Icon from './Icon';
 import ConfirmModal from './ConfirmModal';
 import ModalShell from './ModalShell';
 import ActionStepEditor from './ActionStepEditor';
+import ListToolbar from './ListToolbar';
+import Pagination from './Pagination';
+import { useListView, searchKey } from '../hooks/useListView';
 import { STEP_TYPES, ALWAYS_AVAILABLE, getSteps, newStep, totalPresses, comboLabel, MAX_WAIT_MS, MAX_REPEAT, MIN_KEY_DELAY_MS, IMAGE_MIN_SECONDS, IMAGE_MAX_SECONDS, IMAGE_DEFAULT_SECONDS, ALERT_DEFAULT_SECONDS } from '../services/actionSteps';
 
 const TEST_DELAY_MS = 5000;
+
+// ID de una acción nueva (fuera del componente: es un valor que cambia en cada llamada)
+const newActionId = () => `act_${Date.now()}`;
 
 const toVolume = (v) => {
   const n = parseInt(v, 10);
@@ -91,6 +97,10 @@ function StepChips({ steps }) {
   );
 }
 
+// Clave de la búsqueda y los filtros actuales (al cambiar, la lista vuelve a la página 1) y la de "sin filtros"
+const listKey = (query, type, state) => [query, type, state].join('|');
+const CLEARED_KEY = listKey('', 'all', 'all');
+
 export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'], onUpdateConfig }) {
   const [showForm, setShowForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState(null);
@@ -104,6 +114,10 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
   const [localSounds, setLocalSounds] = useState([]);
   const [videoList, setVideoList] = useState([]);
   const [imageList, setImageList] = useState([]);
+  // Búsqueda y filtros de la lista de acciones
+  const [search, setSearch] = useState('');
+  const [fType, setFType] = useState('all');   // acciones que tienen un paso de este tipo
+  const [fState, setFState] = useState('all'); // activas | desactivadas
   const [alertInfo, setAlertInfo] = useState(null); // fuentes, valores por defecto y límites del diseño de alertas (los da el servidor)
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageInputRef = useRef(null);
@@ -325,19 +339,42 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
     const error = steps.map(stepError).find(Boolean);
     if (error) return showToast('error', error);
 
-    const actionId = editingActionId || `act_${Date.now()}`;
+    const actionId = editingActionId || newActionId();
     const isCurrentlyEnabled = editingActionId && actions[editingActionId] ? actions[editingActionId].enabled : true;
     // "en cada pulsación" solo vale con varias pulsaciones; si se quitaron las teclas, se guarda desmarcado
     const multi = totalPresses(steps) > 1;
     const newAction = { name, enabled: isCurrentlyEnabled, steps: steps.map(cleanStep).map(st => (st.type === 'sound' ? { ...st, everyKey: st.everyKey && multi } : st)) };
 
     onUpdateConfig({ actions: { ...actions, [actionId]: newAction } });
+    if (!editingActionId) { clearFilters(); view.jumpTo(view.lastPageFor(Object.keys(actions || {}).length + 1), CLEARED_KEY); } // la nueva queda al final: se muestra (con los filtros ya limpios)
     resetForm();
   };
 
   // Sonido "en cada pulsación": solo si la acción tiene más de una pulsación en total, y solo un paso de sonido puede usarlo
   const presses = totalPresses(steps);
   const everyKeyOwner = steps.find(s => s.type === 'sound' && s.everyKey)?.uid ?? null;
+
+  // ---- Búsqueda, filtros y paginación de la lista ----
+  // Texto donde busca la barra: nombre, ID y el contenido de cada paso (teclas, archivos de sonido/video/imagen, texto de la alerta...)
+  const actionSearchText = (id, act) => searchKey([
+    act.name, id,
+    ...getSteps(act).flatMap(st => [
+      STEP_TYPES[st.type]?.label, st.sound, st.video, st.image, st.text,
+      ...(st.keys || []).map(k => comboLabel(k)),
+      st.type === 'win' ? (st.mode === 'decrease' ? 'bajar wins' : 'subir wins') : '',
+    ]),
+  ].join(' '));
+  const query = searchKey(search.trim());
+  const allActionEntries = Object.entries(actions || {});
+  const filteredActions = allActionEntries.filter(([id, act]) => {
+    if (fType !== 'all' && !getSteps(act).some(st => st.type === fType)) return false;
+    if (fState === 'enabled' && !act.enabled) return false;
+    if (fState === 'disabled' && act.enabled) return false;
+    return !query || actionSearchText(id, act).includes(query);
+  });
+  const view = useListView(filteredActions, listKey(query, fType, fState));
+  const filtersActive = !!query || fType !== 'all' || fState !== 'all';
+  const clearFilters = () => { setSearch(''); setFType('all'); setFState('all'); };
 
   // ---- Lista ----
   const requestDeleteAction = (id) => {
@@ -473,11 +510,24 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
         </div>
       </ModalShell>
 
+      {allActionEntries.length > 0 && (
+        <ListToolbar
+          search={search} onSearch={setSearch} placeholder="Buscar acción (nombre, tecla, archivo...)"
+          active={filtersActive} onClear={clearFilters}
+          filters={[
+            { id: 'type', label: 'Contiene', value: fType, onChange: setFType, options: [{ value: 'all', label: 'Cualquier paso' }, ...Object.entries(STEP_TYPES).filter(([, m]) => !m.soon).map(([value, m]) => ({ value, label: m.label }))] },
+            { id: 'state', label: 'Estado', value: fState, onChange: setFState, options: [{ value: 'all', label: 'Todas' }, { value: 'enabled', label: 'Activas' }, { value: 'disabled', label: 'Desactivadas' }] },
+          ]}
+        />
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {Object.entries(actions || {}).length === 0 ? (
+        {allActionEntries.length === 0 ? (
           <div className="log-empty">No has creado ninguna acción todavía. ¡Crea una arriba!</div>
+        ) : view.total === 0 ? (
+          <div className="log-empty">Ninguna acción coincide con la búsqueda o los filtros. <button className="btn btn-secondary btn-sm" onClick={clearFilters}>Limpiar</button></div>
         ) : (
-          Object.entries(actions).map(([id, act]) => (
+          view.pageItems.map(([id, act]) => (
             <div key={id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{act.name}</div>
@@ -512,6 +562,8 @@ export default function ActionsTab({ actions, allowedActionTypes = ['keyboard'],
           ))
         )}
       </div>
+
+      <Pagination view={view} noun={view.total === 1 ? 'acción' : 'acciones'} />
 
       <style>{`
         @keyframes fadeInDown {

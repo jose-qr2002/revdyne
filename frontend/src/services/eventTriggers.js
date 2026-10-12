@@ -32,6 +32,10 @@ export const TRIGGER_GROUPS = [
   ] },
 ];
 
+// Todos los disparadores en una lista plana y su nombre (para buscar y filtrar)
+export const TRIGGER_ITEMS = TRIGGER_GROUPS.flatMap(g => g.items);
+export const triggerLabel = (id) => TRIGGER_ITEMS.find(i => i.id === id)?.label || id;
+
 // Disparadores que se repiten mucho: llevan frecuencia por usuario (una vez, siempre o con enfriamiento)
 export const FREQUENCY_TRIGGERS = ['join', 'share', 'superfan', 'chat', 'chattext'];
 export const defaultFrequency = (trigger) => (trigger === 'chat' || trigger === 'chattext' ? 'always' : 'once');
